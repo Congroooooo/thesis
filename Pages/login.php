@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="form-group">
                         <div class="input-icon">
                             <i class="fas fa-envelope"></i>
-                            <input type="email" id="email" name="email" placeholder="Email Address" required>
+                            <input type="email" id="email" name="email" placeholder="School Account" required>
                         </div>
                     </div>
                     <div class="form-group">

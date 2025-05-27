@@ -179,6 +179,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
                                     <span>₱<?php echo number_format($total_amount, 2); ?></span>
                                 </div>
                             </div>
+                            <?php if (in_array($order['status'], ['approved', 'completed'])): ?>
+                                <div style="margin-top: 1rem; text-align: right;">
+                                    <a href="../Backend/generate_receipt.php?order_id=<?php echo $order['id']; ?>" class="download-receipt-btn" target="_blank" style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
+                                        <i class="fas fa-file-pdf"></i> Download Receipt
+                                    </a>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>

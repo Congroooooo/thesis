@@ -167,9 +167,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Update order status
-        $updateStmt = $conn->prepare("UPDATE pre_orders SET status = ? WHERE id = ?");
-        if (!$updateStmt->execute([$status, $order_id])) {
-            throw new Exception('Failed to update order status');
+        if ($status === 'approved') {
+            $staff_name = isset($_SESSION['first_name'], $_SESSION['last_name']) ? $_SESSION['first_name'] . ' ' . $_SESSION['last_name'] : '';
+            $updateStmt = $conn->prepare("UPDATE pre_orders SET status = ?, approved_by = ? WHERE id = ?");
+            if (!$updateStmt->execute([$status, $staff_name, $order_id])) {
+                throw new Exception('Failed to update order status with staff name');
+            }
+        } else {
+            $updateStmt = $conn->prepare("UPDATE pre_orders SET status = ? WHERE id = ?");
+            if (!$updateStmt->execute([$status, $order_id])) {
+                throw new Exception('Failed to update order status');
+            }
         }
         
         // If status is completed, record the payment date
@@ -177,6 +185,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $paymentDateStmt = $conn->prepare("UPDATE pre_orders SET payment_date = NOW() WHERE id = ?");
             if (!$paymentDateStmt->execute([$order_id])) {
                 throw new Exception('Failed to record payment date');
+            }
+            // If approved_by is still NULL, set it now
+            if (empty($order['approved_by'])) {
+                $staff_name = isset($_SESSION['first_name'], $_SESSION['last_name']) ? $_SESSION['first_name'] . ' ' . $_SESSION['last_name'] : '';
+                if ($staff_name) {
+                    $setStaffStmt = $conn->prepare("UPDATE pre_orders SET approved_by = ? WHERE id = ?");
+                    $setStaffStmt->execute([$staff_name, $order_id]);
+                }
             }
         }
 

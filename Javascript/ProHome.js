@@ -20,9 +20,7 @@ function showHeroSlides() {
   heroSlideIndex = (heroSlideIndex + 1) % heroSlides.length;
 }
 
-// Initialize first slide
 heroSlides[0].classList.add("active");
-// Change slide every 5 seconds
 setInterval(showHeroSlides, 5000);
 
 const hamburger = document.querySelector(".hamburger");

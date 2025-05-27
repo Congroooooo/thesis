@@ -21,8 +21,7 @@
     include("../Includes/Header.php");
     include("../Includes/connection.php");
     ?>
-    
-    <!-- Hero Section -->
+
     <section class="Hero">
         <div class="hero-slideshow">
             <div class="hero-slide"
