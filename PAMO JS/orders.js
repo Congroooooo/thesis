@@ -1,13 +1,13 @@
 // REMOVE or comment out the following lines to prevent JS errors:
-// document.addEventListener("DOMContentLoaded", initializePreOrders);
+// document.addEventListener("DOMContentLoaded", initializeOrders);
 
-// Create pre-order card
-function createPreOrderCard(order) {
+// Create order card
+function createOrderCard(order) {
   const div = document.createElement("div");
-  div.className = "preorder-card";
+  div.className = "order-card";
 
   div.innerHTML = `
-        <div class="preorder-header">
+        <div class="order-header">
             <div class="student-info">
                 <img src="${
                   order.studentPhoto
@@ -59,13 +59,13 @@ document.querySelectorAll(".tab").forEach((tab) => {
       .querySelectorAll(".tab")
       .forEach((t) => t.classList.remove("active"));
     this.classList.add("active");
-    // initializePreOrders();
+    // initializeOrders();
   });
 });
 
 // Modal functions
 function openReviewModal(orderId, action) {
-  const order = preOrders.find((o) => o.id === orderId);
+  const order = orders.find((o) => o.id === orderId);
   if (!order) return;
 
   const modal = document.getElementById("reviewModal");
@@ -104,17 +104,17 @@ function approveOrder() {
   }
 
   // Here you would typically send this to your backend
-  showNotification("Pre-order approved! Student will be notified.");
+  showNotification("Order approved! Student will be notified.");
   closeModal();
-  // initializePreOrders();
+  // initializeOrders();
 }
 
 function rejectOrder() {
   const notes = document.getElementById("notes").value;
   // Here you would typically send this to your backend
-  showNotification("Pre-order rejected. Student will be notified.");
+  showNotification("Order rejected. Student will be notified.");
   closeModal();
-  // initializePreOrders();
+  // initializeOrders();
 }
 
 function closeModal() {
@@ -157,14 +157,14 @@ function logout() {
   }
 }
 
-// --- Unified Preorder Receipt Modal Logic ---
+// --- Unified Order Receipt Modal Logic ---
 
 let currentOrderId = null;
 
-function showPreorderReceipt(orderId) {
+function showOrderReceipt(orderId) {
   currentOrderId = orderId;
-  console.log("[DEBUG] showPreorderReceipt called with orderId:", orderId);
-  const order = (window.PREORDERS || []).find(
+  console.log("[DEBUG] showOrderReceipt called with orderId:", orderId);
+  const order = (window.ORDERS || []).find(
     (o) => String(o.id) === String(orderId)
   );
   console.log("[DEBUG] Found order:", order);
@@ -282,21 +282,21 @@ function showPreorderReceipt(orderId) {
       <div class="receipt-half">${renderReceipt("STUDENT COPY")}</div>
     </div>
   `;
-  const receiptContainer = document.getElementById("preorderReceiptBody");
+  const receiptContainer = document.getElementById("orderReceiptBody");
   receiptContainer.innerHTML = ""; // Prevent duplication
   receiptContainer.innerHTML = html;
-  document.getElementById("preorderReceiptModal").style.display = "block";
+  document.getElementById("orderReceiptModal").style.display = "block";
   console.log("[DEBUG] Modal should now be visible");
 }
 
-function printPreorderReceipt() {
-  const receiptHtml = document.getElementById("preorderReceiptBody").innerHTML;
+function printOrderReceipt() {
+  const receiptHtml = document.getElementById("orderReceiptBody").innerHTML;
   const printWindow = window.open("", "_blank", "width=900,height=1200");
   printWindow.document.write(`
     <html>
       <head>
         <title>Print Receipt</title>
-        <link rel="stylesheet" href="../PAMO CSS/preorders.css">
+        <link rel="stylesheet" href="../PAMO CSS/orders.css">
         <style>
           @media print {
             @page { size: A4; margin: 0; }
@@ -313,10 +313,10 @@ function printPreorderReceipt() {
   `);
   printWindow.document.close();
   setTimeout(function () {
-    var modal = document.getElementById("preorderReceiptModal");
+    var modal = document.getElementById("orderReceiptModal");
     if (modal) {
       modal.style.display = "none";
-      document.getElementById("preorderReceiptBody").innerHTML = "";
+      document.getElementById("orderReceiptBody").innerHTML = "";
     }
     // Reload the page to update the order status and UI
     setTimeout(function () {
@@ -325,14 +325,14 @@ function printPreorderReceipt() {
   }, 500);
 }
 
-function closePreorderReceiptModal() {
-  document.getElementById("preorderReceiptModal").style.display = "none";
+function closeOrderReceiptModal() {
+  document.getElementById("orderReceiptModal").style.display = "none";
 }
 
 function confirmAndCompleteOrder() {
   if (currentOrderId) {
     updateOrderStatus(currentOrderId, "completed");
-    closePreorderReceiptModal();
+    closeOrderReceiptModal();
   }
 }
 
@@ -349,7 +349,7 @@ document.addEventListener("click", function (e) {
     let orderId = btn.getAttribute("data-order-id");
     if (orderId) {
       updateOrderStatus(orderId, "completed", function () {
-        showPreorderReceipt(orderId);
+        showOrderReceipt(orderId);
       });
     } else {
       console.warn("[DEBUG] No orderId found on button");

@@ -8,7 +8,7 @@ $status = isset($_GET['status']) ? $_GET['status'] : '';
 // Build the query based on status
 $query = "
     SELECT po.*, a.first_name, a.last_name, a.email, a.program_or_position, a.id_number
-    FROM pre_orders po
+    FROM orders po
     JOIN account a ON po.user_id = a.id
 ";
 
@@ -57,7 +57,7 @@ unset($order);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PAMO - Orders</title>
     <link rel="stylesheet" href="../PAMO CSS/styles.css">
-    <link rel="stylesheet" href="../PAMO CSS/preorders.css">
+    <link rel="stylesheet" href="../PAMO CSS/orders.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -90,7 +90,7 @@ unset($order);
                 </div>
             </header>
 
-            <div class="preorders-content">
+            <div class="orders-content">
                 <div class="orders-grid">
                     <?php if (!empty($orders)): ?>
                         <?php foreach ($orders as $order): 
@@ -174,7 +174,7 @@ unset($order);
                     <?php else: ?>
                         <div class="no-orders">
                             <i class="material-icons">shopping_cart</i>
-                            <p>No pre-orders found</p>
+                            <p>No orders found</p>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -182,19 +182,19 @@ unset($order);
         </main>
     </div>
 
-    <!-- Preorder Receipt Modal (hidden by default) -->
-    <div id="preorderReceiptModal" class="modal">
+    <!-- Order Receipt Modal (hidden by default) -->
+    <div id="orderReceiptModal" class="modal">
         <div class="modal-card">
             <div class="modal-header">
                 <h2>Sales Receipt</h2>
-                <span class="close" onclick="closePreorderReceiptModal()">&times;</span>
+                <span class="close" onclick="closeOrderReceiptModal()">&times;</span>
             </div>
-            <div class="modal-body" id="preorderReceiptBody">
+            <div class="modal-body" id="orderReceiptBody">
                 <!-- Receipt content will be injected here -->
             </div>
             <div class="modal-footer">
-                <button type="button" onclick="printPreorderReceipt()" class="save-btn">Print</button>
-                <button type="button" onclick="closePreorderReceiptModal()" class="cancel-btn">Close</button>
+                <button type="button" onclick="printOrderReceipt()" class="save-btn">Print</button>
+                <button type="button" onclick="closeOrderReceiptModal()" class="cancel-btn">Close</button>
             </div>
         </div>
     </div>
@@ -213,16 +213,16 @@ unset($order);
 
         // Filter by status
         function filterByStatus(status) {
-            window.location.href = `preorders.php?status=${status}`;
+            window.location.href = `orders.php?status=${status}`;
         }
 
         // Expose PHP $orders as a JS object for use in modal logic
-        window.PREORDERS = <?php echo json_encode($orders); ?>;
+        window.ORDERS = <?php echo json_encode($orders); ?>;
         // Expose PAMO user name for receipt
         window.PAMO_USER = { name: "<?php echo addslashes($_SESSION['name'] ?? ''); ?>" };
     </script>
 
-    <script src="../PAMO JS/preorders.js"></script>
+    <script src="../PAMO JS/orders.js"></script>
 </body>
 
 </html>

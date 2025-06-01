@@ -1,4 +1,4 @@
-.preorder-filters {
+.order-filters {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -25,7 +25,7 @@
   color: white;
 }
 
-.preorder-card {
+.order-card {
   background-color: white;
   border-radius: 12px;
   padding: 20px;
@@ -33,7 +33,7 @@
   box-shadow: var(--card-shadow);
 }
 
-.preorder-header {
+.order-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -122,7 +122,7 @@
 }
 
 /* Modal Specific Styles */
-.preorder-details {
+.order-details {
   margin-top: 20px;
 }
 
@@ -189,7 +189,7 @@
   }
 }
 
-.preorders-content {
+.orders-content {
   padding: 20px;
 }
 
@@ -708,7 +708,7 @@
   align-items: center;
 }
 
-/* Receipt Styles for Preorder Modal (match inventory) */
+/* Receipt Styles for Order Modal (match inventory) */
 .receipt-a4 {
   width: 210mm;
   height: 297mm;
@@ -894,11 +894,11 @@
   body * {
     visibility: hidden !important;
   }
-  #preorderReceiptModal,
-  #preorderReceiptModal * {
+  #orderReceiptModal,
+  #orderReceiptModal * {
     visibility: visible !important;
   }
-  #preorderReceiptModal {
+  #orderReceiptModal {
     position: fixed !important;
     left: 0;
     top: 0;

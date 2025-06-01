@@ -30,16 +30,16 @@ if (!empty($selected_items)) {
     $date_part = date('md');
     $today = date('Y-m-d');
     $like_pattern = $prefix . '-' . $date_part . '-%';
-    // Get the last order_number from pre_orders
-    $stmt1 = $conn->prepare("SELECT order_number FROM pre_orders WHERE order_number LIKE ? ORDER BY id DESC LIMIT 1");
+    // Get the last order_number from orders
+    $stmt1 = $conn->prepare("SELECT order_number FROM orders WHERE order_number LIKE ? ORDER BY id DESC LIMIT 1");
     $stmt1->execute([$like_pattern]);
-    $last_preorder = $stmt1->fetch(PDO::FETCH_ASSOC);
+    $last_order = $stmt1->fetch(PDO::FETCH_ASSOC);
     // Get the last transaction_number from sales
     $stmt2 = $conn->prepare("SELECT transaction_number FROM sales WHERE transaction_number LIKE ? ORDER BY id DESC LIMIT 1");
     $stmt2->execute([$like_pattern]);
     $last_sales = $stmt2->fetch(PDO::FETCH_ASSOC);
     $last_seq = 0;
-    if ($last_preorder && preg_match('/(\d{6})$/', $last_preorder['order_number'], $matches1)) {
+    if ($last_order && preg_match('/(\d{6})$/', $last_order['order_number'], $matches1)) {
         $last_seq = max($last_seq, (int)$matches1[1]);
     }
     if ($last_sales && preg_match('/(\d{6})$/', $last_sales['transaction_number'], $matches2)) {
@@ -58,7 +58,7 @@ try {
     }
     unset($item);
     $stmt = $conn->prepare("
-        INSERT INTO pre_orders (order_number, user_id, items, phone, total_amount, status, payment_date) 
+        INSERT INTO orders (order_number, user_id, items, phone, total_amount, status, payment_date) 
         VALUES (?, ?, ?, ?, ?, 'pending', NULL)
     ");
     $stmt->execute([

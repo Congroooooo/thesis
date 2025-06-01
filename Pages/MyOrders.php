@@ -12,7 +12,7 @@ if (!isset($_SESSION['user_id'])) {
 $status_filter = isset($_GET['status']) ? $_GET['status'] : 'all';
 
 // Fetch user's orders with filter
-$query = "SELECT * FROM pre_orders WHERE user_id = ?";
+$query = "SELECT * FROM orders WHERE user_id = ?";
 if ($status_filter !== 'all') {
     $query .= " AND status = ?";
 }
@@ -29,7 +29,7 @@ $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
     $cancel_order_id = $_POST['cancel_order_id'];
     // Only allow cancel if the order is still pending and belongs to this user
-    $stmt = $conn->prepare("UPDATE pre_orders SET status = 'cancelled' WHERE id = ? AND user_id = ? AND status = 'pending'");
+    $stmt = $conn->prepare("UPDATE orders SET status = 'cancelled' WHERE id = ? AND user_id = ? AND status = 'pending'");
     $stmt->execute([$cancel_order_id, $_SESSION['user_id']]);
 
     // Add strike and cooldown for cancellation (same as voided)
@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
     }
 
     // Log activity for each item in the cancelled order
-    $order_stmt = $conn->prepare("SELECT * FROM pre_orders WHERE id = ? AND user_id = ?");
+    $order_stmt = $conn->prepare("SELECT * FROM orders WHERE id = ? AND user_id = ?");
     $order_stmt->execute([$cancel_order_id, $_SESSION['user_id']]);
     $order = $order_stmt->fetch(PDO::FETCH_ASSOC);
     if ($order) {

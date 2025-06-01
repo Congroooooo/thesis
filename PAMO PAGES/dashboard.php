@@ -7,7 +7,7 @@ $total_items_query = "SELECT SUM(actual_quantity) as total FROM inventory";
 $total_result = $conn->query($total_items_query);
 $total_items = $total_result->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 
-$pending_orders_query = "SELECT COUNT(*) as pending FROM pre_orders WHERE status = 'pending'";
+$pending_orders_query = "SELECT COUNT(*) as pending FROM orders WHERE status = 'pending'";
 $pending_result = $conn->query($pending_orders_query);
 $pending_orders = $pending_result->fetch(PDO::FETCH_ASSOC)['pending'] ?? 0;
 
@@ -54,7 +54,7 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
                         </div>
                         <i class="material-icons">inventory</i>
                     </div>
-                    <div class="card" onclick="window.location.href='preorders.php?status=pending'">
+                    <div class="card" onclick="window.location.href='orders.php?status=pending'">
                         <div class="card-content">
                             <h3>Pending Orders</h3>
                             <h2><?php echo number_format($pending_orders); ?></h2>

@@ -28,14 +28,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $userRow = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($userRow) {
                     if ($userRow['is_strike']) {
-                        $response['message'] = 'You are temporarily blocked from pre-ordering due to repeated unclaimed orders. Please contact admin.';
+                        $response['message'] = 'You are temporarily blocked from ordering due to repeated unclaimed orders. Please contact admin.';
                         break;
                     }
                     if ($userRow['last_strike_time']) {
                         $lastStrike = strtotime($userRow['last_strike_time']);
                         $now = time();
                         if ($now - $lastStrike < 300) { // 300 seconds = 5 minutes
-                            $response['message'] = 'You recently cancelled or failed to claim a pre-order. As a penalty, you cannot place a new pre-order for 5 minutes. Please try again later.';
+                            $response['message'] = 'You recently cancelled or failed to claim an order. As a penalty, you cannot place a new order for 5 minutes. Please try again later.';
                             break;
                         } else {
                             // Auto-clear last_strike_time after cooldown
@@ -55,11 +55,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     break;
                 }
 
-                // Get reserved stock in pre_orders (pending/approved)
+                // Get reserved stock in orders (pending/approved)
                 $reserved = 0;
-                $preOrderStmt = $conn->prepare("SELECT items FROM pre_orders WHERE status IN ('pending', 'approved')");
-                $preOrderStmt->execute();
-                while ($row = $preOrderStmt->fetch(PDO::FETCH_ASSOC)) {
+                $orderStmt = $conn->prepare("SELECT items FROM orders WHERE status IN ('pending', 'approved')");
+                $orderStmt->execute();
+                while ($row = $orderStmt->fetch(PDO::FETCH_ASSOC)) {
                     $orderItems = json_decode($row['items'], true);
                     if (is_array($orderItems)) {
                         foreach ($orderItems as $orderItem) {

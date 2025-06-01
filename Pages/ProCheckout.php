@@ -67,7 +67,7 @@ $_SESSION['checkout_total'] = $total_amount;
         <div class="process-steps">
             <div class="step completed">1. Pre Order Cart</div>
             <div class="step active">2. Checkout Details</div>
-            <div class="step">3. Pre Order Details</div>
+            <div class="step">3. Order Details</div>
         </div>
 
         <div class="checkout-content">

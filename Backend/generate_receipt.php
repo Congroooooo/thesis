@@ -14,7 +14,7 @@ $order_id = isset($_GET['order_id']) ? intval($_GET['order_id']) : 0;
 if (!$order_id) die('No order ID');
 
 // Fetch order and check ownership
-$stmt = $conn->prepare('SELECT * FROM pre_orders WHERE id = ? AND user_id = ?');
+$stmt = $conn->prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?');
 $stmt->execute([$order_id, $_SESSION['user_id']]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$order || !in_array($order['status'], ['approved', 'completed'])) die('Order not found or not approved/completed');

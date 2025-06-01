@@ -23,11 +23,11 @@ try {
 } catch (Exception $e) {
     $newInquiries = 0;
 }
-// Notification badge for pending pre-orders
+// Notification badge for pending orders
 $pendingOrdersCount = 0;
 try {
     include_once __DIR__ . '/../../Includes/connection.php';
-    $stmtPendingOrders = $conn->prepare("SELECT COUNT(*) FROM pre_orders WHERE status = 'pending'");
+    $stmtPendingOrders = $conn->prepare("SELECT COUNT(*) FROM orders WHERE status = 'pending'");
     $stmtPendingOrders->execute();
     $pendingOrdersCount = $stmtPendingOrders->fetchColumn();
 } catch (Exception $e) {
@@ -52,8 +52,8 @@ try {
             <span class="active-bar"></span>
             <i class="material-icons">inventory_2</i>Inventory
         </li>
-        <li <?php echo basename($_SERVER['PHP_SELF']) == 'preorders.php' ? 'class="active"' : ''; ?>
-            onclick="window.location.href='<?php echo $basePath; ?>preorders.php'">
+        <li <?php echo basename($_SERVER['PHP_SELF']) == 'orders.php' ? 'class="active"' : ''; ?>
+            onclick="window.location.href='<?php echo $basePath; ?>orders.php'">
             <span class="active-bar"></span>
             <i class="material-icons">shopping_cart</i>Orders
             <?php if (isset($pendingOrdersCount) && $pendingOrdersCount > 0): ?>
