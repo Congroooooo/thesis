@@ -24,7 +24,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Set the full name for PAMO user display
             $_SESSION['name'] = $user['first_name'] . ' ' . $user['last_name'];
 
-            // Check if there's a redirect parameter
             if (isset($_GET['redirect'])) {
                 $redirect = $_GET['redirect'];
                 header("Location: $redirect");
@@ -42,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit();
             }
         } else {
-            header("Location: login.php?error=incorrect_password");
+            header("Location: login.php?error=incorrect_password&email=" . urlencode($username));
             exit();
         }
     } else {
@@ -60,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STI Login</title>
     <link rel="stylesheet" href="../CSS/login.css">
+    <script src="../Javascript/login.js"></script>
 </head>
 
 <body>
@@ -77,13 +77,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="form-group">
                         <div class="input-icon">
                             <i class="fas fa-envelope"></i>
-                            <input type="email" id="email" name="email" placeholder="School Account" required>
+                            <input type="email" id="email" name="email" placeholder="School Account" required 
+                                value="<?php echo isset($_GET['error']) && $_GET['error'] === 'incorrect_password' ? htmlspecialchars($_GET['email']) : ''; ?>">
                         </div>
                     </div>
                     <div class="form-group">
                         <div class="input-icon">
                             <i class="fas fa-lock"></i>
                             <input type="password" id="password" name="password" placeholder="Password" required>
+                            <i class="fas fa-eye toggle-password" id="togglePassword"></i>
                         </div>
                     </div>
                     <button type="submit" class="login-btn">

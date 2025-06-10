@@ -100,6 +100,17 @@ h2 {
   font-size: 0.9rem;
 }
 
+.toggle-password {
+  left: auto !important;
+  right: 12px !important;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.toggle-password:hover {
+  color: #003d82;
+}
+
 .form-group input {
   width: 100%;
   padding: 0.875rem 0.875rem 0.875rem 35px;
