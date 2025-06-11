@@ -37,13 +37,6 @@ if (isset($_SESSION['user_id'])) {
             <li><a href="ProItemList.php"
                     class="<?php echo ($current_page == 'ProItemList.php') ? 'active' : ''; ?>">Item List</a></li>
             <?php if (isset($_SESSION['user_id'])): ?>
-                <li><a href="MyCart.php"
-                        class="<?php echo ($current_page == 'MyCart.php') ? 'active' : ''; ?>">My Cart</a></li>
-            <?php else: ?>
-                <li><a href="javascript:void(0)" onclick="redirectToLogin('MyCart.php')"
-                        class="<?php echo ($current_page == 'MyCart.php') ? 'active' : ''; ?>">My Cart</a></li>
-            <?php endif; ?>
-            <?php if (isset($_SESSION['user_id'])): ?>
                 <li><a href="ProPreOrder.php"
                         class="<?php echo ($current_page == 'ProPreOrder.php') ? 'active' : ''; ?>">Place Order</a></li>
             <?php else: ?>
@@ -186,7 +179,6 @@ if (isset($_SESSION['user_id'])) {
         <?php endif; ?>
     }
 
-    // Add sign out function with confirmation
     function signOut(event) {
         event.preventDefault();
         if (confirm("Are you sure you want to log out?")) {
@@ -194,8 +186,7 @@ if (isset($_SESSION['user_id'])) {
         }
     }
 
-    // Function to fade out the welcome message after 5 seconds
-    window.onload = function () {
+     /* window.onload = function () {
         const welcomeMessage = document.getElementById('welcomeMessage');
         if (welcomeMessage) {
             setTimeout(() => {
@@ -204,6 +195,7 @@ if (isset($_SESSION['user_id'])) {
             }, 5000);
         }
     };
+    */
 
     // Header functionality
     document.addEventListener('DOMContentLoaded', function() {
