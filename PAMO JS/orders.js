@@ -160,6 +160,7 @@ function logout() {
 // --- Unified Order Receipt Modal Logic ---
 
 let currentOrderId = null;
+let currentRejectionOrderId = null;
 
 function showOrderReceipt(orderId) {
   currentOrderId = orderId;
@@ -358,13 +359,20 @@ document.addEventListener("click", function (e) {
 });
 
 // Update updateOrderStatus to accept a callback
-function updateOrderStatus(orderId, status, callback) {
+function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
+  const data = new URLSearchParams();
+  data.append('order_id', orderId);
+  data.append('status', status);
+  if (rejectionReason) {
+    data.append('rejection_reason', rejectionReason);
+  }
+
   fetch("update_order_status.php", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: `order_id=${orderId}&status=${status}`,
+    body: data.toString()
   })
     .then((response) => response.json())
     .then((data) => {
@@ -383,4 +391,28 @@ function updateOrderStatus(orderId, status, callback) {
       console.error("Error:", error);
       alert("Error updating order status. Check console for details.");
     });
+}
+
+function showRejectionModal(orderId) {
+  currentRejectionOrderId = orderId;
+  document.getElementById('rejectionModal').style.display = 'block';
+  document.getElementById('rejectionReason').value = '';
+}
+
+function closeRejectionModal() {
+  document.getElementById('rejectionModal').style.display = 'none';
+  currentRejectionOrderId = null;
+}
+
+function submitRejection() {
+  const reason = document.getElementById('rejectionReason').value.trim();
+  if (!reason) {
+    alert('Please provide a reason for rejection');
+    return;
+  }
+  
+  if (currentRejectionOrderId) {
+    updateOrderStatus(currentRejectionOrderId, 'rejected', null, reason);
+    closeRejectionModal();
+  }
 }

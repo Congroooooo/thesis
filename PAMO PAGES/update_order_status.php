@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $order_id = $_POST['order_id'];
     $status = $_POST['status'];
+    $rejection_reason = isset($_POST['rejection_reason']) ? $_POST['rejection_reason'] : null;
 
     try {
         // Start transaction
@@ -173,6 +174,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$updateStmt->execute([$status, $staff_name, $order_id])) {
                 throw new Exception('Failed to update order status with staff name');
             }
+        } else if ($status === 'rejected' && $rejection_reason) {
+            $updateStmt = $conn->prepare("UPDATE orders SET status = ?, rejection_reason = ? WHERE id = ?");
+            if (!$updateStmt->execute([$status, $rejection_reason, $order_id])) {
+                throw new Exception('Failed to update order status with rejection reason');
+            }
         } else {
             $updateStmt = $conn->prepare("UPDATE orders SET status = ? WHERE id = ?");
             if (!$updateStmt->execute([$status, $order_id])) {
@@ -249,10 +255,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Create notification message based on status  
-        $message = "Your order #{$order['order_number']} has been " . 
-                  ($status === 'approved' ? 'approved! You can now proceed with the payment.' : 
-                  ($status === 'rejected' ? 'rejected.' :
-                  ($status === 'completed' ? 'completed. Thank you for your purchase!' : 'updated.')));
+        if ($status === 'rejected') {
+            $reasonText = $rejection_reason ? "<br><span class='rejection-reason'>Reason: " . htmlspecialchars($rejection_reason) . "</span>" : "";
+            $message = "Your order #{$order['order_number']} has been rejected." . $reasonText;
+        } else {
+            $message = "Your order #{$order['order_number']} has been " . 
+                ($status === 'approved' ? 'approved! You can now proceed with the payment.' : 
+                ($status === 'completed' ? 'completed. Thank you for your purchase!' : 'updated.'));
+        }
 
         try {
             error_log("Creating notification for user: " . $order['user_id']);

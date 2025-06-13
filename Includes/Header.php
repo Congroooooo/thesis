@@ -271,7 +271,7 @@ if (isset($_SESSION['user_id'])) {
                                     <div class="notification-item ${notification.is_read ? '' : 'unread'}" 
                                          onclick="markNotificationAsRead(${notification.id})"
                                          data-timestamp="${timestamp}">
-                                        <p class="notification-message">${notification.message}</p>
+                                        <p class="notification-message"></p>
                                         <span class="notification-status ${notification.type}">
                                             ${notification.type.charAt(0).toUpperCase() + notification.type.slice(1)}
                                         </span>
@@ -279,6 +279,11 @@ if (isset($_SESSION['user_id'])) {
                                     </div>
                                 `;
                             }).join('');
+                            // Set innerHTML for notification-message after rendering
+                            container.querySelectorAll('.notification-item').forEach((item, idx) => {
+                                const notification = data.notifications[idx];
+                                item.querySelector('.notification-message').innerHTML = notification.message;
+                            });
                         } else {
                             container.innerHTML = '<p class="empty-notification-message">No notifications</p>';
                         }
@@ -1931,4 +1936,17 @@ document.addEventListener('DOMContentLoaded', function() {
         -ms-overflow-style: none;  /* IE and Edge */
         scrollbar-width: none;     /* Firefox */
     }
+</style>
+<style>
+.rejection-reason {
+    display: block;
+    color: #c62828;
+    background: #ffebee;
+    border-left: 4px solid #dc3545;
+    padding: 6px 12px;
+    margin-top: 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.97em;
+}
 </style>

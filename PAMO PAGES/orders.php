@@ -158,7 +158,7 @@ unset($order);
                                         <button class="accept-btn" onclick="updateOrderStatus(<?php echo $order['id']; ?>, 'approved')">
                                             <i class="fas fa-check"></i> Accept
                                         </button>
-                                        <button class="reject-btn" onclick="updateOrderStatus(<?php echo $order['id']; ?>, 'rejected')">
+                                        <button class="reject-btn" onclick="showRejectionModal(<?php echo $order['id']; ?>)">
                                             <i class="fas fa-times"></i> Reject
                                         </button>
                                     </div>
@@ -195,6 +195,26 @@ unset($order);
             <div class="modal-footer">
                 <button type="button" onclick="printOrderReceipt()" class="save-btn">Print</button>
                 <button type="button" onclick="closeOrderReceiptModal()" class="cancel-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rejection Reason Modal -->
+    <div id="rejectionModal" class="modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Reject Order</h2>
+                <span class="close" onclick="closeRejectionModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="rejectionReason">Reason for Rejection:</label>
+                    <textarea id="rejectionReason" rows="4" placeholder="Please provide a reason for rejecting this order..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="submitRejection()" class="save-btn">Submit</button>
+                <button type="button" onclick="closeRejectionModal()" class="cancel-btn">Cancel</button>
             </div>
         </div>
     </div>
