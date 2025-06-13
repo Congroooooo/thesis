@@ -1,47 +1,43 @@
 <?php
 header('Content-Type: application/json');
 
-$conn = mysqli_connect("localhost", "root", "", "proware");
-if (!$conn) {
-    echo json_encode(['success' => false, 'message' => 'Connection failed: ' . mysqli_connect_error()]);
-    exit;
-}
+try {
+    $pdo = new PDO("mysql:host=localhost;dbname=proware", "root", "");
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-$prefix = 'SI';
-$date_part = date('md');
-$like_pattern = $prefix . '-' . $date_part . '-%';
+    $prefix = 'SI';
+    $date_part = date('md');
+    $like_pattern = $prefix . '-' . $date_part . '-%';
 
-// Get the last order_number from pre_orders
-$sql1 = "SELECT order_number FROM pre_orders WHERE order_number LIKE ? ORDER BY id DESC LIMIT 1";
-$stmt1 = $conn->prepare($sql1);
-$stmt1->bind_param("s", $like_pattern);
-$stmt1->execute();
-$result1 = $stmt1->get_result();
-$last_preorder = $result1->fetch_assoc();
-$stmt1->close();
+    // Use a single query to get the max suffix from both tables
+    $sql = "
+        SELECT MAX(seq) AS max_seq FROM (
+            SELECT CAST(SUBSTRING(order_number, 10) AS UNSIGNED) AS seq
+            FROM `orders`
+            WHERE order_number LIKE ?
+            UNION ALL
+            SELECT CAST(SUBSTRING(transaction_number, 10) AS UNSIGNED) AS seq
+            FROM sales
+            WHERE transaction_number LIKE ?
+        ) AS all_orders
+    ";
 
-// Get the last transaction_number from sales
-$sql2 = "SELECT transaction_number FROM sales WHERE transaction_number LIKE ? ORDER BY id DESC LIMIT 1";
-$stmt2 = $conn->prepare($sql2);
-$stmt2->bind_param("s", $like_pattern);
-$stmt2->execute();
-$result2 = $stmt2->get_result();
-$last_sales = $result2->fetch_assoc();
-$stmt2->close();
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$like_pattern, $like_pattern]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-$last_seq = 0;
-if ($last_preorder && preg_match('/(\d{6})$/', $last_preorder['order_number'], $matches1)) {
-    $last_seq = max($last_seq, (int)$matches1[1]);
-}
-if ($last_sales && preg_match('/(\d{6})$/', $last_sales['transaction_number'], $matches2)) {
-    $last_seq = max($last_seq, (int)$matches2[1]);
-}
-$new_seq = $last_seq + 1;
-$next_order_number = sprintf('%s-%s-%06d', $prefix, $date_part, $new_seq);
+    $last_seq = $row && $row['max_seq'] ? (int)$row['max_seq'] : 0;
+    $new_seq = $last_seq + 1;
+    $next_order_number = sprintf('%s-%s-%06d', $prefix, $date_part, $new_seq);
 
-echo json_encode([
-    'success' => true,
-    'next_transaction_number' => $next_order_number
-]);
+    echo json_encode([
+        'success' => true,
+        'transaction_number' => $next_order_number
+    ]);
 
-$conn->close(); 
+} catch (PDOException $e) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Database error: ' . $e->getMessage()
+    ]);
+} 

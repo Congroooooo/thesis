@@ -10,35 +10,33 @@ if (!$conn) {
     ]));
 }
 
-// Get item code and size from request
-$item_code = isset($_GET['item_code']) ? mysqli_real_escape_string($conn, $_GET['item_code']) : '';
+$prefix = isset($_GET['prefix']) ? mysqli_real_escape_string($conn, $_GET['prefix']) : '';
 $size = isset($_GET['size']) ? mysqli_real_escape_string($conn, $_GET['size']) : '';
 
-if (empty($item_code) || empty($size)) {
+if (empty($prefix) || empty($size)) {
     die(json_encode([
         'success' => false,
-        'message' => 'Item code and size are required'
+        'message' => 'Prefix and size are required'
     ]));
 }
 
-// Get the price from inventory
-$sql = "SELECT price FROM inventory WHERE item_code = ? AND sizes LIKE ?";
+// Find the item with the matching prefix and size
+$sql = "SELECT price FROM inventory WHERE item_code LIKE ? AND sizes = ? LIMIT 1";
 $stmt = $conn->prepare($sql);
-$size_pattern = "%$size%";
-$stmt->bind_param("ss", $item_code, $size_pattern);
+$prefix_pattern = $prefix . '-%';
+$stmt->bind_param("ss", $prefix_pattern, $size);
 $stmt->execute();
 $result = $stmt->get_result();
-$item = $result->fetch_assoc();
 
-if ($item) {
+if ($row = $result->fetch_assoc()) {
     echo json_encode([
         'success' => true,
-        'price' => $item['price']
+        'price' => $row['price']
     ]);
 } else {
     echo json_encode([
         'success' => false,
-        'message' => 'Price not found for the selected item and size'
+        'message' => 'Item not found'
     ]);
 }
 

@@ -11,10 +11,10 @@ function showDeductQuantityModal() {
   // Auto-fill Transaction Number
   const transactionInput = document.getElementById("transactionNumber");
   if (transactionInput) {
-    fetch("../Backend/get_latest_transaction_number.php")
+    fetch("../PAMO Inventory backend/get_next_transaction_number.php")
       .then((response) => response.json())
       .then((data) => {
-        if (data.transaction_number) {
+        if (data.success && data.transaction_number) {
           transactionInput.value = data.transaction_number;
         } else {
           transactionInput.value = "";
@@ -139,28 +139,24 @@ function removeSalesItem(closeButton) {
 
 function updateItemPrice(sizeSelect) {
   const itemContainer = sizeSelect.closest(".sales-item");
+  const itemSelect = itemContainer.querySelector('select[name="itemId[]"]');
   const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
-  const itemCode = selectedOption.getAttribute("data-item-code");
-  const priceInput = itemContainer.querySelector(
-    'input[name="pricePerItem[]"]'
-  );
-  const quantityInput = itemContainer.querySelector(
-    'input[name="quantityToDeduct[]"]'
-  );
+  const prefix = itemSelect.value;
+  const size = sizeSelect.value;
+  const priceInput = itemContainer.querySelector('input[name="pricePerItem[]"]');
+  const quantityInput = itemContainer.querySelector('input[name="quantityToDeduct[]"]');
   const totalInput = itemContainer.querySelector('input[name="itemTotal[]"]');
 
-  if (!itemCode || !sizeSelect.value) {
+  if (!prefix || !size) {
     priceInput.value = "";
     totalInput.value = "";
     return;
   }
 
-  // Fetch the price from the server using the correct item_code
-  fetch(
-    `../PAMO Inventory backend/get_item_price.php?item_code=${itemCode}&size=${sizeSelect.value}`
-  )
-    .then((response) => response.json())
-    .then((data) => {
+  // Fetch the price from the server using the prefix and size
+  fetch(`../PAMO Inventory backend/get_item_price.php?prefix=${encodeURIComponent(prefix)}&size=${encodeURIComponent(size)}`)
+    .then(response => response.json())
+    .then(data => {
       if (data.success) {
         priceInput.value = data.price;
         if (quantityInput.value) {
@@ -172,8 +168,7 @@ function updateItemPrice(sizeSelect) {
         totalInput.value = "";
       }
     })
-    .catch((error) => {
-      console.error("Error getting price:", error);
+    .catch(() => {
       alert("Error getting price");
       priceInput.value = "";
       totalInput.value = "";
@@ -239,43 +234,47 @@ function validateProductSelection(selectElement) {
 }
 
 function updateAvailableSizes(itemSelect) {
-  const itemContainer = itemSelect.closest(".sales-item");
-  const sizeSelect = itemContainer.querySelector('select[name="size[]"]');
-  const itemCode = itemSelect.value;
+  const itemContainer = itemSelect ? itemSelect.closest(".sales-item") : null;
+  if (!itemContainer) return; // Guard: do not proceed if itemContainer is missing
+  const sizeSelect = itemContainer ? itemContainer.querySelector('select[name="size[]"]') : null;
+  if (!sizeSelect) return; // Guard: do not proceed if sizeSelect is missing
+  const prefix = itemSelect.value;
 
   // Clear previous options
   sizeSelect.innerHTML = '<option value="">Select Size</option>';
 
-  if (!itemCode) return;
+  if (!prefix) return;
 
-  // Use item_code param for backend
-  fetch(`../PAMO Inventory backend/get_item_sizes.php?item_code=${itemCode}`)
-    .then((response) => response.json())
-    .then((data) => {
+  // Fetch available sizes for the selected product
+  fetch(`../PAMO Inventory backend/get_unique_products.php?prefix=${encodeURIComponent(prefix)}`)
+    .then(response => response.json())
+    .then(data => {
       if (data.success) {
-        data.sizes.forEach((obj) => {
-          const option = document.createElement("option");
-          option.value = obj.size;
-          option.textContent = obj.size;
-          option.setAttribute("data-item-code", obj.item_code);
-          sizeSelect.appendChild(option);
-        });
+        const product = data.products.find(p => p.prefix === prefix);
+        if (product) {
+          product.available_sizes.forEach(size => {
+            const option = document.createElement("option");
+            option.value = size.size;
+            option.textContent = `${size.size} (${size.quantity} in stock)`;
+            option.setAttribute("data-quantity", size.quantity);
+            option.setAttribute("data-item-code", size.item_code);
+            option.setAttribute("data-category", size.category);
+            sizeSelect.appendChild(option);
+          });
+        }
       }
     })
-    .catch((error) => {
-      console.error("Error fetching sizes:", error);
+    .catch(() => {
+      alert("Error fetching sizes");
     });
 }
 
 function showSalesReceipt(formData) {
-  // Debug: Log the PAMO_USER object and preparedByName
-  console.log("DEBUG: window.PAMO_USER =", window.PAMO_USER);
   // Helper for the two copies
   function renderReceipt(copyLabel) {
     // Get the logged-in user's name from the global variable set by PHP
     const preparedByName =
       window.PAMO_USER && window.PAMO_USER.name ? window.PAMO_USER.name : "";
-    console.log("DEBUG: preparedByName =", preparedByName);
     // Render each item as its own row for proper alignment
     const dataRows = formData.itemNames
       .map((name, i) => {
@@ -626,42 +625,6 @@ function submitDeductQuantity(event) {
     const itemName = itemSelect
       ? itemSelect.options[itemSelect.selectedIndex].text
       : "";
-    let itemCategory = "";
-    if (window.jQuery && $(itemSelect).data("select2")) {
-      // Try to get from data-category first
-      itemCategory = $(itemSelect).find(":selected").data("category");
-      if (!itemCategory) {
-        // Fallback: parse from text
-        const text = $(itemSelect).find(":selected").text();
-        const dashIdx = text.lastIndexOf(" - ");
-        if (dashIdx !== -1) {
-          itemCategory = text.substring(dashIdx + 3).trim();
-        } else {
-          itemCategory = "";
-        }
-      }
-      console.log("Select2:", itemCategory, $(itemSelect).find(":selected")[0]);
-    } else {
-      itemCategory =
-        itemSelect.options[itemSelect.selectedIndex].getAttribute(
-          "data-category"
-        ) || "";
-      if (!itemCategory) {
-        // Fallback: parse from text
-        const text = itemSelect.options[itemSelect.selectedIndex].text;
-        const dashIdx = text.lastIndexOf(" - ");
-        if (dashIdx !== -1) {
-          itemCategory = text.substring(dashIdx + 3).trim();
-        } else {
-          itemCategory = "";
-        }
-      }
-      console.log(
-        "Native:",
-        itemCategory,
-        itemSelect.options[itemSelect.selectedIndex]
-      );
-    }
     const sizeSelect = item.querySelector('select[name="size[]"]');
     const quantityInput = item.querySelector(
       'input[name="quantityToDeduct[]"]'
@@ -690,7 +653,16 @@ function submitDeductQuantity(event) {
       return;
     }
 
-    itemIds.push(itemSelect.value);
+    // Get the full item code and category from the selected size option
+    const sizeOption = sizeSelect.options[sizeSelect.selectedIndex];
+    const fullItemCode = sizeOption.getAttribute('data-item-code');
+    const itemCategory = sizeOption.getAttribute('data-category') || "";
+    if (!fullItemCode) {
+      alert('Could not determine the full item code for item ' + (index + 1));
+      hasErrors = true;
+      return;
+    }
+    itemIds.push(fullItemCode);
     itemNames.push(itemName);
     itemCategories.push(itemCategory);
     sizes.push(sizeSelect.value);
@@ -714,33 +686,15 @@ function submitDeductQuantity(event) {
 
   formData.append("totalAmount", document.getElementById("totalAmount").value);
 
-  // Debug log
-  console.log("Sending data:", {
-    transactionNumber,
-    studentName,
-    studentIdNumber,
-    itemIds,
-    itemNames,
-    itemCategories,
-    sizes,
-    quantities,
-    prices,
-    itemTotals,
-    totalAmount: document.getElementById("totalAmount").value,
-  });
-
   fetch("../PAMO Inventory backend/process_deduct_quantity.php", {
     method: "POST",
     body: formData,
   })
     .then((response) => {
-      console.log("Response status:", response.status);
       return response.text().then((text) => {
-        console.log("Raw response:", text);
         try {
           return JSON.parse(text);
         } catch (e) {
-          console.error("Error parsing JSON:", e);
           throw new Error("Invalid JSON response from server");
         }
       });
@@ -766,8 +720,7 @@ function submitDeductQuantity(event) {
         alert("Error: " + (data.message || "Unknown error occurred"));
       }
     })
-    .catch((error) => {
-      console.error("Error:", error);
+    .catch(() => {
       alert(
         "An error occurred while processing your request. Check console for details."
       );

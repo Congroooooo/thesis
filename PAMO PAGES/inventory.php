@@ -548,10 +548,18 @@ function page_link($page, $query_string) {
                                     if (!$conn) {
                                         die("Connection failed: " . mysqli_connect_error());
                                     }
-                                    $sql = "SELECT item_code, item_name, category, price FROM inventory ORDER BY item_name";
+                                    // Get unique products based on item code prefix
+                                    $sql = "SELECT DISTINCT 
+                                            SUBSTRING_INDEX(item_code, '-', 1) as prefix,
+                                            item_name,
+                                            category
+                                            FROM inventory 
+                                            WHERE actual_quantity > 0
+                                            ORDER BY item_name";
                                     $result = mysqli_query($conn, $sql);
                                     while ($row = mysqli_fetch_assoc($result)) {
-                                        echo "<option value='" . $row['item_code'] . "' data-price='" . $row['price'] . "' data-category='" . htmlspecialchars($row['category'], ENT_QUOTES) . "'>" . $row['item_name'] . " (" . $row['item_code'] . ") - " . $row['category'] . "</option>";
+                                        echo "<option value='" . $row['prefix'] . "' data-category='" . htmlspecialchars($row['category'], ENT_QUOTES) . "'>" . 
+                                             $row['item_name'] . " (" . $row['prefix'] . ")</option>";
                                     }
                                     mysqli_close($conn);
                                     ?>
