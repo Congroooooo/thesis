@@ -39,6 +39,11 @@
                     <p><strong>Order Number:</strong> <span><?php echo htmlspecialchars($order_number); ?></span></p>
                     <p><strong>Date:</strong> <span><?php echo date('F d, Y'); ?></span></p>
                 </div>
+                <?php if (isset($order_status) && $order_status === 'rejected' && !empty($rejection_reason)): ?>
+                    <span class="rejection-reason">
+                        Reason: <?php echo htmlspecialchars($rejection_reason); ?>
+                    </span>
+                <?php endif; ?>
 
                 <div class="customer-info">
                     <h4>Customer Information</h4>

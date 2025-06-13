@@ -137,6 +137,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
                                 <span class="status-badge <?php echo $order['status']; ?>">
                                     <?php echo ucfirst($order['status']); ?>
                                 </span>
+                                <?php if ($order['status'] === 'rejected' && !empty($order['rejection_reason'])): ?>
+                                    <span class="rejection-reason">
+                                        Reason: <?php echo htmlspecialchars($order['rejection_reason']); ?>
+                                    </span>
+                                <?php endif; ?>
                                 <?php if ($order['status'] === 'pending'): ?>
                                     <form method="post" onsubmit="return confirm('Are you sure you want to cancel this order?');" style="display:inline;">
                                         <input type="hidden" name="cancel_order_id" value="<?php echo $order['id']; ?>">
