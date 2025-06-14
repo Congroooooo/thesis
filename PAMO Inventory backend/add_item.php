@@ -188,6 +188,22 @@ try {
         mysqli_stmt_close($stmt);
     }
 
+    // Notify all students (COLLEGE STUDENT and SHS) about the new item
+    $student_query = "SELECT id FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'";
+    $students_result = mysqli_query($conn, $student_query);
+    if ($students_result) {
+        $notif_message = "A new product has been added: $item_name. Check the Item List page for details!";
+        while ($student = mysqli_fetch_assoc($students_result)) {
+            $student_id = $student['id'];
+            $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'New Item', 0, NOW())");
+            if ($insert_notif) {
+                $insert_notif->bind_param("is", $student_id, $notif_message);
+                $insert_notif->execute();
+                $insert_notif->close();
+            }
+        }
+    }
+
     // If everything succeeded, commit the transaction
     mysqli_commit($conn);
 

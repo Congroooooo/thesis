@@ -157,6 +157,34 @@ try {
         $stmt->close();
     }
 
+    // Notify all students (COLLEGE STUDENT and SHS) about the restock
+    $student_query = "SELECT id, first_name FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'";
+    $students_result = mysqli_query($conn, $student_query);
+    if ($students_result) {
+        // Build a message for the notification using item names
+        $restocked_item_names = [];
+        foreach ($validatedItems as $item) {
+            $itemId = $item['itemId'];
+            $name_result = mysqli_query($conn, "SELECT item_name FROM inventory WHERE item_code = '" . mysqli_real_escape_string($conn, $itemId) . "'");
+            if ($name_row = mysqli_fetch_assoc($name_result)) {
+                $restocked_item_names[] = $name_row['item_name'];
+            } else {
+                $restocked_item_names[] = $itemId; // fallback to code if name not found
+            }
+        }
+        $restocked_items_str = implode(', ', $restocked_item_names);
+        $notif_message = "New stock has arrived for the following product: $restocked_items_str. Check the Item List page for details!";
+        while ($student = mysqli_fetch_assoc($students_result)) {
+            $student_id = $student['id'];
+            $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'restock', 0, NOW())");
+            if ($insert_notif) {
+                $insert_notif->bind_param("is", $student_id, $notif_message);
+                $insert_notif->execute();
+                $insert_notif->close();
+            }
+        }
+    }
+
     // If we got here, everything succeeded
     mysqli_commit($conn);
     die(json_encode([
