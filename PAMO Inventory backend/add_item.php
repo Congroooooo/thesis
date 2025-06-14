@@ -45,7 +45,9 @@ try {
     $new_delivery = $quantity;
     $actual_quantity = $beginning_quantity + $new_delivery - $damage;
     $sold_quantity = 0;
-    $status = ($actual_quantity <= 0) ? 'Out of Stock' : (($actual_quantity <= 10) ? 'Low Stock' : 'In Stock');
+    include_once '../PAMO PAGES/includes/config_functions.php';
+    $lowStockThreshold = getLowStockThreshold($conn);
+    $status = ($actual_quantity <= 0) ? 'Out of Stock' : (($actual_quantity <= $lowStockThreshold) ? 'Low Stock' : 'In Stock');
 
     // Handle image upload
     $dbFilePath = null;

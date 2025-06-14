@@ -1,10 +1,17 @@
 <?php
+// Disable output compression and clean output buffer
+ini_set('zlib.output_compression', 0);
+if (ob_get_level()) ob_end_clean();
+
 require __DIR__ . '/../../vendor/autoload.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 $conn = mysqli_connect("localhost", "root", "", "proware");
+
+include_once __DIR__ . '/config_functions.php';
+$lowStockThreshold = getLowStockThreshold($conn);
 
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $category = isset($_GET['category']) ? trim($_GET['category']) : '';
@@ -17,8 +24,8 @@ $where = [];
 if ($category) $where[] = "category = '" . mysqli_real_escape_string($conn, $category) . "'";
 if ($size) $where[] = "sizes = '" . mysqli_real_escape_string($conn, $size) . "'";
 if ($status) {
-    if ($status == 'In Stock') $where[] = "actual_quantity > 10";
-    else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= 10";
+    if ($status == 'In Stock') $where[] = "actual_quantity > $lowStockThreshold";
+    else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= $lowStockThreshold";
     else if ($status == 'Out of Stock') $where[] = "actual_quantity <= 0";
 }
 if ($search) {
@@ -33,9 +40,7 @@ if ($endDate) {
 }
 $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
-$sql = "SELECT item_code, item_name, category, beginning_quantity, new_delivery, actual_quantity, damage, sold_quantity, status, IFNULL(date_delivered, created_at) AS display_date
-        FROM inventory $where_clause
-        ORDER BY display_date DESC";
+$sql = "SELECT item_code, item_name, category, beginning_quantity, new_delivery, actual_quantity, damage, sold_quantity, IFNULL(date_delivered, created_at) AS display_date FROM inventory $where_clause ORDER BY display_date DESC";
 
 $result = mysqli_query($conn, $sql);
 
@@ -51,6 +56,14 @@ $sheet->getStyle('A1:J1')->getFont()->setBold(true);
 
 $rowNum = 2;
 while ($row = mysqli_fetch_assoc($result)) {
+    // Calculate status based on actual_quantity and threshold
+    if ($row['actual_quantity'] <= 0) {
+        $status = 'Out of Stock';
+    } else if ($row['actual_quantity'] <= $lowStockThreshold) {
+        $status = 'Low Stock';
+    } else {
+        $status = 'In Stock';
+    }
     $sheet->fromArray([
         $row['item_code'],
         $row['item_name'],
@@ -60,19 +73,19 @@ while ($row = mysqli_fetch_assoc($result)) {
         $row['actual_quantity'],
         $row['damage'],
         $row['sold_quantity'],
-        $row['status'],
+        $status,
         $row['display_date']
     ], NULL, 'A' . $rowNum);
     // Set color for Status column (I)
     $statusCell = 'I' . $rowNum;
-    $status = strtolower($row['status']);
-    if ($status === 'in stock') {
+    $statusLower = strtolower($status);
+    if ($statusLower === 'in stock') {
         $sheet->getStyle($statusCell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setRGB('92D050'); // green
-    } elseif ($status === 'low stock') {
+    } elseif ($statusLower === 'low stock') {
         $sheet->getStyle($statusCell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setRGB('FFC000'); // orange
-    } elseif ($status === 'out of stock') {
+    } elseif ($statusLower === 'out of stock') {
         $sheet->getStyle($statusCell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
             ->getStartColor()->setRGB('FF0000'); // red
     }

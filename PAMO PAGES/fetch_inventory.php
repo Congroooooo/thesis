@@ -23,7 +23,7 @@ if ($category) $where[] = "category = '$category'";
 if ($size) $where[] = "sizes = '$size'";
 if ($status) {
     if ($status == 'In Stock') $where[] = "actual_quantity > 10";
-    else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= 10";
+    else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= $lowStockThreshold";
     else if ($status == 'Out of Stock') $where[] = "actual_quantity <= 0";
 }
 if ($normalized_search) {

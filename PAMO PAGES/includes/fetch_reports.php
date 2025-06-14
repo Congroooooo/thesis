@@ -23,6 +23,9 @@ if (!$conn) {
     exit;
 }
 
+include_once __DIR__ . '/config_functions.php';
+$lowStockThreshold = getLowStockThreshold($conn);
+
 function render_pagination($type, $page, $total_pages, $query_params) {
     if ($total_pages <= 1) return '';
     $window = 2;
@@ -57,7 +60,7 @@ if ($type === 'inventory') {
     if ($size) $where[] = "sizes = '" . mysqli_real_escape_string($conn, $size) . "'";
     if ($status) {
         if ($status == 'In Stock') $where[] = "actual_quantity > 10";
-        else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= 10";
+        else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= $lowStockThreshold";
         else if ($status == 'Out of Stock') $where[] = "actual_quantity <= 0";
     }
     if ($search) {
@@ -85,6 +88,14 @@ if ($type === 'inventory') {
     $rowCount = 0;
     while ($row = mysqli_fetch_assoc($result)) {
         $rowCount++;
+        // Calculate status based on actual_quantity and threshold
+        if ($row['actual_quantity'] <= 0) {
+            $status = 'out of stock';
+        } else if ($row['actual_quantity'] <= $lowStockThreshold) {
+            $status = 'low stock';
+        } else {
+            $status = 'in stock';
+        }
         $tableHtml .= '<tr>';
         $tableHtml .= '<td>' . $row['item_code'] . '</td>';
         $tableHtml .= '<td>' . $row['item_name'] . '</td>';
@@ -94,7 +105,7 @@ if ($type === 'inventory') {
         $tableHtml .= '<td>' . $row['actual_quantity'] . '</td>';
         $tableHtml .= '<td>' . $row['damage'] . '</td>';
         $tableHtml .= '<td>' . $row['sold_quantity'] . '</td>';
-        $tableHtml .= '<td>' . $row['status'] . '</td>';
+        $tableHtml .= '<td>' . $status . '</td>';
         $tableHtml .= '<td>' . $row['display_date'] . '</td>';
         $tableHtml .= '</tr>';
     }

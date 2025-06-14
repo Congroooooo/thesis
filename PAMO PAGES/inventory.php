@@ -1,5 +1,6 @@
 <?php
 session_start();
+include 'includes/config_functions.php';
 // Build query string for filters
 $query_params = $_GET;
 unset($query_params['page']);
@@ -165,8 +166,8 @@ function page_link($page, $query_string) {
                           if ($category) $where[] = "category = '$category'";
                           if ($size) $where[] = "sizes = '$size'";
                           if ($status) {
-                              if ($status == 'In Stock') $where[] = "actual_quantity > 10";
-                              else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= 10";
+                              if ($status == 'In Stock') $where[] = "actual_quantity > " . getLowStockThreshold($conn);
+                              else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= " . getLowStockThreshold($conn);
                               else if ($status == 'Out of Stock') $where[] = "actual_quantity <= 0";
                           }
                           if ($search) $where[] = "(item_name LIKE '%$search%' OR item_code LIKE '%$search%')";
@@ -189,12 +190,14 @@ function page_link($page, $query_string) {
                           $sql = "SELECT * FROM inventory $where_clause ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
                           $result = mysqli_query($conn, $sql);
 
+                          $lowStockThreshold = getLowStockThreshold($conn);
+
                           while ($row = mysqli_fetch_assoc($result)) {
                               $statusClass = '';
                               if ($row['actual_quantity'] <= 0) {
                                   $status = 'Out of Stock';
                                   $statusClass = 'status-out-of-stock';
-                              } else if ($row['actual_quantity'] <= 10) {
+                              } else if ($row['actual_quantity'] <= $lowStockThreshold) {
                                   $status = 'Low Stock';
                                   $statusClass = 'status-low-stock';
                               } else {

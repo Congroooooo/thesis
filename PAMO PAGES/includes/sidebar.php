@@ -80,6 +80,11 @@ try {
             <?php endif; ?>
         </li>
         <?php endif; ?>
+        <li <?php echo basename($_SERVER['PHP_SELF']) == 'settings.php' ? 'class="active"' : ''; ?>
+            onclick="window.location.href='<?php echo $basePath; ?>settings.php'">
+            <span class="active-bar"></span>
+            <i class="material-icons">settings</i>Settings
+        </li>
     </ul>
     <div class="user-info">
         <?php
