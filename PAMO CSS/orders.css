@@ -1011,3 +1011,14 @@
 .cancel-btn:hover {
   background-color: #5a6268;
 }
+
+/* --- Fix for oversized order receipt modal --- */
+#orderReceiptModal .modal-card {
+  width: 95vw;
+  max-width: 850px;
+  max-height: 95vh;
+  overflow-y: auto;
+  overflow-x: auto;
+  margin: 2% auto;
+  box-sizing: border-box;
+}
