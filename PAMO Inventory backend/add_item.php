@@ -1,6 +1,5 @@
 <?php
 try {
-    // Enable error reporting
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
 
@@ -9,10 +8,8 @@ try {
         throw new Exception("Connection failed: " . mysqli_connect_error());
     }
 
-    // Start transaction
     mysqli_begin_transaction($conn);
 
-    // Validate required fields
     $required_fields = ['newItemCode', 'newCategory', 'newItemName', 'newSize', 'newItemPrice', 'newItemQuantity', 'deliveryOrderNumber'];
     foreach ($required_fields as $field) {
         if (!isset($_POST[$field]) || empty($_POST[$field])) {
@@ -29,7 +26,6 @@ try {
     $damage = intval($_POST['newItemDamage'] ?? 0);
     $delivery_order = mysqli_real_escape_string($conn, $_POST['deliveryOrderNumber']);
 
-    // Validate numeric fields
     if ($price <= 0) {
         throw new Exception("Price must be greater than zero");
     }
@@ -40,7 +36,6 @@ try {
         throw new Exception("Damage count cannot be negative");
     }
 
-    // Calculate quantities
     $beginning_quantity = 0;
     $new_delivery = $quantity;
     $actual_quantity = $beginning_quantity + $new_delivery - $damage;
@@ -49,7 +44,6 @@ try {
     $lowStockThreshold = getLowStockThreshold($conn);
     $status = ($actual_quantity <= 0) ? 'Out of Stock' : (($actual_quantity <= $lowStockThreshold) ? 'Low Stock' : 'In Stock');
 
-    // Handle image upload
     $dbFilePath = null;
     if (isset($_FILES['newImage']) && $_FILES['newImage']['error'] === UPLOAD_ERR_OK) {
         $imageTmpPath = $_FILES['newImage']['tmp_name'];
@@ -57,7 +51,6 @@ try {
         $imageSize = $_FILES['newImage']['size'];
         $imageType = $_FILES['newImage']['type'];
 
-        // Validate image
         $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
         if (!in_array($imageType, $allowed_types)) {
             throw new Exception('Invalid image type. Allowed types: JPG, PNG, GIF');
@@ -82,7 +75,6 @@ try {
         throw new Exception('Image upload is required');
     }
 
-    // Check if item_code prefix already exists
     $prefix = explode('-', $item_code)[0];
     $check_sql = "SELECT COUNT(*) FROM inventory WHERE item_code LIKE CONCAT(?, '-%')";
     $check_stmt = mysqli_prepare($conn, $check_sql);
@@ -99,11 +91,9 @@ try {
         throw new Exception('An item with this code prefix already exists. Please use the "Add Item Size" modal for adding new sizes.');
     }
 
-    // Calculate shared_in_courses
     $course_ids = isset($_POST['course_id']) ? (is_array($_POST['course_id']) ? $_POST['course_id'] : [$_POST['course_id']]) : [];
     $RTW = (count($course_ids) > 1) ? 1 : 0;
 
-    // Insert into inventory
     $sql = "INSERT INTO inventory (
         item_code, category, item_name, sizes, price, 
         actual_quantity, new_delivery, beginning_quantity, 
@@ -140,7 +130,6 @@ try {
     $new_inventory_id = mysqli_insert_id($conn);
     mysqli_stmt_close($stmt);
 
-    // Log the activity
     $description = "New item added: {$item_name} ({$item_code}) - Delivery Order #: {$delivery_order}, Initial delivery: {$new_delivery}, Damage: {$damage}, Actual quantity: {$actual_quantity}";
     $sql = "INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES ('New Item', ?, ?, ?, NOW())";
     $stmt = mysqli_prepare($conn, $sql);
@@ -156,7 +145,6 @@ try {
     }
     mysqli_stmt_close($stmt);
 
-    // Link to course_item if course_ids provided
     if (!empty($course_ids)) {
         $sql = "INSERT INTO course_item (course_id, inventory_id) VALUES (?, ?)";
         $stmt = mysqli_prepare($conn, $sql);
@@ -173,7 +161,6 @@ try {
         mysqli_stmt_close($stmt);
     }
 
-    // Link to shirt_type_item if shirt_type_id is provided and category is STI-Shirts
     if ($category === 'STI-Shirts' && !empty($_POST['shirt_type_id'])) {
         $shirt_type_id = intval($_POST['shirt_type_id']);
         $sql = "INSERT INTO shirt_type_item (inventory_id, shirt_type_id) VALUES (?, ?)";
@@ -188,7 +175,6 @@ try {
         mysqli_stmt_close($stmt);
     }
 
-    // Notify all students (COLLEGE STUDENT and SHS) about the new item
     $student_query = "SELECT id FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'";
     $students_result = mysqli_query($conn, $student_query);
     if ($students_result) {
@@ -204,7 +190,6 @@ try {
         }
     }
 
-    // If everything succeeded, commit the transaction
     mysqli_commit($conn);
 
     echo json_encode([
@@ -213,7 +198,6 @@ try {
     ]);
 
 } catch (Exception $e) {
-    // If anything failed, roll back the transaction
     if (isset($conn)) {
         mysqli_rollback($conn);
     }
@@ -224,7 +208,6 @@ try {
     ]);
 
 } finally {
-    // Close the connection
     if (isset($conn)) {
         mysqli_close($conn);
     }

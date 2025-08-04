@@ -55,8 +55,6 @@ if (isset($_SESSION['user_id'])) {
         </ul>
     </div>
 
-    
-
     <?php if (isset($_SESSION['user_id'])): ?>
         <div class="icons">
             <div class="icon cart-icon">

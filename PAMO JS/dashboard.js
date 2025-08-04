@@ -31,7 +31,10 @@ function clearActivities() {
 }
 
 function redirectToLowStock() {
+  console.log("redirectToLowStock called");
   sessionStorage.setItem("applyLowStockFilter", "true");
+  console.log("Session storage set, redirecting to inventory.php");
+  console.log("Current location:", window.location.href);
   window.location.href = "inventory.php";
 }
 

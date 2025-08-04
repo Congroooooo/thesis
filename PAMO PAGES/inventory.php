@@ -1,7 +1,7 @@
 <?php
 session_start();
 include 'includes/config_functions.php';
-// Build query string for filters
+
 $query_params = $_GET;
 unset($query_params['page']);
 $query_string = http_build_query($query_params);
@@ -23,7 +23,6 @@ function page_link($page, $query_string) {
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <!-- Inject the logged-in user's name for use in JS -->
     <script>
       window.PAMO_USER = {
         name: "<?php echo addslashes($_SESSION['name'] ?? ''); ?>"
@@ -36,16 +35,21 @@ function page_link($page, $query_string) {
     <script src="../PAMO JS/backend/deductQuantity.js"></script>
     <script src="../PAMO JS/backend/addItemSize.js"></script>
     <script>
-        // Check for low stock filter on page load
+
         document.addEventListener('DOMContentLoaded', function() {
             const applyLowStockFilter = sessionStorage.getItem('applyLowStockFilter');
+            console.log('Checking for low stock filter:', applyLowStockFilter);
             if (applyLowStockFilter === 'true') {
-                // Only set the dropdown if no status is set in the URL
                 const urlParams = new URLSearchParams(window.location.search);
+                console.log('Current URL params:', urlParams.toString());
                 if (!urlParams.has('status')) {
-                    document.getElementById('statusFilter').value = 'Low Stock';
-                    // Submit the form to apply the filter
-                    document.getElementById('filterForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                    // Redirect to the same page with the low stock filter
+                    urlParams.set('status', 'Low Stock');
+                    const newUrl = 'inventory.php?' + urlParams.toString();
+                    console.log('Redirecting to:', newUrl);
+                    window.location.href = newUrl;
+                } else {
+                    console.log('Status already set, removing session storage');
                 }
                 sessionStorage.removeItem('applyLowStockFilter');
             }
@@ -60,7 +64,7 @@ function page_link($page, $query_string) {
                 });
             }
         });
-        // Function to clear sessionStorage and reload for Clear Filters
+
         function clearLowStockSessionAndReload() {
             sessionStorage.removeItem('applyLowStockFilter');
             window.location.href = 'inventory.php';
@@ -134,8 +138,6 @@ function page_link($page, $query_string) {
                     </button>
                 </div>
 
-                
-
                 <div class="inventory-table">
                   <table>
                       <thead>
@@ -174,19 +176,16 @@ function page_link($page, $query_string) {
 
                           $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
-                          // Pagination parameters
                           $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
-                          $limit = 15; // Items per page (changed from 20 to 15)
+                          $limit = 15;
                           $offset = ($page - 1) * $limit;
 
-                          // Count total items for pagination
                           $total_sql = "SELECT COUNT(*) as total FROM inventory $where_clause";
                           $total_result = mysqli_query($conn, $total_sql);
                           $total_row = mysqli_fetch_assoc($total_result);
                           $total_items = $total_row['total'];
                           $total_pages = ceil($total_items / $limit);
 
-                          // Fetch only the items for the current page
                           $sql = "SELECT * FROM inventory $where_clause ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
                           $result = mysqli_query($conn, $sql);
 
@@ -227,18 +226,15 @@ function page_link($page, $query_string) {
                         <a href="<?php echo page_link($page-1, $query_string); ?>" class="ajax-page-link">&laquo;</a>
                     <?php endif; ?>
                     <?php
-                    // Always show first page
                     if ($page == 1) {
                         echo '<a href="' . page_link(1, $query_string) . '" class="ajax-page-link active">1</a>';
                     } else {
                         echo '<a href="' . page_link(1, $query_string) . '" class="ajax-page-link">1</a>';
                     }
-                    // Show ellipsis if needed before the window
                     if ($page > 4) {
                         echo '<span class="pagination-ellipsis">...</span>';
                     }
-                    // Determine window of pages to show around current page
-                    $window = 1; // Number of pages before/after current
+                    $window = 1;
                     $start = max(2, $page - $window);
                     $end = min($total_pages - 1, $page + $window);
                     for ($i = $start; $i <= $end; $i++) {
@@ -248,11 +244,9 @@ function page_link($page, $query_string) {
                             echo '<a href="' . page_link($i, $query_string) . '" class="ajax-page-link">' . $i . '</a>';
                         }
                     }
-                    // Show ellipsis if needed after the window
                     if ($page < $total_pages - 3) {
                         echo '<span class="pagination-ellipsis">...</span>';
                     }
-                    // Always show last page (if more than 1 page)
                     if ($total_pages > 1) {
                         if ($page == $total_pages) {
                             echo '<a href="' . page_link($total_pages, $query_string) . '" class="ajax-page-link active">' . $total_pages . '</a>';
