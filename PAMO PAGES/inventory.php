@@ -34,6 +34,7 @@ function page_link($page, $query_string) {
     <script src="../PAMO JS/backend/addQuantity.js"></script>
     <script src="../PAMO JS/backend/deductQuantity.js"></script>
     <script src="../PAMO JS/backend/addItemSize.js"></script>
+    <script src="../PAMO JS/backend/exchangeItem.js"></script>
     <script>
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -61,6 +62,20 @@ function page_link($page, $query_string) {
                     placeholder: "Select Item",
                     allowClear: true,
                     width: "100%"
+                });
+            }
+            
+            // Initialize Select2 for exchange customer name
+            if (window.jQuery && $("#exchangeCustomerName").length) {
+                $("#exchangeCustomerName").select2({
+                    placeholder: "Search customer...",
+                    allowClear: true,
+                    width: "100%"
+                });
+                
+                // Add event listener for customer selection
+                $("#exchangeCustomerName").on('change', function() {
+                    loadCustomerPurchases();
                 });
             }
         });
@@ -135,6 +150,9 @@ function page_link($page, $query_string) {
                     </button>
                     <button onclick="showDeductQuantityModal()" class="action-btn">
                         <i class="material-icons">remove_shopping_cart</i> Sales Entry
+                    </button>
+                    <button onclick="showExchangeItemModal()" class="action-btn">
+                        <i class="material-icons">swap_horiz</i> Exchange Item
                     </button>
                 </div>
 
@@ -709,6 +727,67 @@ function page_link($page, $query_string) {
         </div>
     </div>
 
+    <div id="exchangeItemModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Exchange Item</h2>
+                <span class="close" onclick="closeModal('exchangeItemModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="exchangeItemForm" onsubmit="submitExchangeItem(event)">
+                    <div class="order-section">
+                        <div class="input-group">
+                            <label for="exchangeCustomerName">Customer Name:</label>
+                            <select id="exchangeCustomerName" name="customerName" required>
+                                <option value="">Search customer...</option>
+                                <?php
+                                $conn = mysqli_connect("localhost", "root", "", "proware");
+                                if (!$conn) {
+                                    die("Connection failed: " . mysqli_connect_error());
+                                }
+
+                                // Get all customers from accounts table
+                                $sql = "SELECT id, first_name, last_name, id_number, role_category FROM account WHERE status = 'active' ORDER BY first_name, last_name";
+                                $result = mysqli_query($conn, $sql);
+
+                                while ($row = mysqli_fetch_assoc($result)) {
+                                    $fullName = $row['first_name'] . ' ' . $row['last_name'];
+                                    echo "<option value='" . $row['id'] . "' data-id-number='" . $row['id_number'] . "' data-role='" . $row['role_category'] . "'>" . 
+                                         htmlspecialchars($fullName) . " (" . $row['id_number'] . ")</option>";
+                                }
+                                mysqli_close($conn);
+                                ?>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="exchangeItemBought">Item Bought:</label>
+                            <select id="exchangeItemBought" name="itemBought" required onchange="loadAvailableSizes()">
+                                <option value="">Select Item (Purchased within 24 hours)</option>
+                            </select>
+                            <small id="customerFilterNote" style="color: #666; font-size: 12px; margin-top: 4px;">
+                                Loading customer purchases...
+                            </small>
+                        </div>
+                        <div class="input-group">
+                            <label for="exchangeNewSize">Exchange With Size:</label>
+                            <select id="exchangeNewSize" name="newSize" required>
+                                <option value="">Select New Size</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="exchangeRemarks">Remarks (Optional):</label>
+                            <textarea id="exchangeRemarks" name="remarks" rows="3" placeholder="Reason for exchange, etc."></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" form="exchangeItemForm" class="save-btn">Process Exchange</button>
+                <button onclick="closeModal('exchangeItemModal')" class="cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         function showAddQuantityModal() {
             document.getElementById('addQuantityModal').style.display = 'block';
@@ -725,7 +804,17 @@ function page_link($page, $query_string) {
                     $('#existingItem').val(null).trigger('change');
                 }
             }
+            // Reset the form if it's the Exchange Item modal
+            if (modalId === 'exchangeItemModal') {
+                const form = document.getElementById('exchangeItemForm');
+                if (form) form.reset();
+                // Reset dropdowns
+                document.getElementById('exchangeItemBought').innerHTML = '<option value="">Select Item (Purchased within 24 hours)</option>';
+                document.getElementById('exchangeNewSize').innerHTML = '<option value="">Select New Size</option>';
+            }
         }
+
+
     </script>
 
     <style>
@@ -916,9 +1005,50 @@ function page_link($page, $query_string) {
     display: none;
     z-index: 2;
 }
-.item-size-entry:not(:first-child) .item-close {
-    display: block;
-}
+    .item-size-entry:not(:first-child) .item-close {
+        display: block;
+    }
+
+    .input-group textarea {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        resize: vertical;
+        min-height: 60px;
+    }
+
+    /* Select2 styling for exchange modal */
+    .select2-container--default .select2-selection--single {
+        height: 38px;
+        padding: 4px 12px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        font-size: 14px;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 28px;
+        padding-left: 0;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+
+    .select2-dropdown {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .select2-results__option {
+        padding: 8px 12px;
+    }
+
+    .select2-results__option--highlighted[aria-selected] {
+        background-color: #007bff;
+    }
     </style>
 </body>
 

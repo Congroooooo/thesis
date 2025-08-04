@@ -143,8 +143,12 @@ function updateItemPrice(sizeSelect) {
   const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
   const prefix = itemSelect.value;
   const size = sizeSelect.value;
-  const priceInput = itemContainer.querySelector('input[name="pricePerItem[]"]');
-  const quantityInput = itemContainer.querySelector('input[name="quantityToDeduct[]"]');
+  const priceInput = itemContainer.querySelector(
+    'input[name="pricePerItem[]"]'
+  );
+  const quantityInput = itemContainer.querySelector(
+    'input[name="quantityToDeduct[]"]'
+  );
   const totalInput = itemContainer.querySelector('input[name="itemTotal[]"]');
 
   if (!prefix || !size) {
@@ -154,9 +158,13 @@ function updateItemPrice(sizeSelect) {
   }
 
   // Fetch the price from the server using the prefix and size
-  fetch(`../PAMO Inventory backend/get_item_price.php?prefix=${encodeURIComponent(prefix)}&size=${encodeURIComponent(size)}`)
-    .then(response => response.json())
-    .then(data => {
+  fetch(
+    `../PAMO Inventory backend/get_item_price.php?prefix=${encodeURIComponent(
+      prefix
+    )}&size=${encodeURIComponent(size)}`
+  )
+    .then((response) => response.json())
+    .then((data) => {
       if (data.success) {
         priceInput.value = data.price;
         if (quantityInput.value) {
@@ -236,7 +244,9 @@ function validateProductSelection(selectElement) {
 function updateAvailableSizes(itemSelect) {
   const itemContainer = itemSelect ? itemSelect.closest(".sales-item") : null;
   if (!itemContainer) return; // Guard: do not proceed if itemContainer is missing
-  const sizeSelect = itemContainer ? itemContainer.querySelector('select[name="size[]"]') : null;
+  const sizeSelect = itemContainer
+    ? itemContainer.querySelector('select[name="size[]"]')
+    : null;
   if (!sizeSelect) return; // Guard: do not proceed if sizeSelect is missing
   const prefix = itemSelect.value;
 
@@ -246,13 +256,17 @@ function updateAvailableSizes(itemSelect) {
   if (!prefix) return;
 
   // Fetch available sizes for the selected product
-  fetch(`../PAMO Inventory backend/get_unique_products.php?prefix=${encodeURIComponent(prefix)}`)
-    .then(response => response.json())
-    .then(data => {
+  fetch(
+    `../PAMO Inventory backend/get_unique_products.php?prefix=${encodeURIComponent(
+      prefix
+    )}`
+  )
+    .then((response) => response.json())
+    .then((data) => {
       if (data.success) {
-        const product = data.products.find(p => p.prefix === prefix);
+        const product = data.products.find((p) => p.prefix === prefix);
         if (product) {
-          product.available_sizes.forEach(size => {
+          product.available_sizes.forEach((size) => {
             const option = document.createElement("option");
             option.value = size.size;
             option.textContent = `${size.size} (${size.quantity} in stock)`;
@@ -609,6 +623,9 @@ function submitDeductQuantity(event) {
   formData.append("studentIdNumber", studentIdNumber);
   formData.append("cashierName", cashierName);
 
+  formData.append("customerId", studentNameSelect.value);
+  formData.append("customerName", studentName);
+
   // Arrays to store multiple items
   const itemIds = [];
   const itemNames = [];
@@ -655,10 +672,10 @@ function submitDeductQuantity(event) {
 
     // Get the full item code and category from the selected size option
     const sizeOption = sizeSelect.options[sizeSelect.selectedIndex];
-    const fullItemCode = sizeOption.getAttribute('data-item-code');
-    const itemCategory = sizeOption.getAttribute('data-category') || "";
+    const fullItemCode = sizeOption.getAttribute("data-item-code");
+    const itemCategory = sizeOption.getAttribute("data-category") || "";
     if (!fullItemCode) {
-      alert('Could not determine the full item code for item ' + (index + 1));
+      alert("Could not determine the full item code for item " + (index + 1));
       hasErrors = true;
       return;
     }

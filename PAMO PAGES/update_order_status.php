@@ -142,7 +142,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception('Failed to record sale for item: ' . $inventory['item_name']);
                 }
                 
-                // Log activity for completed (Sales)
+                $customerStmt = $conn->prepare("
+                    SELECT id, CONCAT(first_name, ' ', last_name) as full_name 
+                    FROM account 
+                    WHERE id = ?
+                ");
+                if (!$customerStmt->execute([$order['user_id']])) {
+                    throw new Exception('Failed to get customer information');
+                }
+                
+                $customer = $customerStmt->fetch(PDO::FETCH_ASSOC);
+                if ($customer) {
+                    $customerInsertStmt = $conn->prepare("
+                        INSERT INTO transaction_customers (
+                            transaction_number, 
+                            customer_id, 
+                            customer_name, 
+                            sale_date
+                        ) VALUES (?, ?, ?, NOW()) 
+                        ON DUPLICATE KEY UPDATE customer_name = VALUES(customer_name)
+                    ");
+                    
+                    if (!$customerInsertStmt->execute([
+                        $transaction_number,
+                        $customer['id'],
+                        $customer['full_name']
+                    ])) {
+                        throw new Exception('Failed to record customer transaction information');
+                    }
+                }
+                
                 $activity_description = "Sales - Order #: {$order['order_number']}, Item: {$inventory['item_name']}, Quantity: {$item['quantity']}";
                 $activity_user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : $order['user_id'];
                 $activityStmt = $conn->prepare(
@@ -163,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception('Failed to log activity for item: ' . $inventory['item_name']);
                 }
                 
-                error_log("Recorded sale and activity for {$inventory['item_name']}");
+
             }
         }
 
