@@ -1,98 +1,122 @@
-<!-- Top section with filters and actions -->
-<div class="filters-section">
-    <div class="filters">
-        <div class="filter-group">
-            <label>Role:</label>
-            <select class="filter-dropdown" id="roleFilter" onchange="filterUsers()">
+<!-- Header Section -->
+<div class="header-section">
+    <div class="container">
+        <div class="header-flex">
+            <div>
+                <h1><i class="fas fa-users-cog"></i> Admin Dashboard</h1>
+                <p class="mb-0">Manage user accounts and system administration</p>
+            </div>
+            <button class="btn logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Sidebar + Table Layout -->
+<div class="container mt-0" style="margin-top: -10px;">
+  <div class="admin-grid">
+    <!-- Sidebar: Filters + Actions combined -->
+    <aside class="admin-sidebar">
+      <div class="filters-card">
+        <div class="card-header">
+            <h5><i class="fas fa-filter"></i> Filters & Search</h5>
+        </div>
+        <div class="card-body">
+            <div class="form-group"><label>Search:</label>
+              <div class="input-group">
+                <input type="text" class="form-control" placeholder="Search by name..." id="searchInput" pattern="[A-Za-z\s]*" title="Only letters and spaces are allowed">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+              </div>
+            </div>
+            <div class="form-group"><label>Role:</label>
+              <select class="form-control" id="roleFilter" onchange="filterUsers()">
                 <option value="all">All Roles</option>
                 <option value="shs">SHS</option>
                 <option value="college student">College Student</option>
                 <option value="employee">Employee</option>
             </select>
         </div>
-
-        <div class="filter-group">
-            <label>Program/Position:</label>
-            <select class="filter-dropdown" id="programFilter" onchange="filterUsers()">
+            <div class="form-group"><label>Program:</label>
+              <select class="form-control" id="programFilter" onchange="filterUsers()">
                 <option value="all">All Programs/Positions</option>
-                <option value="Science, Technology, Engineering, and Mathematics">STEM</option>
-                <option value="Humanities and Social Sciences">HUMMS</option>
-                <option value="Accountancy, Business, and Management">ABM</option>
-                <option value="Mobile App and Web Development">MAWD</option>
-                <option value="Digital Arts">DA</option>
-                <option value="Tourism Operations">TOPER</option>
-                <option value="Culinary Arts">CA</option>
-                <option value="Bachelor of Science in Computer Science">BSCS</option>
-                <option value="Bachelor of Science in Information Technology">BSIT</option>
-                <option value="Bachelor of Science in Computer Engineering">BSCPE</option>
-                <option value="Bachelor of Science in Culinary Management">BSCM</option>
-                <option value="Bachelor of Science in Tourism Management">BSTM</option>
-                <option value="Bachelor of Science in Business Administration">BSBA</option>
-                <option value="Bachelor of Science in Multimedia Arts">BMMA</option>
-                <option value="TEACHER">TEACHER</option>
-                <option value="PAMO">PAMO</option>
-                <option value="ADMIN">ADMIN</option>
-                <option value="STAFF">STAFF</option>
+                <?php
+                require_once '../Includes/connection.php';
+                $stmt = $conn->query("SELECT COALESCE(NULLIF(TRIM(abbreviation), ''), name) AS abbr, category FROM programs_positions WHERE is_active = 1 ORDER BY abbr ASC");
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $abbrMap = [];
+                $seen = [];
+                foreach ($rows as $row) {
+                    $abbr = $row['abbr'];
+                    if (!$abbr || isset($seen[$abbr])) { continue; }
+                    $seen[$abbr] = true;
+                    $abbrMap[$abbr] = strtolower($row['category']);
+                    echo '<option value="' . htmlspecialchars($abbr) . '">' . htmlspecialchars($abbr) . '</option>';
+                }
+                echo '<script>window.abbrToCategory = ' . json_encode($abbrMap) . ';</script>';
+                ?>
             </select>
         </div>
-
-        <div class="filter-group">
-            <label>Status:</label>
-            <select class="filter-dropdown" id="statusFilter" onchange="filterUsers()">
+            <div class="form-group"><label>Status:</label>
+              <select class="form-control" id="statusFilter" onchange="filterUsers()">
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
             </select>
         </div>
     </div>
-
-    <div class="search-container">
-        <input type="text" class="search-bar" placeholder="Search by name..." id="searchInput">
-        <i class="fas fa-search search-icon"></i>
     </div>
 
-    <div class="logout-container">
-        <button class="btn btn-danger logout-btn" onclick="logout()">
-            <i class="fas fa-sign-out-alt"></i> Logout
-        </button>
+      <div class="action-buttons-card mt-3">
+        <div class="card-header">
+            <h5><i class="fas fa-tools"></i> Actions</h5>
     </div>
-</div>
-
-<div class="action-buttons">
-    <button class="btn btn-primary" onclick="window.location.href='add_account.php'">
+        <div class="card-body">
+            <button class="btn btn-primary action-btn" onclick="openAddAccountModal()">
         <i class="fas fa-plus"></i> Add Account
     </button>
-    <button class="btn btn-secondary" onclick="changePassword()" id="changePasswordBtn" disabled>
+            <button class="btn btn-success action-btn" onclick="window.location.href='manage_programs.php'">
+                <i class="fas fa-graduation-cap"></i> Manage Programs
+            </button>
+            <button class="btn btn-secondary action-btn" onclick="changePassword()" id="changePasswordBtn" disabled>
         <i class="fas fa-key"></i> Change Password
     </button>
-    <button class="btn btn-info" onclick="updateStatus()" id="updateStatusBtn" disabled>
+            <button class="btn btn-warning action-btn" onclick="updateStatus()" id="updateStatusBtn" disabled>
         <i class="fas fa-sync"></i> Update Status
     </button>
 </div>
 </div>
+    </aside>
 
-<!-- Add some spacing before the table -->
-<div class="table-container">
-    <!-- Users table -->
-    <table class="table table-striped">
+    <!-- Main content: table -->
+    <section class="admin-main">
+      <div class="table-card">
+        <div class="card-header">
+            <h5><i class="fas fa-users"></i> User Accounts</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                    <table class="table table-hover mb-0">
         <thead>
             <tr>
                 <th onclick="sortTable(0)">First Name</th>
                 <th onclick="sortTable(1)">Last Name</th>
-                <th onclick="sortTable(2)">ID Number</th>
-                <th onclick="sortTable(3)">Role</th>
-                <th onclick="sortTable(4)">Program/Position</th>
-                <th onclick="sortTable(5)">Email</th>
-                <th>Password</th>
-                <th onclick="sortTable(7)">Status</th>
-                <th onclick="sortTable(8)">Date Created</th>
+                                <th onclick="sortTable(2)">Birthday</th>
+                                <th onclick="sortTable(3)">ID Number</th>
+                                <th onclick="sortTable(4)">Role</th>
+                                <th onclick="sortTable(5)">Program/Position</th>
+                                <th onclick="sortTable(6)">Status</th>
+                                <th onclick="sortTable(7)">Date Created</th>
             </tr>
         </thead>
-        <tbody>
+                        <tbody id="accountsTbody">
             <?php
             require_once '../Includes/connection.php';
 
-            $sql = "SELECT * FROM account";
+            $sql = "SELECT a.*, 
+                           COALESCE(NULLIF(pp.abbreviation, ''), a.program_or_position) AS program_abbr
+                    FROM account a 
+                    LEFT JOIN programs_positions pp ON a.program_or_position = pp.name";
             $stmt = $conn->prepare($sql);
             $stmt->execute();
             $accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -101,19 +125,24 @@
                 echo "<tr data-id='" . htmlspecialchars($account['id_number']) . "' class='account-row'>";
                 echo "<td>" . htmlspecialchars($account['first_name']) . "</td>";
                 echo "<td>" . htmlspecialchars($account['last_name']) . "</td>";
+                                echo "<td>" . htmlspecialchars($account['birthday'] ? date('M d, Y', strtotime($account['birthday'])) : 'N/A') . "</td>";
                 echo "<td>" . htmlspecialchars($account['id_number']) . "</td>";
                 echo "<td>" . htmlspecialchars($account['role_category']) . "</td>";
-                echo "<td>" . htmlspecialchars($account['program_or_position']) . "</td>";
-                echo "<td>" . htmlspecialchars($account['email']) . "</td>";
-                echo "<td>********</td>";
+                $programText = htmlspecialchars($account['program_or_position']);
+                $abbreviation = htmlspecialchars($account['program_abbr']);
+                echo "<td class='has-tooltip' data-fulltext='".$programText."'>" . $abbreviation . "</td>";
                 echo "<td>" . htmlspecialchars($account['status']) . "</td>";
                 echo "<td>" . htmlspecialchars($account['date_created']) . "</td>";
-
                 echo "</tr>";
             }
             ?>
         </tbody>
     </table>
+                </div>
+            </div>
+        </div>
+    </section>
+  </div>
 </div>
 
 <div class="modal" id="updateStatusModal">
@@ -132,6 +161,73 @@
                 <button type="submit" class="btn btn-primary">Update Status</button>
                 <button type="button" class="btn btn-secondary"
                     onclick="closeModal('updateStatusModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal" id="changePasswordModal">
+    <div class="modal-content">
+        <h3>Change Password</h3>
+        <form id="changePasswordForm">
+            <input type="hidden" id="changePasswordUserId" name="id">
+            <div class="form-group">
+                <label for="currentPassword">Current Password</label>
+                <input type="password" class="form-control" id="currentPassword" name="currentPassword" required>
+                <div class="error-feedback" id="currentPasswordError"></div>
+            </div>
+            <div class="form-group">
+                <label for="newPassword">New Password</label>
+                <input type="password" class="form-control" id="newPassword" name="newPassword" required>
+                <div class="error-feedback" id="newPasswordError"></div>
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">Confirm New Password</label>
+                <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                <div class="error-feedback" id="confirmPasswordError"></div>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">Change Password</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('changePasswordModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Account Modal -->
+<div class="modal" id="addAccountModal">
+    <div class="modal-content" style="max-width:700px">
+        <h3>Add New Account</h3>
+        <form id="addAccountFormModal">
+            <div class="form-group"><label>First Name</label>
+                <input type="text" name="firstName" id="modalFirstName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
+            </div>
+            <div class="form-group"><label>Last Name</label>
+                <input type="text" name="lastName" id="modalLastName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
+            </div>
+            <div class="form-group"><label>Birthday</label>
+                <input type="date" name="birthday" class="form-control" required>
+            </div>
+            <div class="form-group"><label>ID Number (11 digits)</label>
+                <input type="text" name="idNumber" id="modalIdNumber" class="form-control" pattern="\d{11}" maxlength="11" required>
+            </div>
+            <div class="form-group"><label>Role Category</label>
+                <select name="role_category" id="modalRoleCategory" class="form-control" required>
+                    <option value="">Select Role Category</option>
+                    <option value="SHS">SHS</option>
+                    <option value="COLLEGE STUDENT">COLLEGE STUDENT</option>
+                    <option value="EMPLOYEE">EMPLOYEE</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Program/Position</label>
+                <select name="program_position" id="modalProgramPosition" class="form-control" required>
+                    <option value="">Select Program/Position</option>
+                </select>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">Create Account</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addAccountModal')">Cancel</button>
             </div>
         </form>
     </div>
@@ -160,19 +256,17 @@
         const programFilter = document.getElementById('programFilter').value.toLowerCase();
         const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
         const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const tableRows = document.querySelectorAll('.table tbody tr');
+        const tableRows = document.querySelectorAll('#accountsTbody tr');
 
         tableRows.forEach(row => {
             const firstName = row.cells[0].textContent.toLowerCase();
             const lastName = row.cells[1].textContent.toLowerCase();
-            const role = row.cells[3].textContent.toLowerCase();
-            const program = row.cells[4].textContent.toLowerCase();
-            const status = row.cells[7].textContent.toLowerCase();
+            const role = row.cells[4].textContent.toLowerCase();
+            const program = row.cells[5].textContent.toLowerCase();
+            const status = row.cells[6].textContent.toLowerCase();
 
-            // Updated program matching logic to handle both full names and abbreviations
-            const matchesProgram = programFilter === 'all' ||
-                program.includes(programFilter) ||
-                getAbbreviation(program).toLowerCase() === programFilter;
+            // Program column already stores abbreviations; dropdown provides abbreviations
+            const matchesProgram = programFilter === 'all' || program === programFilter;
 
             const matchesRole = roleFilter === 'all' || role === roleFilter;
             const matchesStatus = statusFilter === 'all' || status === statusFilter;
@@ -184,32 +278,29 @@
                 row.style.display = 'none';
             }
         });
-    }
 
-    // Helper function to get abbreviation from full program name
-    function getAbbreviation(fullName) {
-        const abbreviations = {
-            'Science, Technology, Engineering, and Mathematics': 'STEM',
-            'Humanities and Social Sciences': 'HUMMS',
-            'Accountancy, Business, and Management': 'ABM',
-            'Mobile App and Web Development': 'MAWD',
-            'Digital Arts': 'DA',
-            'Tourism Operations': 'TOPER',
-            'Culinary Arts': 'CA',
-            'Bachelor of Science in Computer Science': 'BSCS',
-            'Bachelor of Science in Information Technology': 'BSIT',
-            'Bachelor of Science in Computer Engineering': 'BSCPE',
-            'Bachelor of Science in Culinary Management': 'BSCM',
-            'Bachelor of Science in Tourism Management': 'BSTM',
-            'Bachelor of Science in Business Administration': 'BSBA',
-            'Bachelor of Science in Multimedia Arts': 'BMMA'
-        };
-
-        for (const [full, abbr] of Object.entries(abbreviations)) {
-            if (fullName.includes(full)) return abbr;
+        // Empty state handling
+        const tbody = document.getElementById('accountsTbody');
+        const anyVisible = Array.from(tbody.querySelectorAll('tr')).some(r => r.style.display !== 'none');
+        let emptyRow = document.getElementById('emptyStateRow');
+        if (!anyVisible) {
+            if (!emptyRow) {
+                emptyRow = document.createElement('tr');
+                emptyRow.id = 'emptyStateRow';
+                const td = document.createElement('td');
+                td.colSpan = 8;
+                td.style.textAlign = 'center';
+                td.style.padding = '24px';
+                td.textContent = 'No records match the current filters.';
+                emptyRow.appendChild(td);
+                tbody.appendChild(emptyRow);
+            }
+        } else if (emptyRow) {
+            emptyRow.remove();
         }
-        return fullName; // Return original if no abbreviation found
     }
+
+    // Abbreviation helper no longer needed (table uses abbreviations and dropdown loads abbreviations)
 
     function sortTable(columnIndex) {
         const table = document.querySelector('.table');
@@ -243,9 +334,171 @@
 
         // Add event listeners for all filters
         document.getElementById('searchInput').addEventListener('input', filterUsers);
+            // Enforce letters-only input in search field
+            document.getElementById('searchInput').addEventListener('input', function(){
+                this.value = this.value.replace(/[^A-Za-z\s]/g, '');
+            });
+            // Correlate Role and Program filters
+            const roleSel = document.getElementById('roleFilter');
+            const programSel = document.getElementById('programFilter');
+
+            roleSel.addEventListener('change', function(){
+                // If role is selected (not all), limit program options to matching category
+                const roleVal = this.value.toLowerCase();
+                const current = programSel.value;
+                Array.from(programSel.options).forEach((opt, idx) => {
+                    if (idx === 0) return; // skip "All"
+                    const abbr = opt.value;
+                    const category = (window.abbrToCategory && window.abbrToCategory[abbr]) ? window.abbrToCategory[abbr].toLowerCase() : '';
+                    const visible = roleVal === 'all' || (category && category === roleVal);
+                    opt.hidden = !visible;
+                });
+                // If current selection doesn't match, reset to All
+                const currentCategory = window.abbrToCategory && window.abbrToCategory[current] ? window.abbrToCategory[current].toLowerCase() : '';
+                if (roleVal !== 'all' && current && currentCategory !== roleVal) {
+                    programSel.value = 'all';
+                }
+                filterUsers();
+            });
+
+            programSel.addEventListener('change', function(){
+                const abbr = this.value;
+                if (abbr !== 'all') {
+                    const cat = window.abbrToCategory && window.abbrToCategory[abbr] ? window.abbrToCategory[abbr].toLowerCase() : '';
+                    if (cat) {
+                        // Lock role to the program's category and disable role select
+                        roleSel.value = cat;
+                        roleSel.disabled = true;
+                    }
+                } else {
+                    // If program back to All, re-enable role select
+                    roleSel.disabled = false;
+                }
+                filterUsers();
+            });
+
         document.getElementById('roleFilter').addEventListener('change', filterUsers);
         document.getElementById('programFilter').addEventListener('change', filterUsers);
         document.getElementById('statusFilter').addEventListener('change', filterUsers);
+        
+        // Change Password modal submit (AJAX)
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        if (changePasswordForm) {
+            changePasswordForm.addEventListener('submit', function(e){
+                e.preventDefault();
+                ['currentPasswordError','newPasswordError','confirmPasswordError'].forEach(id=>{
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = '';
+                });
+                const formData = new FormData(changePasswordForm);
+                fetch('change_password.php', { method: 'POST', body: formData })
+                    .then(r=>r.json())
+                    .then(data=>{
+                        if (data.success) {
+                            const toast = document.createElement('div');
+                            toast.textContent = 'Password successfully updated';
+                            toast.style.position = 'fixed';
+                            toast.style.top = '16px';
+                            toast.style.right = '16px';
+                            toast.style.background = '#28a745';
+                            toast.style.color = '#fff';
+                            toast.style.padding = '10px 14px';
+                            toast.style.borderRadius = '6px';
+                            toast.style.zIndex = '10000';
+                            document.body.appendChild(toast);
+                            setTimeout(()=>toast.remove(), 2000);
+                            closeModal('changePasswordModal');
+                            changePasswordForm.reset();
+                        } else if (data.messages) {
+                            if (data.messages.currentPassword) document.getElementById('currentPasswordError').textContent = data.messages.currentPassword;
+                            if (data.messages.confirmPassword) document.getElementById('confirmPasswordError').textContent = data.messages.confirmPassword;
+                        }
+                    })
+                    .catch(err=>console.error(err));
+            });
+        }
+
+        // Populate modal Program options based on Role
+        const modalRole = document.getElementById('modalRoleCategory');
+        const modalProgram = document.getElementById('modalProgramPosition');
+        if (modalRole && modalProgram) {
+            modalRole.addEventListener('change', async function(){
+                modalProgram.innerHTML = '<option value="">Select Program/Position</option>';
+                const role = this.value;
+                if (!role) return;
+                try {
+                    const resp = await fetch(`get_programs.php?category=${encodeURIComponent(role)}`);
+                    if (!resp.ok) throw new Error('HTTP '+resp.status);
+                    const programs = await resp.json();
+                    if (Array.isArray(programs)) {
+                        programs.forEach(p=>{
+                            const opt = document.createElement('option');
+                            opt.value = p.name;
+                            opt.textContent = p.name;
+                            modalProgram.appendChild(opt);
+                        });
+                    }
+                } catch(e) { /* silent */ }
+            });
+            // Letters-only for names, digits-only for ID
+            const onlyLetters = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^A-Za-z\s]/g,''); });
+            const onlyDigits = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/\D/g,'').slice(0,11); });
+            onlyLetters(document.getElementById('modalFirstName'));
+            onlyLetters(document.getElementById('modalLastName'));
+            onlyDigits(document.getElementById('modalIdNumber'));
+        }
+
+        // Submit Add Account (AJAX)
+        const addForm = document.getElementById('addAccountFormModal');
+        if (addForm) {
+            addForm.addEventListener('submit', function(e){
+                e.preventDefault();
+                const formData = new FormData(addForm);
+                fetch('add_account.php', { method: 'POST', body: formData })
+                    .then(r=>r.json())
+                    .then((data)=>{
+                        if (!data || !data.success) throw new Error(data && data.message ? data.message : 'Request failed');
+                        // Close add form modal
+                        closeModal('addAccountModal');
+                        addForm.reset();
+                        // Show success credentials modal
+                        const modalHtml = `
+                        <div class="modal" id="createSuccessModal" style="display:flex; align-items:center; justify-content:center;">
+                          <div class="modal-content" style="max-width:520px">
+                            <div class="text-center">
+                              <i class="fas fa-check-circle success-icon"></i>
+                              <h4>Account Created Successfully!</h4>
+                              <p>The account has been created with the following credentials:</p>
+                              <div class="credentials-display">
+                                <div class="credential-item"><label>Email:</label><strong>${data.generated_email}</strong></div>
+                                <div class="credential-item"><label>Password:</label><strong>${data.generated_password}</strong></div>
+                              </div>
+                              <button class="btn btn-primary mt-3" id="createSuccessOk">OK</button>
+                            </div>
+                          </div>
+                        </div>`;
+                        document.body.insertAdjacentHTML('beforeend', modalHtml);
+                        document.getElementById('createSuccessOk').addEventListener('click', ()=>{
+                            const m = document.getElementById('createSuccessModal');
+                            if (m) m.remove();
+                        });
+                    })
+                    .catch(()=>{
+                        const toast = document.createElement('div');
+                        toast.textContent = 'Error creating account';
+                        toast.style.position = 'fixed';
+                        toast.style.top = '16px';
+                        toast.style.right = '16px';
+                        toast.style.background = '#dc3545';
+                        toast.style.color = '#fff';
+                        toast.style.padding = '10px 14px';
+                        toast.style.borderRadius = '6px';
+                        toast.style.zIndex = '10000';
+                        document.body.appendChild(toast);
+                        setTimeout(()=>toast.remove(), 2500);
+                    });
+            });
+        }
     });
 
     let selectedUserId = null;
@@ -281,7 +534,10 @@
             alert('Please select an account first.');
             return;
         }
-        window.location.href = `change_password.php?id=${selectedUserId}`;
+        // Open modal and seed selected id
+        document.getElementById('changePasswordUserId').value = selectedUserId;
+        const modal = document.getElementById('changePasswordModal');
+        modal.style.display = 'flex';
     }
 
     function updateStatus() {
@@ -290,7 +546,19 @@
             return;
         }
         document.getElementById('selectedUserId').value = selectedUserId;
-        document.getElementById('updateStatusModal').style.display = 'block';
+        const modal = document.getElementById('updateStatusModal');
+        modal.style.display = 'flex';
+    }
+
+    function openAddAccountModal(){
+        // Reset form
+        const f = document.getElementById('addAccountFormModal');
+        if (f) f.reset();
+        // Clear program list
+        const prog = document.getElementById('modalProgramPosition');
+        if (prog) prog.innerHTML = '<option value="">Select Program/Position</option>';
+        const modal = document.getElementById('addAccountModal');
+        modal.style.display = 'flex';
     }
 
     function closeModal(modalId) {
@@ -316,13 +584,31 @@
                     // Close the update modal
                     closeModal('updateStatusModal');
 
-                    // Show success modal
-                    document.getElementById('successModal').style.display = 'block';
+                    // Show success modal / toast
+                    try {
+                        const modal = document.getElementById('successModal');
+                        modal.querySelector('p').textContent = 'Status updated successfully';
+                        modal.style.display = 'block';
+                    } catch(e) {
+                        const toast = document.createElement('div');
+                        toast.textContent = 'Status updated successfully';
+                        toast.style.position = 'fixed';
+                        toast.style.top = '16px';
+                        toast.style.right = '16px';
+                        toast.style.background = '#28a745';
+                        toast.style.color = '#fff';
+                        toast.style.padding = '10px 14px';
+                        toast.style.borderRadius = '6px';
+                        toast.style.zIndex = '10000';
+                        document.body.appendChild(toast);
+                        setTimeout(()=>toast.remove(), 2000);
+                    }
 
                     // Update the status in the table immediately without reload
                     const row = document.querySelector(`tr[data-id="${formData.get('userId')}"]`);
                     if (row) {
-                        row.cells[7].textContent = formData.get('status'); // Make sure the index matches your status column
+                        // After removing Email column, Status column index becomes 7 (0-based)
+                        row.cells[7].textContent = formData.get('status');
                     }
 
                     // Clear selection
@@ -343,199 +629,641 @@
     // Add this to your existing styles
     document.head.insertAdjacentHTML('beforeend', `
         <style>
+            body {
+                background: #f2f2ef;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                min-height: 100vh;
+                margin: 0;
+            }
+            
+            .header-section {
+                background: linear-gradient(135deg, #0072bc 0%, #003d82 100%);
+                color: white;
+                padding: 40px 0;
+                margin-bottom: 40px;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .header-section::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+                opacity: 0.3;
+            }
+            
+            .header-section .container {
+                position: relative;
+                z-index: 2;
+                max-width: 1320px; /* align with manage_programs header spacing */
+                margin: 0 auto;
+                padding: 0 32px;
+            }
+            .header-flex{
+                display:flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap:16px;
+            }
+            
+            .header-section h1 {
+                margin: 0;
+                font-size: 3rem;
+                font-weight: 700;
+                letter-spacing: -0.02em;
+                text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            }
+            
+            .header-section p {
+                margin: 12px 0 0 0;
+                opacity: 0.9;
+                font-size: 1.2rem;
+                font-weight: 400;
+            }
+            
+            .logout-btn {
+                margin-left: auto; /* ensure it sits at the far right in the flex row */
+                background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+                border: 2px solid #b02a37;
+                color: #fff;
+                padding: 12px 24px;
+                border-radius: 50px;
+                font-weight: 700;
+                transition: all 0.25s ease;
+                box-shadow: 0 6px 16px rgba(220, 53, 69, 0.35);
+            }
+            
+            .logout-btn:hover {
+                background: linear-gradient(135deg, #b02a37 0%, #8c1f2a 100%);
+                border-color: #8c1f2a;
+                transform: translateY(-2px);
+                box-shadow: 0 10px 24px rgba(220, 53, 69, 0.45);
+                color: #fff;
+            }
+            
+            .filters-card, .action-buttons-card, .table-card {
+                background: white;
+                border-radius: 16px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+                margin-bottom: 32px;
+                border: 1px solid rgba(0,114,188,0.1);
+                transition: all 0.3s ease;
+                overflow: hidden;
+            }
+            
+            .filters-card:hover, .action-buttons-card:hover, .table-card:hover {
+                box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+                transform: translateY(-2px);
+            }
+            
+            .filters-card {
+                background: linear-gradient(145deg, #ffffff 0%, #f8fbff 100%);
+                border-left: 4px solid #0072bc;
+                height: 100%;
+            }
+            
+            .action-buttons-card {
+                background: linear-gradient(145deg, #ffffff 0%, #fffef8 100%);
+                border-left: 4px solid #fdf005;
+            }
+            
+            .table-card {
+                background: white;
+                border-left: 4px solid #003d82;
+            }
+            
+            .card-header {
+                background: #f7f9fc;
+                padding: 16px 20px;
+                border-bottom: 2px solid #e1ebf5;
+                border-radius: 0;
+                position: relative;
+            }
+            
+            .card-header::before {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                height: 3px;
+                width: 80px;
+                background: #0072bc;
+            }
+            
+            .card-header h5 {
+                margin: 0;
+                font-weight: 800;
+                color: #003d82;
+                font-size: 1.35rem;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            
+            .card-header h5 i {
+                color: #0072bc;
+                font-size: 1.1rem;
+            }
+            
+            .card-body {
+                padding: 24px;
+            }
+            
+            .action-btn {
+                margin: 8px;
+                padding: 14px 28px;
+                font-weight: 600;
+                border-radius: 12px;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                border: none;
+                position: relative;
+                overflow: hidden;
+                font-size: 15px;
+                letter-spacing: 0.02em;
+            }
+            
+            .action-btn::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+                transition: left 0.5s ease;
+            }
+            
+            .action-btn:hover::before {
+                left: 100%;
+            }
+            
+            .btn-primary {
+                background: linear-gradient(135deg, #0072bc 0%, #005a94 100%);
+                color: white;
+                box-shadow: 0 4px 15px rgba(0,114,188,0.3);
+            }
+            
+            .btn-primary:hover {
+                background: linear-gradient(135deg, #005a94 0%, #004275 100%);
+                transform: translateY(-3px);
+                box-shadow: 0 8px 25px rgba(0,114,188,0.4);
+                color: white;
+            }
+            
+            .btn-success {
+                background: linear-gradient(135deg, #fdf005 0%, #e8dc04 100%);
+                color: #333;
+                box-shadow: 0 4px 15px rgba(253,240,5,0.3);
+            }
+            
+            .btn-success:hover {
+                background: linear-gradient(135deg, #e8dc04 0%, #d4c603 100%);
+                transform: translateY(-3px);
+                box-shadow: 0 8px 25px rgba(253,240,5,0.4);
+                color: #333;
+            }
+            
+            .btn-secondary {
+                background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+                color: white;
+                box-shadow: 0 4px 15px rgba(108,117,125,0.3);
+            }
+            
+            .btn-secondary:hover {
+                background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+                transform: translateY(-3px);
+                box-shadow: 0 8px 25px rgba(108,117,125,0.4);
+                color: white;
+            }
+            
+            .btn-warning {
+                background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+                color: #333;
+                box-shadow: 0 4px 15px rgba(255,193,7,0.3);
+            }
+            
+            .btn-warning:hover {
+                background: linear-gradient(135deg, #e0a800 0%, #d39e00 100%);
+                transform: translateY(-3px);
+                box-shadow: 0 8px 25px rgba(255,193,7,0.4);
+                color: #333;
+            }
+            
+            .action-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none !important;
+                box-shadow: none !important;
+            }
+            
+            .action-btn:disabled::before {
+                display: none;
+            }
+            
+            .table {
+                margin: 0;
+                table-layout: fixed;
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0;
+            }
+
+            .table th, .table td {
+                text-align: left;
+                vertical-align: middle;
+                padding: 18px 15px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                border-bottom: 1px solid #f0f7ff;
+            }
+
+            .table thead th {
+                background: #f7f9fc;
+                font-weight: 700;
+                border-bottom: 3px solid #0072bc;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                color: #003d82;
+                font-size: 14px;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+                position: relative;
+                white-space: nowrap;
+            }
+            
+            .table thead th::after {
+                content: '';
+                position: absolute;
+                bottom: -3px;
+                left: 0;
+                width: 0;
+                height: 3px;
+                background: #fdf005;
+                transition: width 0.3s ease;
+            }
+            
+            .table thead th:hover {
+                background: #eef5fb;
+            }
+            
+            .table thead th:hover::after {
+                width: 100%;
+            }
+            
+            .table tbody td {
+                font-weight: 500;
+                color: #495057;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .table tbody tr:nth-child(even){ background:#fbfdff; }
+            .table tbody tr:hover{ background:#f2f8ff; }
+
+            /* Tooltip support for truncated text */
+            .has-tooltip { position: relative; }
+            .has-tooltip:hover::after {
+                content: attr(data-fulltext);
+                position: absolute;
+                left: 0;
+                top: -28px;
+                background: rgba(0,0,0,0.8);
+                color: #fff;
+                padding: 4px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                white-space: nowrap;
+                z-index: 5;
+            }
+
+            /* Specific column widths for perfect alignment */
+            /* Sum = 100% to avoid overflow that can push cells */
+            .table th:nth-child(1), .table td:nth-child(1) { width: 13%; } /* First Name */
+            .table th:nth-child(2), .table td:nth-child(2) { width: 13%; } /* Last Name */
+            .table th:nth-child(3), .table td:nth-child(3) { width: 12%; } /* Birthday */
+            .table th:nth-child(4), .table td:nth-child(4) { width: 14%; } /* ID Number */
+            .table th:nth-child(5), .table td:nth-child(5) { width: 12%; } /* Role */
+            .table th:nth-child(6), .table td:nth-child(6) { width: 24%; } /* Program/Position */
+            .table th:nth-child(7), .table td:nth-child(7) { width: 11%; } /* Status */
+            .table th:nth-child(8), .table td:nth-child(8) { width: 11%; } /* Date Created */
+            
             .account-row {
                 cursor: pointer;
+                transition: all 0.3s ease;
+                position: relative;
             }
+            
+            /* Remove pseudo-element that could create visual offset */
+            .account-row::before { display: none; }
+            
+            .account-row:hover {
+                background: linear-gradient(135deg, #f8fbff 0%, #f0f7ff 100%) !important;
+                transform: translateX(4px);
+                box-shadow: 0 4px 20px rgba(0,114,188,0.1);
+            }
+            
+            .account-row:hover::before {
+                width: 4px;
+            }
+            
             .account-row.selected {
-                background-color: #e3f2fd !important;
+                background: linear-gradient(135deg, #e3f2fd 0%, #d1e8ff 100%) !important;
+                border-left: 4px solid #0072bc;
+                transform: translateX(0);
             }
-            .action-buttons button:disabled {
-                opacity: 0.6;
-                cursor: not-allowed;
+            
+            .account-row.selected::before {
+                width: 4px;
+                background: #0072bc;
             }
+            
             .modal {
                 display: none;
                 position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
+                inset: 0;
+                display: none;
+                align-items: center;
+                justify-content: center;
                 background-color: rgba(0,0,0,0.5);
                 z-index: 1000;
             }
+            
             .modal-content {
                 background: white;
                 padding: 25px;
-                border-radius: 8px;
-                box-shadow: 0 2px 15px rgba(0,0,0,0.2);
+                border-radius: 10px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.2);
                 width: 90%;
-                max-width: 400px;
+                max-width: 500px;
                 position: relative;
-                margin: 15% auto;
+                margin: 0 auto;
             }
+            
             .success-icon {
                 color: #28a745;
                 font-size: 48px;
                 margin-bottom: 15px;
             }
+            
             .modal-content h3 {
                 margin-bottom: 20px;
                 color: #333;
                 text-align: center;
+                font-weight: 600;
             }
+            
             .modal-content form {
                 margin-bottom: 15px;
             }
+            
             .modal-content .form-group {
                 margin-bottom: 20px;
             }
+            
             .modal-content .btn {
                 margin: 5px;
+                border-radius: 6px;
             }
+            
             .modal-content .mt-3 {
                 text-align: center;
             }
-        </style>
-    `);
-</script>
-<style>
-    .header-section {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px;
-        margin-bottom: 20px;
-    }
-
-    .search-container {
-        position: relative;
-        width: 300px;
-    }
-
-    .search-bar {
-        width: 100%;
-        padding: 10px 35px 10px 15px;
-        border: 1px solid #ddd;
-        border-radius: 20px;
+            
+            .form-control {
+                border-radius: 10px;
+                border: 2px solid #e8f2ff;
+                padding: 12px 16px;
+                background: #fafbff;
+                transition: all 0.3s ease;
+                font-size: 14px;
+                font-weight: 500;
+            }
+            
+            .form-control:focus {
+                border-color: #0072bc;
+                box-shadow: 0 0 0 4px rgba(0, 114, 188, 0.15);
+                background: white;
+                outline: none;
+            }
+            
+            .form-control:hover {
+                border-color: #b3d9ff;
+                background: white;
+            }
+            
+            .form-group label {
+                font-weight: 600;
+                color: #003d82;
+                margin-bottom: 8px;
         font-size: 14px;
-    }
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+            }
+            
+            .input-group-text {
+                background: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-left: none;
+            }
+            
+            .table-responsive {
+                border-radius: 0 0 10px 10px;
+            }
+            
+            /* Container improvements */
+            .container {
+                max-width: 100%;
+                padding: 0 20px;
+            }
 
-    .search-icon {
-        position: absolute;
-        right: 15px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #666;
-    }
+            /* Admin two-pane layout: sidebar + main */
+            .admin-grid { display:grid; grid-template-columns: 360px minmax(0,1fr); gap:16px; }
+            .admin-sidebar { position: sticky; top: 16px; height: fit-content; }
+            .admin-main { min-width: 0; }
 
-    .logout-btn {
-        padding: 8px 20px;
-        border-radius: 5px;
-        font-weight: 500;
-    }
+            .admin-sidebar .card-body { padding: 14px 16px; }
+            .admin-sidebar .form-group { display:flex; align-items:center; gap:12px; margin-bottom:10px; padding-bottom:10px; border-bottom: 1px dashed #e6eef6; }
+            .admin-sidebar .form-group label { margin:0; min-width: 150px; white-space:nowrap; }
+            .admin-sidebar .form-group .form-control, .admin-sidebar .form-group .input-group { flex:1; }
+            .admin-sidebar .form-control { height: 38px; padding: 6px 10px; }
 
-    .logout-btn i {
-        margin-right: 5px;
-    }
+            .action-buttons-card .card-body { display:flex; flex-direction:row; flex-wrap:wrap; gap:10px; }
+            .action-buttons-card .action-btn { flex:1 1 calc(50% - 10px); min-width:160px; justify-content:center; display:inline-flex; align-items:center; gap:10px; padding:12px 16px; border-radius:10px; font-size:15px; }
+            .action-buttons-card .action-btn i { font-size:18px; }
 
-
-    .filters-section {
+            @media (max-width: 992px) {
+                .admin-grid { grid-template-columns: 1fr; }
+                .admin-sidebar { position: static; }
+            }
+            
+            /* Filters row: single row layout on desktop, wrap on small screens */
+            .filters-card .card-body > .row {
         display: flex;
+                flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        padding: 20px;
-        background-color: #f8f9fa;
-        border-radius: 5px;
-        margin-bottom: 20px;
     }
-
-    .filters {
+            /* Place filter labels on the left of controls (including Search) */
+            .filters-card .form-group {
         display: flex;
-        gap: 20px;
-    }
-
-    .filter-group {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .filter-dropdown {
-        padding: 8px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        min-width: 150px;
-    }
-
-    th {
-        cursor: pointer;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 0;
+            }
+            .filters-card .form-group label {
+                margin: 0;
+                white-space: nowrap;
+                min-width: 70px;
+            }
+            .filters-card .form-group .form-control { flex: 1; }
+            .filters-card .form-group .input-group { flex: 1; }
+            
+            /* Spacing utilities */
+            .section-spacing {
+                margin-bottom: 40px;
+            }
+            
+            /* Input group improvements */
+            .input-group {
+                position: relative;
+            }
+            
+            .input-group .form-control {
+                border-top-right-radius: 0;
+                border-bottom-right-radius: 0;
+                border-right: none;
+            }
+            
+            .input-group .input-group-text {
+                background: linear-gradient(135deg, #f8fbff 0%, #e8f2ff 100%);
+                border: 2px solid #e8f2ff;
+                border-left: none;
+                border-top-left-radius: 0;
+                border-bottom-left-radius: 0;
+                border-top-right-radius: 10px;
+                border-bottom-right-radius: 10px;
+                color: #0072bc;
+            }
+            
+            /* Status badges */
+            .status-badge {
+                padding: 6px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+            }
+            
+            .status-active {
+                background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            
+            .status-inactive {
+                background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            
+            /* Loading states */
+            .loading {
+                opacity: 0.7;
+                pointer-events: none;
         position: relative;
-        padding: 12px;
-        transition: background-color 0.2s;
-    }
-
-    th:hover {
-        background-color: #f5f5f5;
-    }
-
-    .logout-container {
-        margin-left: auto;
-    }
-
-    .logout-btn {
-        padding: 10px 25px;
-        border-radius: 5px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-
-    .logout-btn:hover {
-        background-color: #dc3545;
-        transform: translateY(-2px);
-    }
-
-    .action-buttons {
-        padding: 20px;
-        margin: 20px 0 30px 0;
-        text-align: center;
-    }
-
-    .action-buttons button {
-        margin: 0 10px;
-        padding: 12px 25px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-
-    .action-buttons button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    }
-
-    .table-container {
-        padding: 20px;
-        background-color: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
-
-    .table {
-        margin-top: 20px;
+            }
+            
+            .loading::after {
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 20px;
+                height: 20px;
+                margin: -10px 0 0 -10px;
+                border: 2px solid #0072bc;
+                border-top: 2px solid transparent;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+            
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            
+            /* Mobile responsiveness */
+            @media (max-width: 768px) {
+                .header-section h1 {
+                    font-size: 2.2rem;
+                }
+                
+                .header-section p {
+                    font-size: 1rem;
+                }
+                
+                .action-btn {
+                    margin: 4px;
+                    padding: 12px 20px;
+                    font-size: 14px;
+                    width: calc(50% - 8px);
+                }
+                
+                .card-body {
+                    padding: 16px;
+                }
+                
+                .card-header {
+                    padding: 16px 20px;
+                }
+                
+                .card-header h5 {
+                    font-size: 1.1rem;
+                }
+                
+                .form-control {
+                    padding: 10px 14px;
+                    font-size: 16px; /* Prevent zoom on iOS */
+                }
+                
+                .table thead th {
+                    padding: 12px 8px;
+                    font-size: 12px;
+                }
+                
+                .table tbody td {
+                    padding: 12px 8px;
+                    font-size: 14px;
+                }
+                
+                .container {
+                    padding: 0 15px;
+                }
+            }
+            
+            @media (max-width: 480px) {
+                .action-btn {
         width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-
-    .table th {
-        background-color: #f8f9fa;
-        padding: 15px;
-        font-weight: 600;
-        border-bottom: 2px solid #dee2e6;
-    }
-
-    .table td {
-        padding: 15px;
-        border-bottom: 1px solid #dee2e6;
+                    margin: 4px 0;
+                }
+                
+                .d-flex.justify-content-between {
+                    flex-direction: column;
+                    gap: 16px;
+                    text-align: center;
+                }
+                
+                .logout-btn {
+                    align-self: center;
+                }
     }
 </style>
+    `);
+</script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">

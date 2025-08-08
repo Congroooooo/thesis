@@ -83,7 +83,7 @@ $_SESSION['checkout_total'] = $total_amount;
                         <input type="text" id="lastName" name="lastName" value="<?php echo htmlspecialchars($user['last_name']); ?>" readonly required>
                     </div>
                     <div class="form-group">
-                        <label for="course">Course/Strand</label>
+                        <label for="course">Program/Position</label>
                         <input type="text" id="course" name="course" value="<?php echo htmlspecialchars($user['program_or_position']); ?>" readonly required>
                     </div>
                     <div class="form-group">
