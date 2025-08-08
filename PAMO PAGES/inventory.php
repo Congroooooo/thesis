@@ -341,15 +341,15 @@ function page_link($page, $query_string) {
                     </div>
                     <div class="input-group">
                         <label for="newCategory">Category:</label>
-                        <select id="newCategory" name="newCategory" required>
+                        <select id="newCategory" name="category_id" required>
                             <option value="">Select Category</option>
-                            <option value="Tertiary-Uniform">Tertiary-Uniform</option>
-                            <option value="SHS-Uniform">SHS-Uniform</option>
-                            <option value="STI-Shirts">STI-Shirts</option>
-                            <option value="STI-Accessories">STI-Accessories</option>
-                            <option value="SHS-PE">SHS-PE</option>
-                            <option value="Tertiary-PE">Tertiary-PE</option>
-                            <option value="STI-Jacket">STI Jacket</option>
+                            <option value="__add__">+ Add new category…</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="subcategoryGroup" style="display:none;">
+                        <label for="subcategorySelect">Subcategory:</label>
+                        <select id="subcategorySelect" name="subcategory_ids[]" multiple style="width:100%;">
+                            <option value="__add__">+ Add new subcategory…</option>
                         </select>
                     </div>
                     <div class="input-group" id="shirtTypeGroup" style="display:none;">

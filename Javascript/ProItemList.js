@@ -281,49 +281,84 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Remove previous course-header click logic
-  // Add multi-select course filter logic
-  document.querySelectorAll(".course-filter-checkbox").forEach((checkbox) => {
-    checkbox.addEventListener("change", function () {
-      // Find the main category for this checkbox
-      const mainCategoryDiv = this.closest(".category-item");
-      const mainCategoryHeader = mainCategoryDiv.querySelector(
-        ".main-category-header"
-      );
-      const mainCategory = mainCategoryHeader.dataset.category;
-
-      // Get all checked subcategories for this main category
-      const checked = Array.from(
-        mainCategoryDiv.querySelectorAll(".course-filter-checkbox:checked")
-      ).map((cb) => cb.value);
-
-      if (checked.length > 0) {
-        activeSubcategories.set(mainCategory, checked);
-      } else {
-        activeSubcategories.delete(mainCategory);
-      }
-
-      applyAllFilters();
-    });
-  });
-
-  // Add multi-select shirt type filter logic for STI Shirt
-  document
-    .querySelectorAll(".shirt-type-filter-checkbox")
-    .forEach((checkbox) => {
+  // Add multi-select course filter logic (now works with dynamic categories)
+  function attachCourseFilterListeners() {
+    document.querySelectorAll(".course-filter-checkbox").forEach((checkbox) => {
       checkbox.addEventListener("change", function () {
-        const mainCategory = "sti-shirt";
+        // Find the main category for this checkbox
+        const mainCategoryDiv = this.closest(".category-item");
+        const mainCategoryHeader = mainCategoryDiv.querySelector(
+          ".main-category-header"
+        );
+        const mainCategory = mainCategoryHeader.dataset.category;
+
+        // Get all checked subcategories for this main category
         const checked = Array.from(
-          document.querySelectorAll(".shirt-type-filter-checkbox:checked")
+          mainCategoryDiv.querySelectorAll(".course-filter-checkbox:checked")
         ).map((cb) => cb.value);
+
         if (checked.length > 0) {
           activeSubcategories.set(mainCategory, checked);
-          activeMainCategories.add(mainCategory);
         } else {
           activeSubcategories.delete(mainCategory);
         }
+
         applyAllFilters();
       });
     });
+  }
+
+  // Call it initially and make it available for re-calling after dynamic updates
+  attachCourseFilterListeners();
+
+  // Add multi-select shirt type filter logic for STI Shirt (now works with dynamic categories)
+  function attachShirtTypeFilterListeners() {
+    document
+      .querySelectorAll(".shirt-type-filter-checkbox")
+      .forEach((checkbox) => {
+        checkbox.addEventListener("change", function () {
+          // Find the main category for this checkbox (should be sti-shirt or similar)
+          const mainCategoryDiv = this.closest(".category-item");
+          const mainCategoryHeader = mainCategoryDiv?.querySelector(
+            ".main-category-header"
+          );
+          const mainCategory =
+            mainCategoryHeader?.dataset.category || "sti-shirt";
+
+          const checked = Array.from(
+            document.querySelectorAll(".shirt-type-filter-checkbox:checked")
+          ).map((cb) => cb.value);
+          if (checked.length > 0) {
+            activeSubcategories.set(mainCategory, checked);
+            activeMainCategories.add(mainCategory);
+          } else {
+            activeSubcategories.delete(mainCategory);
+          }
+          applyAllFilters();
+        });
+      });
+  }
+
+  // Call it initially and make it available for re-calling after dynamic updates
+  attachShirtTypeFilterListeners();
+
+  // Global function to refresh sidebar with new categories (can be called from other pages)
+  window.refreshSidebar = async function () {
+    try {
+      const response = await fetch(
+        "../PAMO Inventory backend/api_sidebar_categories.php"
+      );
+      const data = await response.json();
+
+      if (data.success && data.categories) {
+        // This would require a complete page reload to update the PHP-generated sidebar
+        // For now, just reload the page to get the updated sidebar
+        location.reload();
+      }
+    } catch (error) {
+      console.error("Error refreshing sidebar:", error);
+    }
+  };
 
   // Add these helper functions before applyAllFilters
   function normalizeText(text) {
@@ -355,8 +390,11 @@ document.addEventListener("DOMContentLoaded", function () {
       if (activeMainCategories.size > 0) {
         for (const mainCategory of activeMainCategories) {
           if (productCategory.includes(mainCategory.toLowerCase())) {
-            // STI Shirt: filter by shirt type
-            if (mainCategory === "sti-shirt") {
+            // STI Shirt or any category with shirt type filtering: filter by shirt type ID
+            if (
+              mainCategory.includes("sti-shirt") ||
+              mainCategory.includes("sti-shirts")
+            ) {
               if (
                 activeSubcategories.has(mainCategory) &&
                 activeSubcategories.get(mainCategory).length > 0
@@ -436,13 +474,15 @@ document.addEventListener("DOMContentLoaded", function () {
     return normalizedProductName === normalizedCourseValue;
   }
 
-  // Remove clear filter logic for checkboxes
+  // Clear filter logic for dynamic categories
   const clearFiltersBtn = document.getElementById("clearFiltersBtn");
   if (clearFiltersBtn) {
     clearFiltersBtn.addEventListener("click", function () {
-      // Uncheck all course checkboxes
+      // Uncheck all course and shirt type checkboxes
       document
-        .querySelectorAll(".course-filter-checkbox")
+        .querySelectorAll(
+          ".course-filter-checkbox, .shirt-type-filter-checkbox"
+        )
         .forEach((cb) => (cb.checked = false));
       // Collapse all main categories
       document

@@ -10,7 +10,7 @@ try {
 
     mysqli_begin_transaction($conn);
 
-    $required_fields = ['newItemCode', 'newCategory', 'newItemName', 'newSize', 'newItemPrice', 'newItemQuantity', 'deliveryOrderNumber'];
+    $required_fields = ['newItemCode', 'category_id', 'newItemName', 'newSize', 'newItemPrice', 'newItemQuantity', 'deliveryOrderNumber'];
     foreach ($required_fields as $field) {
         if (!isset($_POST[$field]) || empty($_POST[$field])) {
             throw new Exception("Missing required field: $field");
@@ -18,7 +18,25 @@ try {
     }
 
     $item_code = mysqli_real_escape_string($conn, $_POST['newItemCode']);
-    $category = mysqli_real_escape_string($conn, $_POST['newCategory']);
+    $category_id = intval($_POST['category_id'] ?? 0);
+    if ($category_id <= 0) {
+        throw new Exception("Category is required");
+    }
+    // Resolve category name from ID (keep legacy `inventory.category` string filled during transition)
+    $cat_sql = "SELECT name, has_subcategories FROM categories WHERE id = ?";
+    $cat_stmt = mysqli_prepare($conn, $cat_sql);
+    if (!$cat_stmt) {
+        throw new Exception("Prepare failed: " . mysqli_error($conn));
+    }
+    mysqli_stmt_bind_param($cat_stmt, "i", $category_id);
+    mysqli_stmt_execute($cat_stmt);
+    mysqli_stmt_bind_result($cat_stmt, $category_name, $category_has_sub);
+    mysqli_stmt_fetch($cat_stmt);
+    mysqli_stmt_close($cat_stmt);
+    if (!$category_name) {
+        throw new Exception("Invalid category");
+    }
+    $category = mysqli_real_escape_string($conn, $category_name);
     $item_name = mysqli_real_escape_string($conn, $_POST['newItemName']);
     $sizes = mysqli_real_escape_string($conn, $_POST['newSize']);
     $price = floatval($_POST['newItemPrice']);
@@ -95,10 +113,10 @@ try {
     $RTW = (count($course_ids) > 1) ? 1 : 0;
 
     $sql = "INSERT INTO inventory (
-        item_code, category, item_name, sizes, price, 
+        item_code, category_id, category, item_name, sizes, price, 
         actual_quantity, new_delivery, beginning_quantity, 
         damage, sold_quantity, status, image_path, RTW, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
     $stmt = mysqli_prepare($conn, $sql);
     if (!$stmt) {
@@ -107,8 +125,9 @@ try {
 
     mysqli_stmt_bind_param(
         $stmt,
-        "ssssdiiiiissi",
+        "sisssdiiiiissi",
         $item_code,
+        $category_id,
         $category,
         $item_name,
         $sizes,
@@ -145,34 +164,24 @@ try {
     }
     mysqli_stmt_close($stmt);
 
-    if (!empty($course_ids)) {
-        $sql = "INSERT INTO course_item (course_id, inventory_id) VALUES (?, ?)";
-        $stmt = mysqli_prepare($conn, $sql);
-        if (!$stmt) {
+    // New: link subcategories, if provided
+    $subcategory_ids = isset($_POST['subcategory_ids']) ? (array)$_POST['subcategory_ids'] : [];
+    if (!empty($subcategory_ids)) {
+        $pivot_sql = "INSERT IGNORE INTO inventory_subcategory (inventory_id, subcategory_id) VALUES (?, ?)";
+        $pivot_stmt = mysqli_prepare($conn, $pivot_sql);
+        if (!$pivot_stmt) {
             throw new Exception("Prepare failed: " . mysqli_error($conn));
         }
-
-        foreach ($course_ids as $course_id) {
-            mysqli_stmt_bind_param($stmt, "ii", $course_id, $new_inventory_id);
-            if (!mysqli_stmt_execute($stmt)) {
-                throw new Exception("Error linking course: " . mysqli_stmt_error($stmt));
+        foreach ($subcategory_ids as $sid) {
+            $sid = intval($sid);
+            if ($sid > 0) {
+                mysqli_stmt_bind_param($pivot_stmt, "ii", $new_inventory_id, $sid);
+                if (!mysqli_stmt_execute($pivot_stmt)) {
+                    throw new Exception("Error linking subcategory: " . mysqli_stmt_error($pivot_stmt));
+                }
             }
         }
-        mysqli_stmt_close($stmt);
-    }
-
-    if ($category === 'STI-Shirts' && !empty($_POST['shirt_type_id'])) {
-        $shirt_type_id = intval($_POST['shirt_type_id']);
-        $sql = "INSERT INTO shirt_type_item (inventory_id, shirt_type_id) VALUES (?, ?)";
-        $stmt = mysqli_prepare($conn, $sql);
-        if (!$stmt) {
-            throw new Exception("Prepare failed: " . mysqli_error($conn));
-        }
-        mysqli_stmt_bind_param($stmt, "ii", $new_inventory_id, $shirt_type_id);
-        if (!mysqli_stmt_execute($stmt)) {
-            throw new Exception("Error linking shirt type: " . mysqli_stmt_error($stmt));
-        }
-        mysqli_stmt_close($stmt);
+        mysqli_stmt_close($pivot_stmt);
     }
 
     $student_query = "SELECT id FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'";

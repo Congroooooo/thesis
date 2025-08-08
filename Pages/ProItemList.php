@@ -153,113 +153,205 @@
                 $cat = strtolower(str_replace(' ', '-', $product['category']));
                 $categoriesWithProducts[$cat] = true;
             }
+
+            // Fetch categories dynamically from the database
+            $dynamicCategories = [];
+            
+            // Get all categories with their subcategories
+            $categoriesQuery = "
+                SELECT 
+                    c.id, 
+                    c.name, 
+                    c.has_subcategories,
+                    GROUP_CONCAT(
+                        CONCAT(s.id, ':', s.name) 
+                        ORDER BY s.name ASC 
+                        SEPARATOR '|'
+                    ) as subcategories
+                FROM categories c
+                LEFT JOIN subcategories s ON c.id = s.category_id
+                GROUP BY c.id, c.name, c.has_subcategories
+                ORDER BY c.name ASC
+            ";
+            
+            $categoriesResult = mysqli_query($conn, $categoriesQuery);
+            
+            if ($categoriesResult) {
+                while ($row = mysqli_fetch_assoc($categoriesResult)) {
+                    $subcategories = [];
+                    if ($row['subcategories']) {
+                        $subPairs = explode('|', $row['subcategories']);
+                        foreach ($subPairs as $pair) {
+                            $parts = explode(':', $pair, 2);
+                            if (count($parts) === 2) {
+                                $subcategories[] = [
+                                    'id' => $parts[0],
+                                    'name' => $parts[1]
+                                ];
+                            }
+                        }
+                    }
+                    
+                    $dynamicCategories[] = [
+                        'id' => $row['id'],
+                        'name' => $row['name'],
+                        'has_subcategories' => (bool)$row['has_subcategories'],
+                        'subcategories' => $subcategories
+                    ];
+                }
+            }
+            
+            // Also get legacy categories from inventory table that might not be in categories table yet
+            $legacyCategoriesQuery = "
+                SELECT DISTINCT category 
+                FROM inventory 
+                WHERE category NOT IN (SELECT name FROM categories)
+                ORDER BY category ASC
+            ";
+            
+            $legacyResult = mysqli_query($conn, $legacyCategoriesQuery);
+            
+            if ($legacyResult) {
+                while ($row = mysqli_fetch_assoc($legacyResult)) {
+                    $dynamicCategories[] = [
+                        'id' => null,
+                        'name' => $row['category'],
+                        'has_subcategories' => false,
+                        'subcategories' => [],
+                        'is_legacy' => true
+                    ];
+                }
+            }
+            
+            // Helper function to normalize category names for data attributes
+            function normalizeCategoryName($name) {
+                return strtolower(str_replace([' ', '_'], '-', $name));
+            }
+            
+            // Debug: Show what categories we found
+            echo "<!-- DEBUG: Found " . count($dynamicCategories) . " categories: " . json_encode($dynamicCategories) . " -->";
             ?>
+            
+            <?php if (count($dynamicCategories) > 0): ?>
+                <!-- DEBUG: Categories loaded successfully -->
+            <?php else: ?>
+                <!-- DEBUG: No categories found, using fallback -->
+            <?php endif; ?>
             <div class="category-list">
-                <!-- Always show all main categories -->
-                <div class="category-item">
-                    <div class="main-category-header" data-category="tertiary-uniform">
-                        <span>Tertiary Uniform</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="subcategories">
-                        <!-- Only show course checkboxes if there are products in those courses -->
-                        <?php if (isset($categoriesWithProducts['tertiary-uniform'])): ?>
-                        <div class="course-category">
-                            <div class="course-header">
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" class="course-filter-checkbox" value="BSCM">
-                                    <span>BSCM</span>
-                                </label>
+                <?php if (!empty($dynamicCategories)): ?>
+                    <?php foreach ($dynamicCategories as $category): ?>
+                        <?php 
+                        $normalizedName = normalizeCategoryName($category['name']);
+                        $hasProducts = isset($categoriesWithProducts[$normalizedName]);
+                        ?>
+                        <div class="category-item">
+                            <div class="main-category-header" data-category="<?= htmlspecialchars($normalizedName) ?>">
+                                <span><?= htmlspecialchars($category['name']) ?></span>
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                            <div class="subcategories">
+                                <?php if ($category['has_subcategories'] && !empty($category['subcategories'])): ?>
+                                    <?php foreach ($category['subcategories'] as $subcategory): ?>
+                                        <div class="course-category">
+                                            <div class="course-header">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                                    <?php if ($category['name'] === 'STI-Shirts'): ?>
+                                                        <input type="checkbox" class="shirt-type-filter-checkbox" value="<?= htmlspecialchars($subcategory['id']) ?>">
+                                                    <?php else: ?>
+                                                        <input type="checkbox" class="course-filter-checkbox" value="<?= htmlspecialchars($subcategory['name']) ?>">
+                                                    <?php endif; ?>
+                                                    <span><?= htmlspecialchars($subcategory['name']) ?></span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php elseif ($category['name'] === 'STI-Shirts'): ?>
+                                    <!-- Fallback for STI-Shirts using shirt_type table -->
+                                    <?php foreach ($shirtTypes as $type): ?>
+                                    <div class="course-category">
+                                        <div class="course-header">
+                                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                                <input type="checkbox" class="shirt-type-filter-checkbox" value="<?= $type['id'] ?>">
+                                                <span><?= htmlspecialchars($type['name']) ?></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </div>
                         </div>
-                        <div class="course-category">
-                            <div class="course-header">
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" class="course-filter-checkbox" value="BSTM">
-                                    <span>BSTM</span>
-                                </label>
-                            </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <!-- Fallback to hardcoded categories if API fails -->
+                    <div class="category-item">
+                        <div class="main-category-header" data-category="tertiary-uniform">
+                            <span>Tertiary Uniform</span>
+                            <i class="fas fa-chevron-down"></i>
                         </div>
-                        <div class="course-category">
-                            <div class="course-header">
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" class="course-filter-checkbox" value="BSIT/BSCS/BSCPE">
-                                    <span>BSIT/BSCS/BSCPE</span>
-                                </label>
+                        <div class="subcategories">
+                            <?php if (isset($categoriesWithProducts['tertiary-uniform'])): ?>
+                            <div class="course-category">
+                                <div class="course-header">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" class="course-filter-checkbox" value="BSCM">
+                                        <span>BSCM</span>
+                                    </label>
+                                </div>
                             </div>
-                        </div>
-                        <div class="course-category">
-                            <div class="course-header">
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" class="course-filter-checkbox" value="BSBA">
-                                    <span>BSBA</span>
-                                </label>
+                            <div class="course-category">
+                                <div class="course-header">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" class="course-filter-checkbox" value="BSTM">
+                                        <span>BSTM</span>
+                                    </label>
+                                </div>
                             </div>
-                        </div>
-                        <div class="course-category">
-                            <div class="course-header">
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" class="course-filter-checkbox" value="BMMA">
-                                    <span>BMMA</span>
-                                </label>
+                            <div class="course-category">
+                                <div class="course-header">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" class="course-filter-checkbox" value="BSIT/BSCS/BSCPE">
+                                        <span>BSIT/BSCS/BSCPE</span>
+                                    </label>
+                                </div>
                             </div>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <div class="category-item">
-                    <div class="main-category-header" data-category="shs-uniform">
-                        <span>SHS Uniform</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="subcategories"></div>
-                </div>
-                <div class="category-item">
-                    <div class="main-category-header" data-category="sti-accessories">
-                        <span>STI Accessories</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="subcategories"></div>
-                </div>
-                <div class="category-item">
-                    <div class="main-category-header" data-category="sti-shirt">
-                        <span>STI Shirt</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="subcategories">
-                        <?php foreach ($shirtTypes as $type): ?>
-                        <div class="course-category">
-                            <div class="course-header">
-                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                    <input type="checkbox" class="shirt-type-filter-checkbox" value="<?= $type['id'] ?>">
-                                    <span><?= htmlspecialchars($type['name']) ?></span>
-                                </label>
+                            <div class="course-category">
+                                <div class="course-header">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" class="course-filter-checkbox" value="BSBA">
+                                        <span>BSBA</span>
+                                    </label>
+                                </div>
                             </div>
+                            <div class="course-category">
+                                <div class="course-header">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" class="course-filter-checkbox" value="BMMA">
+                                        <span>BMMA</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                         </div>
-                        <?php endforeach; ?>
                     </div>
-                </div>
-                <div class="category-item">
-                    <div class="main-category-header" data-category="sti-jacket">
-                        <span>STI Jacket</span>
-                        <i class="fas fa-chevron-down"></i>
+                    <div class="category-item">
+                        <div class="main-category-header" data-category="sti-shirt">
+                            <span>STI Shirt</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="subcategories">
+                            <?php foreach ($shirtTypes as $type): ?>
+                            <div class="course-category">
+                                <div class="course-header">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" class="shirt-type-filter-checkbox" value="<?= $type['id'] ?>">
+                                        <span><?= htmlspecialchars($type['name']) ?></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
-                    <div class="subcategories"></div>
-                </div>
-                <div class="category-item">
-                    <div class="main-category-header" data-category="shs-pe">
-                        <span>SHS PE</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="subcategories"></div>
-                </div>
-                <div class="category-item">
-                    <div class="main-category-header" data-category="tertiary-pe">
-                        <span>Tertiary PE</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="subcategories"></div>
-                </div>
+                <?php endif; ?>
             </div>
         </aside>
         <button class="filter-toggle" id="filterToggle">
