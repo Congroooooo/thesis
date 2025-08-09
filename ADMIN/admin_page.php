@@ -1,4 +1,3 @@
-<!-- Header Section -->
 <div class="header-section">
     <div class="container">
         <div class="header-flex">
@@ -6,17 +5,22 @@
                 <h1><i class="fas fa-users-cog"></i> Admin Dashboard</h1>
                 <p class="mb-0">Manage user accounts and system administration</p>
             </div>
-            <button class="btn logout-btn" onclick="logout()">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </button>
+            <div class="header-right">
+                <?php
+                    if (session_status() === PHP_SESSION_NONE) { session_start(); }
+                    $displayName = isset($_SESSION['name']) ? $_SESSION['name'] : (isset($_SESSION['last_name']) ? $_SESSION['last_name'] : 'Admin');
+                ?>
+                <div class="welcome-text">Welcome, <strong><?php echo htmlspecialchars($displayName); ?></strong></div>
+                <button class="btn logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Sidebar + Table Layout -->
 <div class="container mt-0" style="margin-top: -10px;">
   <div class="admin-grid">
-    <!-- Sidebar: Filters + Actions combined -->
     <aside class="admin-sidebar">
       <div class="filters-card">
         <div class="card-header">
@@ -88,7 +92,6 @@
 </div>
     </aside>
 
-    <!-- Main content: table -->
     <section class="admin-main">
       <div class="table-card">
         <div class="card-header">
@@ -104,9 +107,8 @@
                                 <th onclick="sortTable(2)">Birthday</th>
                                 <th onclick="sortTable(3)">ID Number</th>
                                 <th onclick="sortTable(4)">Role</th>
-                                <th onclick="sortTable(5)">Program/Position</th>
+                                <th onclick="sortTable(5)">PositionProgram/</th>
                                 <th onclick="sortTable(6)">Status</th>
-                                <th onclick="sortTable(7)">Date Created</th>
             </tr>
         </thead>
                         <tbody id="accountsTbody">
@@ -132,7 +134,6 @@
                 $abbreviation = htmlspecialchars($account['program_abbr']);
                 echo "<td class='has-tooltip' data-fulltext='".$programText."'>" . $abbreviation . "</td>";
                 echo "<td>" . htmlspecialchars($account['status']) . "</td>";
-                echo "<td>" . htmlspecialchars($account['date_created']) . "</td>";
                 echo "</tr>";
             }
             ?>
@@ -166,17 +167,11 @@
     </div>
 </div>
 
-<!-- Change Password Modal -->
 <div class="modal" id="changePasswordModal">
     <div class="modal-content">
         <h3>Change Password</h3>
         <form id="changePasswordForm">
             <input type="hidden" id="changePasswordUserId" name="id">
-            <div class="form-group">
-                <label for="currentPassword">Current Password</label>
-                <input type="password" class="form-control" id="currentPassword" name="currentPassword" required>
-                <div class="error-feedback" id="currentPasswordError"></div>
-            </div>
             <div class="form-group">
                 <label for="newPassword">New Password</label>
                 <input type="password" class="form-control" id="newPassword" name="newPassword" required>
@@ -194,17 +189,19 @@
         </form>
     </div>
 </div>
-
-<!-- Add Account Modal -->
+            
 <div class="modal" id="addAccountModal">
     <div class="modal-content" style="max-width:700px">
         <h3>Add New Account</h3>
-        <form id="addAccountFormModal">
+        <form id="addAccountFormModal" class="add-account-form">
             <div class="form-group"><label>First Name</label>
                 <input type="text" name="firstName" id="modalFirstName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
             </div>
             <div class="form-group"><label>Last Name</label>
                 <input type="text" name="lastName" id="modalLastName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
+            </div>
+            <div class="form-group"><label>Extension Name (Optional)</label>
+                <input type="text" name="extensionName" id="modalExtensionName" class="form-control" maxlength="10" pattern="^[A-Za-z. \-]*$" title="Only letters, spaces, hyphen, and period (e.g., Jr., Sr., III) are allowed">
             </div>
             <div class="form-group"><label>Birthday</label>
                 <input type="date" name="birthday" class="form-control" required>
@@ -256,39 +253,34 @@
         const programFilter = document.getElementById('programFilter').value.toLowerCase();
         const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
         const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const tableRows = document.querySelectorAll('#accountsTbody tr');
+        const tbody = document.getElementById('accountsTbody');
+        const dataRows = Array.from(tbody.querySelectorAll('tr')).filter(r => r.id !== 'emptyStateRow');
 
-        tableRows.forEach(row => {
-            const firstName = row.cells[0].textContent.toLowerCase();
-            const lastName = row.cells[1].textContent.toLowerCase();
-            const role = row.cells[4].textContent.toLowerCase();
-            const program = row.cells[5].textContent.toLowerCase();
-            const status = row.cells[6].textContent.toLowerCase();
+        dataRows.forEach(row => {
+            const getText = (idx) => (row.cells[idx] ? row.cells[idx].textContent.toLowerCase() : '');
+            const firstName = getText(0);
+            const lastName = getText(1);
+            const role = getText(4);
+            const program = getText(5);
+            const status = getText(6);
 
-            // Program column already stores abbreviations; dropdown provides abbreviations
             const matchesProgram = programFilter === 'all' || program === programFilter;
-
             const matchesRole = roleFilter === 'all' || role === roleFilter;
             const matchesStatus = statusFilter === 'all' || status === statusFilter;
             const matchesSearch = firstName.includes(searchTerm) || lastName.includes(searchTerm);
 
-            if (matchesRole && matchesProgram && matchesStatus && matchesSearch) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+            row.style.display = (matchesRole && matchesProgram && matchesStatus && matchesSearch) ? '' : 'none';
         });
 
-        // Empty state handling
-        const tbody = document.getElementById('accountsTbody');
-        const anyVisible = Array.from(tbody.querySelectorAll('tr')).some(r => r.style.display !== 'none');
+        const anyVisible = dataRows.some(r => r.style.display !== 'none');
         let emptyRow = document.getElementById('emptyStateRow');
         if (!anyVisible) {
             if (!emptyRow) {
                 emptyRow = document.createElement('tr');
                 emptyRow.id = 'emptyStateRow';
                 const td = document.createElement('td');
-                td.colSpan = 8;
+                const thCount = (document.querySelector('.table thead')?.querySelectorAll('th').length) || 7;
+                td.colSpan = thCount;
                 td.style.textAlign = 'center';
                 td.style.padding = '24px';
                 td.textContent = 'No records match the current filters.';
@@ -299,8 +291,6 @@
             emptyRow.remove();
         }
     }
-
-    // Abbreviation helper no longer needed (table uses abbreviations and dropdown loads abbreviations)
 
     function sortTable(columnIndex) {
         const table = document.querySelector('.table');
@@ -410,7 +400,7 @@
                             closeModal('changePasswordModal');
                             changePasswordForm.reset();
                         } else if (data.messages) {
-                            if (data.messages.currentPassword) document.getElementById('currentPasswordError').textContent = data.messages.currentPassword;
+                            if (data.messages.newPassword) document.getElementById('newPasswordError').textContent = data.messages.newPassword;
                             if (data.messages.confirmPassword) document.getElementById('confirmPasswordError').textContent = data.messages.confirmPassword;
                         }
                     })
@@ -418,7 +408,6 @@
             });
         }
 
-        // Populate modal Program options based on Role
         const modalRole = document.getElementById('modalRoleCategory');
         const modalProgram = document.getElementById('modalProgramPosition');
         if (modalRole && modalProgram) {
@@ -433,7 +422,7 @@
                     if (Array.isArray(programs)) {
                         programs.forEach(p=>{
                             const opt = document.createElement('option');
-                            opt.value = p.name;
+                            opt.value = p.abbreviation || p.name;
                             opt.textContent = p.name;
                             modalProgram.appendChild(opt);
                         });
@@ -442,13 +431,14 @@
             });
             // Letters-only for names, digits-only for ID
             const onlyLetters = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^A-Za-z\s]/g,''); });
+            const onlySuffixChars = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^A-Za-z.\s-]/g,''); });
             const onlyDigits = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/\D/g,'').slice(0,11); });
             onlyLetters(document.getElementById('modalFirstName'));
             onlyLetters(document.getElementById('modalLastName'));
+            onlySuffixChars(document.getElementById('modalExtensionName'));
             onlyDigits(document.getElementById('modalIdNumber'));
         }
 
-        // Submit Add Account (AJAX)
         const addForm = document.getElementById('addAccountFormModal');
         if (addForm) {
             addForm.addEventListener('submit', function(e){
@@ -458,7 +448,6 @@
                     .then(r=>r.json())
                     .then((data)=>{
                         if (!data || !data.success) throw new Error(data && data.message ? data.message : 'Request failed');
-                        // Close add form modal
                         closeModal('addAccountModal');
                         addForm.reset();
                         // Show success credentials modal
@@ -479,6 +468,45 @@
                         </div>`;
                         document.body.insertAdjacentHTML('beforeend', modalHtml);
                         document.getElementById('createSuccessOk').addEventListener('click', ()=>{
+                            // Append the new account to the table without refresh
+                            try {
+                                const tbody = document.getElementById('accountsTbody');
+                                const tr = document.createElement('tr');
+                                tr.className = 'account-row';
+                                tr.dataset.id = (data.id_number || '');
+                                const role = data.role_category || '';
+                                const program = data.program_or_position || '';
+                                const status = 'active';
+                                const dateCreated = new Date().toISOString().slice(0,19).replace('T',' ');
+                                tr.innerHTML = `
+                                    <td>${data.first_name || ''}</td>
+                                    <td>${data.last_name || ''}</td>
+                                    <td>${data.birthday ? new Date(data.birthday).toLocaleDateString(undefined,{month:'short', day:'2-digit', year:'numeric'}) : 'N/A'}</td>
+                                    <td>${data.id_number || ''}</td>
+                                    <td>${role}</td>
+                                    <td>${program}</td>
+                                    <td>${data.generated_email || ''}</td>
+                                    <td>********</td>
+                                    <td>${status}</td>
+                                `;
+                                if (tbody) tbody.prepend(tr);
+                                // Rebind row click behavior for selection
+                                tr.addEventListener('click', function(){
+                                    const isSelected = this.classList.contains('selected');
+                                    document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
+                                    if (isSelected) {
+                                        this.classList.remove('selected');
+                                        selectedUserId = null;
+                                        document.getElementById('changePasswordBtn').disabled = true;
+                                        document.getElementById('updateStatusBtn').disabled = true;
+                                    } else {
+                                        this.classList.add('selected');
+                                        selectedUserId = this.dataset.id;
+                                        document.getElementById('changePasswordBtn').disabled = false;
+                                        document.getElementById('updateStatusBtn').disabled = false;
+                                    }
+                                });
+                            } catch(e) { /* ignore */ }
                             const m = document.getElementById('createSuccessModal');
                             if (m) m.remove();
                         });
@@ -546,15 +574,24 @@
             return;
         }
         document.getElementById('selectedUserId').value = selectedUserId;
+        // Pre-select the current status of the chosen user
+        try {
+            const row = document.querySelector(`tr[data-id="${selectedUserId}"]`);
+            const statusCell = row ? row.querySelector('td:last-child') : null;
+            const currentStatus = statusCell ? statusCell.textContent.trim().toLowerCase() : '';
+            const select = document.getElementById('statusSelect');
+            if (select && (currentStatus === 'active' || currentStatus === 'inactive')) {
+                select.value = currentStatus;
+            }
+        } catch (e) { /* noop */ }
+
         const modal = document.getElementById('updateStatusModal');
         modal.style.display = 'flex';
     }
 
     function openAddAccountModal(){
-        // Reset form
         const f = document.getElementById('addAccountFormModal');
         if (f) f.reset();
-        // Clear program list
         const prog = document.getElementById('modalProgramPosition');
         if (prog) prog.innerHTML = '<option value="">Select Program/Position</option>';
         const modal = document.getElementById('addAccountModal');
@@ -569,62 +606,76 @@
         document.getElementById('successModal').style.display = 'none';
     }
 
-    document.getElementById('updateStatusForm').addEventListener('submit', function (e) {
-        e.preventDefault();
+    document.getElementById('updateStatusForm').addEventListener('submit', async function (e) {
+       e.preventDefault();
+       const formData = new FormData(this);
 
-        const formData = new FormData(this);
+       try {
+           const response = await fetch('update_status.php', {
+               method: 'POST',
+               body: formData
+           });
 
-        fetch('update_status.php', {
-            method: 'POST',
-            body: formData
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Close the update modal
-                    closeModal('updateStatusModal');
+           const data = await response.json();
 
-                    // Show success modal / toast
-                    try {
-                        const modal = document.getElementById('successModal');
+           if (!response.ok || !data || data.success === false) {
+               const msg = (data && data.message) ? data.message : 'Error updating status. Please try again.';
+               const toast = document.createElement('div');
+               toast.textContent = msg;
+               toast.style.position = 'fixed';
+               toast.style.top = '16px';
+               toast.style.right = '16px';
+               toast.style.background = '#dc3545';
+               toast.style.color = '#fff';
+               toast.style.padding = '10px 14px';
+               toast.style.borderRadius = '6px';
+               toast.style.zIndex = '10000';
+               document.body.appendChild(toast);
+               setTimeout(() => toast.remove(), 2500);
+               return;
+           }
+
+           // Update the status in the table immediately without reload
+           const row = document.querySelector(`tr[data-id="${formData.get('userId')}"]`);
+           if (row) {
+               const statusCell = row.querySelector('td:last-child');
+               if (statusCell) {
+                   statusCell.textContent = formData.get('status');
+                   
+                   // Re-apply current filters so visibility reflects the new status
+                   filterUsers();
+                   
+                   // Show success message after table is updated
+                   closeModal('updateStatusModal');
+                   const modal = document.getElementById('successModal');
+                    if (modal) {
                         modal.querySelector('p').textContent = 'Status updated successfully';
-                        modal.style.display = 'block';
-                    } catch(e) {
-                        const toast = document.createElement('div');
-                        toast.textContent = 'Status updated successfully';
-                        toast.style.position = 'fixed';
-                        toast.style.top = '16px';
-                        toast.style.right = '16px';
-                        toast.style.background = '#28a745';
-                        toast.style.color = '#fff';
-                        toast.style.padding = '10px 14px';
-                        toast.style.borderRadius = '6px';
-                        toast.style.zIndex = '10000';
-                        document.body.appendChild(toast);
-                        setTimeout(()=>toast.remove(), 2000);
+                        modal.style.display = 'flex';
                     }
-
-                    // Update the status in the table immediately without reload
-                    const row = document.querySelector(`tr[data-id="${formData.get('userId')}"]`);
-                    if (row) {
-                        // After removing Email column, Status column index becomes 7 (0-based)
-                        row.cells[7].textContent = formData.get('status');
-                    }
-
-                    // Clear selection
-                    selectedUserId = null;
-                    document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
-                    document.getElementById('changePasswordBtn').disabled = true;
-                    document.getElementById('updateStatusBtn').disabled = true;
-                } else {
-                    alert('Error updating status: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error updating status. Please try again.');
-            });
-    });
+                   
+                   // Clear selection
+                   selectedUserId = null;
+                   document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
+                   document.getElementById('changePasswordBtn').disabled = true;
+                   document.getElementById('updateStatusBtn').disabled = true;
+               }
+           }
+       } catch (error) {
+           console.error('Error:', error);
+           const toast = document.createElement('div');
+           toast.textContent = 'Error updating status. Please try again.';
+           toast.style.position = 'fixed';
+           toast.style.top = '16px';
+           toast.style.right = '16px';
+           toast.style.background = '#dc3545';
+           toast.style.color = '#fff';
+           toast.style.padding = '10px 14px';
+           toast.style.borderRadius = '6px';
+           toast.style.zIndex = '10000';
+           document.body.appendChild(toast);
+           setTimeout(() => toast.remove(), 2500);
+       }
+   });
 
     // Add this to your existing styles
     document.head.insertAdjacentHTML('beforeend', `
@@ -669,6 +720,8 @@
                 justify-content: space-between;
                 gap:16px;
             }
+            .header-right{ display:flex; flex-direction: column; align-items:flex-end; gap:10px; }
+            .welcome-text{ color:#fff; font-weight:700; font-size:1.1rem; text-shadow:0 1px 2px rgba(0,0,0,.3); }
             
             .header-section h1 {
                 margin: 0;
@@ -686,7 +739,6 @@
             }
             
             .logout-btn {
-                margin-left: auto; /* ensure it sits at the far right in the flex row */
                 background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
                 border: 2px solid #b02a37;
                 color: #fff;
@@ -925,7 +977,6 @@
             .table tbody tr:nth-child(even){ background:#fbfdff; }
             .table tbody tr:hover{ background:#f2f8ff; }
 
-            /* Tooltip support for truncated text */
             .has-tooltip { position: relative; }
             .has-tooltip:hover::after {
                 content: attr(data-fulltext);
@@ -941,8 +992,6 @@
                 z-index: 5;
             }
 
-            /* Specific column widths for perfect alignment */
-            /* Sum = 100% to avoid overflow that can push cells */
             .table th:nth-child(1), .table td:nth-child(1) { width: 13%; } /* First Name */
             .table th:nth-child(2), .table td:nth-child(2) { width: 13%; } /* Last Name */
             .table th:nth-child(3), .table td:nth-child(3) { width: 12%; } /* Birthday */
@@ -957,8 +1006,7 @@
                 transition: all 0.3s ease;
                 position: relative;
             }
-            
-            /* Remove pseudo-element that could create visual offset */
+        
             .account-row::before { display: none; }
             
             .account-row:hover {
@@ -998,7 +1046,6 @@
                 padding: 25px;
                 border-radius: 10px;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-                width: 90%;
                 max-width: 500px;
                 position: relative;
                 margin: 0 auto;
@@ -1022,16 +1069,35 @@
             }
             
             .modal-content .form-group {
-                margin-bottom: 20px;
+                margin-bottom: 14px;
+                display: flex;
+                align-items: center;
+                
             }
+            
+            #changePasswordModal .form-group { flex-direction: column; align-items: stretch; }
+            #changePasswordModal .form-group label { min-width: 0; width: auto; margin-bottom: 6px; }
+            #changePasswordModal .form-group .form-control { width: 100%; }
+            #changePasswordModal .error-feedback { align-self: flex-start; margin-top: 6px; }
             
             .modal-content .btn {
                 margin: 5px;
-                border-radius: 6px;
+                border-radius: 8px;
+                padding: 12px 22px;
+                font-size: 16px;
+                line-height: 1.2;
+                min-width: 140px;
             }
             
             .modal-content .mt-3 {
                 text-align: center;
+            }
+            .error-feedback{
+                color:#b02a37;
+                font-size: 13px;
+                margin-top: 6px;
+                text-align: left;
+                min-height: 18px;
             }
             
             .form-control {
@@ -1059,11 +1125,14 @@
             .form-group label {
                 font-weight: 600;
                 color: #003d82;
-                margin-bottom: 8px;
         font-size: 14px;
                 text-transform: uppercase;
                 letter-spacing: 0.02em;
+                margin: 0;
+                min-width: 190px;
+                white-space: nowrap;
             }
+            .form-group .form-control, .form-group .input-group { flex: 1; }
             
             .input-group-text {
                 background: #f8f9fa;
@@ -1075,13 +1144,11 @@
                 border-radius: 0 0 10px 10px;
             }
             
-            /* Container improvements */
             .container {
                 max-width: 100%;
                 padding: 0 20px;
             }
 
-            /* Admin two-pane layout: sidebar + main */
             .admin-grid { display:grid; grid-template-columns: 360px minmax(0,1fr); gap:16px; }
             .admin-sidebar { position: sticky; top: 16px; height: fit-content; }
             .admin-main { min-width: 0; }
@@ -1101,14 +1168,12 @@
                 .admin-sidebar { position: static; }
             }
             
-            /* Filters row: single row layout on desktop, wrap on small screens */
             .filters-card .card-body > .row {
         display: flex;
                 flex-direction: row;
         justify-content: space-between;
         align-items: center;
     }
-            /* Place filter labels on the left of controls (including Search) */
             .filters-card .form-group {
         display: flex;
                 align-items: center;
@@ -1123,12 +1188,10 @@
             .filters-card .form-group .form-control { flex: 1; }
             .filters-card .form-group .input-group { flex: 1; }
             
-            /* Spacing utilities */
             .section-spacing {
                 margin-bottom: 40px;
             }
             
-            /* Input group improvements */
             .input-group {
                 position: relative;
             }
@@ -1150,7 +1213,6 @@
                 color: #0072bc;
             }
             
-            /* Status badges */
             .status-badge {
                 padding: 6px 12px;
                 border-radius: 20px;
@@ -1172,7 +1234,6 @@
                 border: 1px solid #f5c6cb;
             }
             
-            /* Loading states */
             .loading {
                 opacity: 0.7;
                 pointer-events: none;
@@ -1198,7 +1259,6 @@
                 100% { transform: rotate(360deg); }
             }
             
-            /* Mobile responsiveness */
             @media (max-width: 768px) {
                 .header-section h1 {
                     font-size: 2.2rem;
@@ -1229,7 +1289,7 @@
                 
                 .form-control {
                     padding: 10px 14px;
-                    font-size: 16px; /* Prevent zoom on iOS */
+                    font-size: 16px;
                 }
                 
                 .table thead th {

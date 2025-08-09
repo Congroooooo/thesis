@@ -17,29 +17,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if (password_verify($password, $user['password'])) {
             session_start();
-            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['user_id'] = isset($user['id']) && $user['id'] !== null && $user['id'] !== ''
+                ? $user['id']
+                : ($user['id_number'] ?? null);
             $_SESSION['email'] = $user['email'];
             $_SESSION['role_category'] = $user['role_category'];
             $_SESSION['last_name'] = $user['last_name'];
-            // Set the full name for PAMO user display
             $_SESSION['name'] = $user['first_name'] . ' ' . $user['last_name'];
 
-            if (isset($_GET['redirect'])) {
+            $_SESSION['program_or_position'] = $user['program_or_position'];
+
+            $role = strtoupper(trim($user['role_category'] ?? ''));
+            $programRaw = trim($user['program_or_position'] ?? '');
+            $program = strtoupper($programRaw);
+
+            $programAbbrUpper = $program;
+            try {
+                $lookup = $conn->prepare("SELECT abbreviation, name FROM programs_positions WHERE name = ? OR abbreviation = ? LIMIT 1");
+                $lookup->execute([$programRaw, $programRaw]);
+                $pp = $lookup->fetch(PDO::FETCH_ASSOC);
+                if ($pp) {
+                    $programAbbrUpper = strtoupper(trim(($pp['abbreviation'] ?? '') !== '' ? $pp['abbreviation'] : ($pp['name'] ?? '')));
+                }
+            } catch (Exception $e) {
+                // ignore lookup errors
+            }
+            $_SESSION['program_abbreviation'] = $programAbbrUpper;
+
+            $isEmployee = ($role === 'EMPLOYEE');
+            $isAdminPosition = $isEmployee && ($programAbbrUpper === 'ADMIN');
+            $isPamoPosition = $isEmployee && ($programAbbrUpper === 'PAMO');
+
+            if ($isAdminPosition) {
+                header("Location: ../ADMIN/admin_page.php");
+                exit();
+            }
+            if ($isPamoPosition) {
+                header("Location: ../PAMO PAGES/dashboard.php");
+                exit();
+            }
+
+            if (isset($_GET['redirect']) && $_GET['redirect'] !== '') {
                 $redirect = $_GET['redirect'];
                 header("Location: $redirect");
                 exit();
             }
 
-            if ($user['role_category'] === 'COLLEGE STUDENT' || $user['role_category'] === 'SHS' || $user['role_category'] === 'EMPLOYEE' && $user['program_or_position'] === 'TEACHER') {
+            if ($role === 'COLLEGE STUDENT' || $role === 'SHS' || $isEmployee) {
                 header("Location: home.php");
                 exit();
-            } else if ($user['program_or_position'] === 'PAMO') {
-                header("Location: ../PAMO PAGES/dashboard.php");
-                exit();
-            } else if ($user['program_or_position'] === 'ADMIN') {
-                header("Location: ../ADMIN/admin_page.php");
-                exit();
             }
+
+            header("Location: home.php");
+            exit();
         } else {
             header("Location: login.php?error=incorrect_password&email=" . urlencode($username));
             exit();

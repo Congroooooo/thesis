@@ -20,7 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result) {
             echo json_encode([
                 'success' => true,
-                'message' => 'Status updated successfully'
+                'message' => 'Status updated successfully',
+                'status' => $newStatus
             ]);
         } else {
             throw new Exception('Failed to update status');
