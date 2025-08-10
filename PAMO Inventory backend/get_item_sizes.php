@@ -1,29 +1,24 @@
 <?php
 header('Content-Type: application/json');
-$conn = mysqli_connect("localhost", "root", "", "proware");
-if (!$conn) {
-    echo json_encode(['success' => false, 'message' => 'DB connection failed']);
-    exit;
-}
+require_once '../Includes/connection.php'; // PDO $conn
 
 if (isset($_GET['item_code'])) {
     // Get the prefix from the item_code (before the dash)
     $item_code = $_GET['item_code'];
     $prefix = explode('-', $item_code)[0];
     $sql = "SELECT item_code, sizes FROM inventory WHERE item_code LIKE CONCAT(?, '-%')";
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_bind_param($stmt, "s", $prefix);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    $stmt = $conn->prepare($sql);
+    $stmt->execute([$prefix]);
+    $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $sizes = [];
-    while ($row = mysqli_fetch_assoc($result)) {
+    foreach ($result as $row) {
         $sizes[] = [
             'size' => $row['sizes'],
             'item_code' => $row['item_code']
         ];
     }
     echo json_encode(['success' => true, 'sizes' => $sizes]);
-    mysqli_close($conn);
+    exit;
     exit;
 }
 
@@ -35,15 +30,10 @@ if (!$prefix) {
     exit;
 }
 $sql = "SELECT sizes FROM inventory WHERE item_code LIKE ?";
-$stmt = mysqli_prepare($conn, $sql);
+$stmt = $conn->prepare($sql);
 $like = $prefix . '%';
-mysqli_stmt_bind_param($stmt, "s", $like);
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
-$sizes = [];
-while ($row = mysqli_fetch_assoc($result)) {
-    $sizes[] = $row['sizes'];
-}
+$stmt->execute([$like]);
+$result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$sizes = array_map(function($r){ return $r['sizes']; }, $result);
 echo json_encode(['success' => true, 'sizes' => $sizes]);
-mysqli_close($conn);
 ?> 

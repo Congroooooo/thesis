@@ -4,12 +4,7 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
-$conn = mysqli_connect("localhost", "root", "", "proware");
-
-if (!$conn) {
-    echo json_encode(['success' => false, 'message' => 'Database connection failed']);
-    exit;
-}
+require_once '../Includes/connection.php'; // PDO $conn
 
 $item_code = isset($_GET['item_code']) ? mysqli_real_escape_string($conn, $_GET['item_code']) : '';
 
@@ -33,14 +28,13 @@ try {
             AND actual_quantity > 0
             ORDER BY sizes";
 
-    $stmt = mysqli_prepare($conn, $sql);
+    $stmt = $conn->prepare($sql);
     $prefix_pattern = $prefix . '-%';
-    mysqli_stmt_bind_param($stmt, "s", $prefix_pattern);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    $stmt->execute([$prefix_pattern]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $sizes = [];
-    while ($row = mysqli_fetch_assoc($result)) {
+    foreach ($rows as $row) {
         $sizes[] = [
             'item_code' => $row['item_code'],
             'size' => $row['size'],
@@ -62,6 +56,5 @@ try {
         'message' => 'Error fetching available sizes: ' . $e->getMessage()
     ]);
 }
-
-mysqli_close($conn);
+// PDO closes automatically
 ?> 

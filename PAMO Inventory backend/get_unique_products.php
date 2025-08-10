@@ -1,14 +1,7 @@
 <?php
 header('Content-Type: application/json');
 
-$conn = mysqli_connect("localhost", "root", "", "proware");
-
-if (!$conn) {
-    die(json_encode([
-        'success' => false,
-        'message' => 'Connection failed: ' . mysqli_connect_error()
-    ]));
-}
+require_once '../Includes/connection.php'; // PDO $conn
 
 // Get unique products based on item code prefix
 $sql = "SELECT DISTINCT 
@@ -19,31 +12,30 @@ $sql = "SELECT DISTINCT
         WHERE actual_quantity > 0
         ORDER BY item_name";
 
-$result = mysqli_query($conn, $sql);
-
-if (!$result) {
+try {
+    $stmt = $conn->query($sql);
+} catch (Exception $e) {
     die(json_encode([
         'success' => false,
-        'message' => 'Query failed: ' . mysqli_error($conn)
+        'message' => 'Query failed: ' . $e->getMessage()
     ]));
 }
 
 $products = [];
-while ($row = mysqli_fetch_assoc($result)) {
+while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     // Get available sizes for this product
     $sizes_sql = "SELECT DISTINCT sizes, actual_quantity, item_code 
                   FROM inventory 
                   WHERE item_code LIKE ? AND actual_quantity > 0
                   ORDER BY sizes";
     
-    $stmt = $conn->prepare($sizes_sql);
+    $stmt2 = $conn->prepare($sizes_sql);
     $prefix = $row['prefix'] . '-%';
-    $stmt->bind_param("s", $prefix);
-    $stmt->execute();
-    $sizes_result = $stmt->get_result();
+    $stmt2->execute([$prefix]);
+    $sizes_result = $stmt2->fetchAll(PDO::FETCH_ASSOC);
     
     $available_sizes = [];
-    while ($size_row = $sizes_result->fetch_assoc()) {
+    foreach ($sizes_result as $size_row) {
         $available_sizes[] = [
             'size' => $size_row['sizes'],
             'quantity' => $size_row['actual_quantity'],
@@ -64,6 +56,4 @@ echo json_encode([
     'success' => true,
     'products' => $products
 ]);
-
-mysqli_close($conn);
 ?> 

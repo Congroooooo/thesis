@@ -1,22 +1,20 @@
 <?php
 header('Content-Type: application/json');
-$conn = mysqli_connect("localhost", "root", "", "proware");
+require_once '../Includes/connection.php'; // PDO $conn
 
 $data = json_decode(file_get_contents("php://input"), true);
 $itemId = $data['itemId'];
 $newPrice = $data['newPrice'];
 
 // Start transaction
-mysqli_begin_transaction($conn);
+$conn->beginTransaction();
 
 try {
     // Get current price
     $sql = "SELECT price, item_name FROM inventory WHERE item_code = ?";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $itemId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $item = $result->fetch_assoc();
+    $stmt->execute([$itemId]);
+    $item = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$item) {
         throw new Exception("Item not found");
@@ -27,8 +25,7 @@ try {
     // Update price
     $sql = "UPDATE inventory SET price = ? WHERE item_code = ?";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ds", $newPrice, $itemId);
-    $stmt->execute();
+    $stmt->execute([$newPrice, $itemId]);
 
     // Log the activity with price change details
     $activity_description = "Price updated for {$item['item_name']} ({$itemId}) - Old price: ₱" . number_format($oldPrice, 2) . ", New price: ₱" . number_format($newPrice, 2);
@@ -36,11 +33,10 @@ try {
     $stmt = $conn->prepare($log_activity_query);
     session_start();
     $user_id = $_SESSION['user_id'] ?? null;
-    $stmt->bind_param("ssi", $activity_description, $itemId, $user_id);
-    $stmt->execute();
+    $stmt->execute([$activity_description, $itemId, $user_id]);
 
     // Commit transaction
-    mysqli_commit($conn);
+    $conn->commit();
     
     echo json_encode([
         'success' => true,
@@ -51,12 +47,11 @@ try {
 
 } catch (Exception $e) {
     // Rollback transaction on error
-    mysqli_rollback($conn);
+    if ($conn instanceof PDO && $conn->inTransaction()) { $conn->rollBack(); }
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
     ]);
 }
 
-mysqli_close($conn);
 ?>

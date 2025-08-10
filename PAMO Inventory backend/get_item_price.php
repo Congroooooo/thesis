@@ -1,14 +1,7 @@
 <?php
 header('Content-Type: application/json');
 
-$conn = mysqli_connect("localhost", "root", "", "proware");
-
-if (!$conn) {
-    die(json_encode([
-        'success' => false,
-        'message' => 'Connection failed: ' . mysqli_connect_error()
-    ]));
-}
+require_once '../Includes/connection.php'; // PDO $conn
 
 $prefix = isset($_GET['prefix']) ? mysqli_real_escape_string($conn, $_GET['prefix']) : '';
 $size = isset($_GET['size']) ? mysqli_real_escape_string($conn, $_GET['size']) : '';
@@ -24,11 +17,10 @@ if (empty($prefix) || empty($size)) {
 $sql = "SELECT price FROM inventory WHERE item_code LIKE ? AND sizes = ? LIMIT 1";
 $stmt = $conn->prepare($sql);
 $prefix_pattern = $prefix . '-%';
-$stmt->bind_param("ss", $prefix_pattern, $size);
-$stmt->execute();
-$result = $stmt->get_result();
+$stmt->execute([$prefix_pattern, $size]);
+$row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if ($row = $result->fetch_assoc()) {
+if ($row) {
     echo json_encode([
         'success' => true,
         'price' => $row['price']
@@ -40,5 +32,4 @@ if ($row = $result->fetch_assoc()) {
     ]);
 }
 
-mysqli_close($conn);
 ?> 

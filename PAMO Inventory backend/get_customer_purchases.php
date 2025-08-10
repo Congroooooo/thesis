@@ -4,12 +4,7 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
-$conn = mysqli_connect("localhost", "root", "", "proware");
-
-if (!$conn) {
-    echo json_encode(['success' => false, 'message' => 'Database connection failed']);
-    exit;
-}
+require_once '../Includes/connection.php'; // PDO $conn
 
 $customer_id = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : 0;
 
@@ -38,13 +33,12 @@ try {
             AND s.sale_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
             ORDER BY s.sale_date DESC";
     
-    $stmt = mysqli_prepare($conn, $sql);
-    mysqli_stmt_bind_param($stmt, "i", $customer_id);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    $stmt = $conn->prepare($sql);
+    $stmt->execute([$customer_id]);
+    $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $purchases = [];
-    while ($row = mysqli_fetch_assoc($result)) {
+    foreach ($result as $row) {
         $purchases[] = [
             'sales_id' => $row['sales_id'],
             'transaction_number' => $row['transaction_number'],
@@ -72,6 +66,5 @@ try {
         'message' => 'Error fetching purchases: ' . $e->getMessage()
     ]);
 }
-
-mysqli_close($conn);
+// PDO closes automatically
 ?> 

@@ -2,8 +2,7 @@
 header('Content-Type: application/json');
 
 try {
-    $pdo = new PDO("mysql:host=localhost;dbname=proware", "root", "");
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    require_once '../Includes/connection.php'; // PDO $conn
 
     $prefix = 'SI';
     $date_part = date('md');
@@ -22,7 +21,7 @@ try {
         ) AS all_orders
     ";
 
-    $stmt = $pdo->prepare($sql);
+    $stmt = $conn->prepare($sql);
     $stmt->execute([$like_pattern, $like_pattern]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 

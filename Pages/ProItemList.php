@@ -46,10 +46,7 @@
             <button class="clear-filters" id="clearFiltersBtn" type="button">Clear Filters</button>
 
             <?php
-            $conn = mysqli_connect("localhost", "root", "", "proware");
-            if (!$conn) {
-                die("Connection failed: " . mysqli_connect_error());
-            }
+            require_once '../Includes/connection.php'; // PDO $conn
 
             $sql = "SELECT inventory.*, GROUP_CONCAT(DISTINCT course.course_name) AS courses
                     FROM inventory
@@ -57,13 +54,13 @@
                     LEFT JOIN course ON course_item.course_id = course.id
                     GROUP BY inventory.id
                     ORDER BY inventory.created_at DESC";
-            $result = mysqli_query($conn, $sql);
+            $result = $conn->query($sql);
 
             $products = [];
 
             // Shirt types are now represented by subcategories; no separate query
 
-            while ($row = mysqli_fetch_assoc($result)) {
+            while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $itemCode = $row['item_code'];
                 $itemName = $row['item_name'];
                 $imagePath = $row['image_path'];
@@ -74,10 +71,10 @@
                 $courses = isset($row['courses']) ? array_map('trim', explode(',', $row['courses'])) : [];
 
                 $subcats = [];
-                $subSql = "SELECT s.id FROM inventory_subcategory isub JOIN subcategories s ON s.id = isub.subcategory_id WHERE isub.inventory_id = " . intval($row['id']);
-                if ($subRes = mysqli_query($conn, $subSql)) {
-                    while ($srow = mysqli_fetch_assoc($subRes)) { $subcats[] = (string)$srow['id']; }
-                }
+                $subSql = "SELECT s.id FROM inventory_subcategory isub JOIN subcategories s ON s.id = isub.subcategory_id WHERE isub.inventory_id = ?";
+                $subStmt = $conn->prepare($subSql);
+                $subStmt->execute([intval($row['id'])]);
+                while ($srow = $subStmt->fetch(PDO::FETCH_ASSOC)) { $subcats[] = (string)$srow['id']; }
 
                 if (!empty($imagePath)) {
                     if (strpos($imagePath, 'uploads/') === false) {
@@ -157,10 +154,10 @@
                 ORDER BY c.name ASC
             ";
             
-            $categoriesResult = mysqli_query($conn, $categoriesQuery);
+            $categoriesResult = $conn->query($categoriesQuery);
             
             if ($categoriesResult) {
-                while ($row = mysqli_fetch_assoc($categoriesResult)) {
+                while ($row = $categoriesResult->fetch(PDO::FETCH_ASSOC)) {
                     $subcategories = [];
                     if ($row['subcategories']) {
                         $subPairs = explode('|', $row['subcategories']);
@@ -191,10 +188,10 @@
                 ORDER BY category ASC
             ";
             
-            $legacyResult = mysqli_query($conn, $legacyCategoriesQuery);
+            $legacyResult = $conn->query($legacyCategoriesQuery);
             
             if ($legacyResult) {
-                while ($row = mysqli_fetch_assoc($legacyResult)) {
+                while ($row = $legacyResult->fetch(PDO::FETCH_ASSOC)) {
                     $dynamicCategories[] = [
                         'id' => null,
                         'name' => $row['category'],

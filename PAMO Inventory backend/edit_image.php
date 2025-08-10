@@ -6,11 +6,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 try {
-    $conn = mysqli_connect("localhost", "root", "", "proware");
-
-    if (!$conn) {
-        throw new Exception('Database connection failed: ' . mysqli_connect_error());
-    }
+    require_once '../Includes/connection.php'; // PDO $conn
 
     // Get the item ID from POST data
     if (!isset($_POST['itemId'])) {
@@ -20,9 +16,8 @@ try {
 
     // Validate item exists
     $checkItem = $conn->prepare("SELECT item_code FROM inventory WHERE item_code = ?");
-    $checkItem->bind_param("s", $itemId);
-    $checkItem->execute();
-    if (!$checkItem->get_result()->fetch_assoc()) {
+    $checkItem->execute([$itemId]);
+    if (!$checkItem->fetch(PDO::FETCH_ASSOC)) {
         throw new Exception('Item not found');
     }
 
@@ -57,11 +52,8 @@ try {
     // Get the old image path to delete it
     $getOldImageQuery = "SELECT image_path FROM inventory WHERE item_code = ?";
     $stmt = $conn->prepare($getOldImageQuery);
-    $stmt->bind_param("s", $itemId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($row = $result->fetch_assoc()) {
+    $stmt->execute([$itemId]);
+    if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $oldImagePath = '../' . $row['image_path'];
         if (file_exists($oldImagePath)) {
             unlink($oldImagePath);
@@ -76,12 +68,10 @@ try {
     // Update database with new image path
     $sql = "UPDATE inventory SET image_path = ? WHERE item_code = ?";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("ss", $dbFilePath, $itemId);
-    
-    if (!$stmt->execute()) {
+    if (!$stmt->execute([$dbFilePath, $itemId])) {
         // If database update fails, delete the uploaded file
         unlink($uploadFile);
-        throw new Exception('Database update failed: ' . $stmt->error);
+        throw new Exception('Database update failed');
     }
 
     // Log the activity
@@ -90,8 +80,7 @@ try {
     $stmt = $conn->prepare($log_activity_query);
     session_start();
     $user_id = $_SESSION['user_id'] ?? null;
-    $stmt->bind_param("ssi", $activity_description, $itemId, $user_id);
-    $stmt->execute();
+    $stmt->execute([$activity_description, $itemId, $user_id]);
 
     echo json_encode([
         'success' => true,
@@ -106,7 +95,5 @@ try {
         'message' => $e->getMessage()
     ]);
 } finally {
-    if (isset($conn)) {
-        $conn->close();
-    }
+    // PDO closes automatically
 }
