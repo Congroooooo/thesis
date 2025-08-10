@@ -65,7 +65,7 @@ try {
             throw new Exception("Error updating item $itemId");
         }
 
-        if ($updateStockStmt->affected_rows === 0) {
+    if ($updateStockStmt->rowCount() === 0) {
             throw new Exception("Item $itemId was modified by another transaction. Please try again.");
         }
 
@@ -94,7 +94,7 @@ try {
     $customerName = isset($_POST['customerName']) ? (string)$_POST['customerName'] : '';
     
     if (!$customerId || !$customerName) {
-        $studentName = isset($_POST['studentName']) ? mysqli_real_escape_string($conn, $_POST['studentName']) : '';
+        $studentName = isset($_POST['studentName']) ? trim($_POST['studentName']) : '';
         if ($studentName) {
             $get_customer_sql = "SELECT id, CONCAT(first_name, ' ', last_name) as full_name FROM account WHERE CONCAT(first_name, ' ', last_name) = ?";
             $get_customer_stmt = $conn->prepare($get_customer_sql);

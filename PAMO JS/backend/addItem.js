@@ -241,7 +241,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Initialize Select2 for course and shirt type
+  // Initialize Select2 only if elements exist (legacy guards)
   if (window.jQuery && $("#courseSelect").length) {
     $("#courseSelect").select2({
       placeholder: "Select course(s)",
@@ -257,21 +257,15 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Only declare categorySelect once
+  // Legacy toggle clean-up: ensure we don't access missing nodes
   const categorySelect = document.getElementById("newCategory");
   if (categorySelect) {
     categorySelect.addEventListener("change", function () {
       const courseGroup = document.getElementById("courseGroup");
       const shirtTypeGroup = document.getElementById("shirtTypeGroup");
-      if (this.value === "Tertiary-Uniform") {
-        courseGroup.style.display = "block";
-        shirtTypeGroup.style.display = "none";
-      } else if (this.value === "STI-Shirts") {
-        courseGroup.style.display = "none";
-        shirtTypeGroup.style.display = "block";
-      } else {
-        courseGroup.style.display = "none";
-        shirtTypeGroup.style.display = "none";
-      }
+      if (courseGroup) courseGroup.style.display = "none";
+      if (shirtTypeGroup) shirtTypeGroup.style.display = "none";
+      // Subcategory group visibility is handled above via loadSubcategories
     });
   }
 });

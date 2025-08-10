@@ -75,14 +75,14 @@ try {
         $parent_inventory_id = $parent_row ? $parent_row['id'] : null;
 
         if ($parent_inventory_id) {
-            $course_sql = "SELECT course_id FROM course_item WHERE inventory_id = ?";
-            $course_stmt = $conn->prepare($course_sql);
-            $course_stmt->execute([$parent_inventory_id]);
-            $insert_course_stmt = $conn->prepare("INSERT INTO course_item (course_id, inventory_id) VALUES (?, ?)");
-            while ($course_row = $course_stmt->fetch(PDO::FETCH_ASSOC)) {
-                $insert_course_stmt->execute([$course_row['course_id'], $new_inventory_id]);
+            // Clone subcategory links from parent to the new inventory row
+            $sub_sql = "SELECT subcategory_id FROM inventory_subcategory WHERE inventory_id = ?";
+            $sub_stmt = $conn->prepare($sub_sql);
+            $sub_stmt->execute([$parent_inventory_id]);
+            $insert_sub_stmt = $conn->prepare("INSERT IGNORE INTO inventory_subcategory (inventory_id, subcategory_id) VALUES (?, ?)");
+            while ($sub_row = $sub_stmt->fetch(PDO::FETCH_ASSOC)) {
+                $insert_sub_stmt->execute([$new_inventory_id, $sub_row['subcategory_id']]);
             }
-
         }
 
         $activity_description = "New size added for {$originalItem['item_name']} ({$newItemCode}) - Size: {$newSize}, Initial stock: {$newQuantity}, Damage: {$newDamage}";

@@ -2,6 +2,8 @@
 header('Content-Type: application/json');
 
 try {
+    // Ensure we generate numbers using Manila date to align with online orders
+    date_default_timezone_set('Asia/Manila');
     require_once '../Includes/connection.php'; // PDO $conn
 
     $prefix = 'SI';

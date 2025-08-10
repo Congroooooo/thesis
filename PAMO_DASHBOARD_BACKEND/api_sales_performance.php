@@ -17,13 +17,14 @@ if ($period === 'monthly') {
     $groupBy = "DATE(s.sale_date)";
 }
 
-// Always select category and course (if available)
+// Always select category and optionally a finer grouping label
+// We migrate "course" to subcategory for Tertiary-Uniform.
 if ($category === 'Tertiary-Uniform') {
-    $query = "SELECT $dateSelect as date, SUM(s.quantity) as total_sales, i.category, c.course_name as course
+    $query = "SELECT $dateSelect as date, SUM(s.quantity) as total_sales, i.category, sc.name as course
               FROM sales s
               LEFT JOIN inventory i ON s.item_code = i.item_code
-              LEFT JOIN course_item ci ON i.id = ci.inventory_id
-              LEFT JOIN course c ON ci.course_id = c.id";
+              LEFT JOIN inventory_subcategory isub ON isub.inventory_id = i.id
+              LEFT JOIN subcategories sc ON sc.id = isub.subcategory_id";
 } else {
     $query = "SELECT $dateSelect as date, SUM(s.quantity) as total_sales, i.category, NULL as course
               FROM sales s
@@ -31,11 +32,11 @@ if ($category === 'Tertiary-Uniform') {
 }
 
 $query .= " WHERE 1";
-
+  
 $params = [];
 
 if ($category === 'Tertiary-Uniform' && !empty($course)) {
-    $query .= " AND i.category = :category AND c.course_name = :course";
+    $query .= " AND i.category = :category AND sc.name = :course";
     $params[':category'] = $category;
     $params[':course'] = $course;
 } else if ($category) {

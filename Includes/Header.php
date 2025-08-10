@@ -3,10 +3,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Initialize cart count
 require_once dirname(__FILE__) . '/init_cart.php';
 
-$current_page = basename($_SERVER['PHP_SELF']); // Get the current page name
+$current_page = basename($_SERVER['PHP_SELF']);
 
 $mailboxCount = 0;
 if (isset($_SESSION['user_id'])) {
@@ -30,7 +29,7 @@ if (isset($_SESSION['user_id'])) {
             <span class="bar"></span>
             <span class="bar"></span>
         </div>
-        <!-- Middle - Navigation Links -->
+
         <ul class="nav-links">
             <li><a href="home.php"
                     class="<?php echo ($current_page == 'home.php') ? 'active' : ''; ?>">Homepage</a></li>
@@ -65,7 +64,7 @@ if (isset($_SESSION['user_id'])) {
                     ?>
                     <span class="cart-count" <?= $initStyle ?>><?php echo $initCount; ?></span>
                 </a>
-                <!-- Cart Popup -->
+
                 <div class="cart-popup">
                     <div class="cart-header">
                         <h3>Shopping Cart</h3>
@@ -86,14 +85,14 @@ if (isset($_SESSION['user_id'])) {
                 <a href="#" class="fas fa-bell">
                     <span class="notification-count" style="display: none;">0</span>
                 </a>
-                <!-- Notification Popup -->
+
                 <div class="notification-popup">
                     <div class="notification-header">
                         <h3>Notifications</h3>
                         <span class="notification-count">0</span>
                     </div>
                     <div class="notification-items">
-                        <!-- Notifications will be loaded here -->
+
                     </div>
                 </div>
             </div>
@@ -113,8 +112,8 @@ if (isset($_SESSION['user_id'])) {
                 <div class="icon">
                     <a href="profile.php" class="fas fa-user"></a>
                 </div>
-                <div class="icon" style="background: #dc3545; border-radius: 50%;">
-                    <a href="login.php" class="fas fa-sign-out-alt" title="Sign Out" onclick="signOut(event)" style="color:#fff;"></a>
+                <div class="icon">
+                    <a href="login.php" class="fas fa-sign-out-alt" title="Sign Out" onclick="signOut(event)" style="color:#dc3545;"></a>
                 </div>
             <?php else: ?>
                 <div class="login">
@@ -133,7 +132,6 @@ if (isset($_SESSION['user_id'])) {
     <?php endif; ?>
 </nav>
 
-<!-- Mobile Drawers -->
 <div class="mobile-drawer cart-drawer">
     <div class="drawer-header">
         <h3>Shopping Cart</h3>
@@ -156,14 +154,12 @@ if (isset($_SESSION['user_id'])) {
     </div>
     <div class="drawer-content">
         <div class="notification-items">
-            <!-- Notifications will be loaded here -->
+
         </div>
     </div>
 </div>
 
-<!-- Font Awesome -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-<!-- Cart Styles -->
 <link rel="stylesheet" href="../CSS/cart.css">
 
 <script>
@@ -206,7 +202,6 @@ if (isset($_SESSION['user_id'])) {
         const notificationIcon = document.querySelector('.notification-icon');
         const notificationPopup = document.querySelector('.notification-popup');
 
-        // Function to format time ago
         function formatTimeAgo(timestamp) {
             const currentTime = Math.floor(Date.now() / 1000);
             const timeDifference = currentTime - timestamp;
@@ -234,7 +229,6 @@ if (isset($_SESSION['user_id'])) {
             }
         }
 
-        // Function to update notification times
         function updateNotificationTimes() {
             const notificationItems = document.querySelectorAll('.notification-item');
             notificationItems.forEach(item => {
@@ -246,7 +240,6 @@ if (isset($_SESSION['user_id'])) {
             });
         }
 
-        // Function to update notification content
         async function updateNotificationContent() {
             try {
                 const response = await fetch('../Includes/notification_operations.php', {
@@ -369,27 +362,25 @@ if (isset($_SESSION['user_id'])) {
             });
         }
 
-        // Cart icon click handler
         function onCartIconTap(e){
-            e.preventDefault();
-            e.stopPropagation();
-            if (window.innerWidth <= 768) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.innerWidth <= 768) {
                 if (typeof openDrawer === 'function') openDrawer(cartDrawer);
-                updateCartContent();
-            } else {
+                    updateCartContent();
+                } else {
                 if (cartPopup) {
                     cartPopup.classList.toggle('show');
                     if (cartPopup.classList.contains('show')) updateCartContent();
+                    }
                 }
-            }
             if (notificationPopup) notificationPopup.classList.remove('show');
-        }
+                }
         if (cartIcon) {
             cartIcon.addEventListener('click', onCartIconTap, { passive: false });
             cartIcon.addEventListener('touchstart', onCartIconTap, { passive: false });
         }
 
-        // Notification icon click handler
         if (notificationIcon) {
             notificationIcon.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -411,7 +402,6 @@ if (isset($_SESSION['user_id'])) {
             });
         }
 
-        // Add clear button to notification header
         const notificationHeader = document.querySelector('.notification-header');
         if (notificationHeader) {
             const clearButton = document.createElement('button');
@@ -421,7 +411,6 @@ if (isset($_SESSION['user_id'])) {
             notificationHeader.appendChild(clearButton);
         }
 
-        // Close popups when clicking outside
         document.addEventListener('click', function(e) {
             if (cartPopup && !cartIcon.contains(e.target) && !cartPopup.contains(e.target)) {
                 cartPopup.classList.remove('show');
@@ -431,7 +420,6 @@ if (isset($_SESSION['user_id'])) {
             }
         });
 
-        // Prevent clicks inside popups from closing them
         if (cartPopup) {
             cartPopup.addEventListener('click', function(e) {
                 e.stopPropagation();

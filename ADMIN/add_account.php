@@ -5,8 +5,8 @@ header('Content-Type: application/json');
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Method not allowed']);
-    exit;
-}
+        exit;
+    }
 
 try {
     $firstName = trim($_POST['firstName'] ?? '');
@@ -35,18 +35,18 @@ try {
 
     $sql = "INSERT INTO account (first_name, last_name, extension_name, birthday, id_number, email, password, role_category, program_or_position, status, date_created)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)";
-    $stmt = $conn->prepare($sql);
-    $result = $stmt->execute([
-        $firstName,
-        $lastName,
+        $stmt = $conn->prepare($sql);
+        $result = $stmt->execute([
+            $firstName,
+            $lastName,
         $extensionName !== '' ? $extensionName : null,
         $birthday,
-        $idNumber,
-        $email,
-        $password,
-        $role_category,
-        $program_or_position
-    ]);
+            $idNumber,
+            $email,
+            $password,
+            $role_category,
+            $program_or_position
+        ]);
 
     if (!$result) {
         throw new Exception('Database insert failed');

@@ -69,7 +69,7 @@ try {
             throw new Exception("Error updating item $itemId");
         }
 
-        if ($updateStockStmt->affected_rows === 0) {
+    if ($updateStockStmt->rowCount() === 0) {
             throw new Exception("Item $itemId was modified by another transaction. Please try again.");
         }
 

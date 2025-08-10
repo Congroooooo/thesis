@@ -48,12 +48,7 @@
             <?php
             require_once '../Includes/connection.php'; // PDO $conn
 
-            $sql = "SELECT inventory.*, GROUP_CONCAT(DISTINCT course.course_name) AS courses
-                    FROM inventory
-                    LEFT JOIN course_item ON inventory.id = course_item.inventory_id
-                    LEFT JOIN course ON course_item.course_id = course.id
-                    GROUP BY inventory.id
-                    ORDER BY inventory.created_at DESC";
+            $sql = "SELECT inventory.* FROM inventory ORDER BY inventory.created_at DESC";
             $result = $conn->query($sql);
 
             $products = [];
@@ -206,7 +201,7 @@
                 return strtolower(str_replace([' ', '_'], '-', $name));
             }
             
-            echo "<!-- DEBUG: Found " . count($dynamicCategories) . " categories: " . json_encode($dynamicCategories) . " -->";
+                // echo "<!-- categories loaded: " . count($dynamicCategories) . " -->";
             ?>
             
             <?php if (count($dynamicCategories) > 0): ?>

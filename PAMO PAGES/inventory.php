@@ -146,7 +146,7 @@ function page_link($page, $query_string) {
                         <i class="material-icons">add_box</i> Add Item Size
                     </button>
                     <button onclick="showAddQuantityModal()" class="action-btn">
-                        <i class="material-icons">local_shipping</i> New Delivery
+                        <i class="material-icons">local_shipping</i> Restock Item
                     </button>
                     <button onclick="showDeductQuantityModal()" class="action-btn">
                         <i class="material-icons">remove_shopping_cart</i> Sales Entry
@@ -352,20 +352,7 @@ function page_link($page, $query_string) {
                             <option value="__add__">+ Add new subcategory…</option>
                         </select>
                     </div>
-                    <!-- Shirt types are now handled as subcategories under STI Shirts -->
-                    <div class="input-group" id="courseGroup" style="display:none;">
-                        <label for="courseSelect">Course:</label>
-                        <select id="courseSelect" name="course_id[]" multiple style="width:100%;">
-                            <option value="">Select Course</option>
-                            <?php
-                            $conn = mysqli_connect("localhost", "root", "", "proware");
-                            $result = mysqli_query($conn, "SELECT id, course_name FROM course ORDER BY course_name ASC");
-                            while ($row = mysqli_fetch_assoc($result)) {
-                                echo '<option value="' . $row['id'] . '">' . htmlspecialchars($row['course_name']) . '</option>';
-                            }
-                            ?>
-                        </select>
-                    </div>
+                    <!-- Legacy course group removed after migration to subcategories -->
                     <div class="input-group">
                         <label for="newItemName">Product Name:</label>
                         <input type="text" id="newItemName" name="newItemName" required>
@@ -446,7 +433,7 @@ function page_link($page, $query_string) {
     <div id="addQuantityModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>New Delivery</h2>
+                <h2>Restock Item</h2>
                 <span class="close" onclick="closeModal('addQuantityModal')">&times;</span>
             </div>
             <div class="modal-body">

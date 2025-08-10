@@ -1,23 +1,23 @@
 Array
 (
-    [deliveryOrderNumber] => 321353532
-    [existingItem] => STI40
+    [deliveryOrderNumber] => afasdasd
+    [existingItem] => STI39
     [newSize] => Array
         (
-            [0] => M
+            [0] => S
             [1] => L
         )
 
     [newItemCode] => Array
         (
-            [0] => STI40-003
-            [1] => STI40-004
+            [0] => STI39-002
+            [1] => STI39-004
         )
 
     [newQuantity] => Array
         (
-            [0] => 1
-            [1] => 1
+            [0] => 3
+            [1] => 4
         )
 
     [newDamage] => Array

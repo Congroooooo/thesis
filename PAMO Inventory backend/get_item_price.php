@@ -3,8 +3,8 @@ header('Content-Type: application/json');
 
 require_once '../Includes/connection.php'; // PDO $conn
 
-$prefix = isset($_GET['prefix']) ? mysqli_real_escape_string($conn, $_GET['prefix']) : '';
-$size = isset($_GET['size']) ? mysqli_real_escape_string($conn, $_GET['size']) : '';
+$prefix = isset($_GET['prefix']) ? trim($_GET['prefix']) : '';
+$size = isset($_GET['size']) ? trim($_GET['size']) : '';
 
 if (empty($prefix) || empty($size)) {
     die(json_encode([
@@ -13,8 +13,8 @@ if (empty($prefix) || empty($size)) {
     ]));
 }
 
-// Find the item with the matching prefix and size
-$sql = "SELECT price FROM inventory WHERE item_code LIKE ? AND sizes = ? LIMIT 1";
+// Find the item with the matching prefix and size (case/space insensitive)
+$sql = "SELECT price FROM inventory WHERE item_code LIKE ? AND TRIM(UPPER(sizes)) = TRIM(UPPER(?)) LIMIT 1";
 $stmt = $conn->prepare($sql);
 $prefix_pattern = $prefix . '-%';
 $stmt->execute([$prefix_pattern, $size]);
