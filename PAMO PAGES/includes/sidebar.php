@@ -1,19 +1,21 @@
 <?php
 if (!isset($basePath)) $basePath = '';
-// Ensure session variables are set before nav rendering
 if (isset($_SESSION['user_id'])) {
     include_once __DIR__ . '/../../Includes/connection.php';
     $user_id = $_SESSION['user_id'];
-    $query = "SELECT first_name, last_name, role_category, program_or_position FROM account WHERE id = :user_id";
+    $query = "SELECT first_name, last_name, role_category, program_or_position FROM account WHERE id = :uid OR id_number = :uid";
     $stmt = $conn->prepare($query);
-    $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+    $stmt->bindParam(':uid', $user_id);
     $stmt->execute();
     if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $_SESSION['role_category'] = $row['role_category'];
         $_SESSION['program_or_position'] = $row['program_or_position'];
+        if (!isset($_SESSION['program_abbreviation'])) {
+            $raw = trim($row['program_or_position']);
+            $_SESSION['program_abbreviation'] = strtoupper($raw);
+        }
     }
 }
-// Notification badge for new inquiries
 $newInquiries = 0;
 try {
     include_once __DIR__ . '/../../Includes/connection.php';
@@ -23,7 +25,6 @@ try {
 } catch (Exception $e) {
     $newInquiries = 0;
 }
-// Notification badge for pending orders
 $pendingOrdersCount = 0;
 try {
     include_once __DIR__ . '/../../Includes/connection.php';
@@ -70,7 +71,15 @@ try {
             <span class="active-bar"></span>
             <i class="material-icons">inventory_2</i>Content Management
         </li>
-        <?php if (isset($_SESSION['program_or_position']) && $_SESSION['program_or_position'] === 'PAMO') : ?>
+        <?php
+            $isPamo = false;
+            if (isset($_SESSION['program_abbreviation']) && strtoupper($_SESSION['program_abbreviation']) === 'PAMO') {
+                $isPamo = true;
+            } elseif (isset($_SESSION['program_or_position']) && stripos($_SESSION['program_or_position'], 'PAMO') !== false) {
+                $isPamo = true;
+            }
+            if ($isPamo):
+        ?>
         <li <?php echo basename($_SERVER['PHP_SELF']) == 'view_inquiries.php' ? 'class="active"' : ''; ?>
             onclick="window.location.href='<?php echo $basePath; ?>view_inquiries.php'">
             <span class="active-bar"></span>
@@ -88,7 +97,6 @@ try {
     </ul>
     <div class="user-info">
         <?php
-        // Get initials for SVG avatar
         $initials = 'GU';
         if (isset($_SESSION['user_id'])) {
             $user_id = $_SESSION['user_id'];
@@ -114,7 +122,6 @@ try {
         <div class="user-details">
             <h4>
                 <?php
-                // User info display only
                 if (isset($_SESSION['user_id'])) {
                     $user_id = $_SESSION['user_id'];
                     $query = "SELECT first_name, last_name, role_category, program_or_position FROM account WHERE id = :user_id";
@@ -133,7 +140,7 @@ try {
             </h4>
             <p>
                 <?php
-                if (isset($_SESSION['program_or_position']) && $_SESSION['program_or_position'] === 'PAMO') {
+                if ($isPamo ?? false) {
                     echo 'PAMO';
                 } else {
                     echo isset($_SESSION['role_category']) ? $_SESSION['role_category'] : 'No Role Assigned';
@@ -252,9 +259,9 @@ try {
     }
 
     .logout-btn.improved-logout {
-        background: linear-gradient(90deg, #263544 60%, #0072bc 100%);
+        background: linear-gradient(90deg, #b02a37 60%, #dc3545 100%);
         color: #fff;
-        border: 1.5px solid #0072bc;
+        border: 1.5px solid #dc3545;
         border-radius: 32px;
         font-size: 1.1rem;
         font-weight: 700;
@@ -267,10 +274,10 @@ try {
     }
 
     .logout-btn.improved-logout:hover {
-        background: linear-gradient(90deg, #0072bc 60%, #263544 100%);
+        background: linear-gradient(90deg, #dc3545 60%, #b02a37 100%);
         color: #fff;
-        box-shadow: 0 4px 18px rgba(0,114,188,0.13);
-        border-color: #263544;
+        box-shadow: 0 4px 18px rgba(220,53,69,0.2);
+        border-color: #b02a37;
     }
 
     .logout-btn.improved-logout i {
@@ -279,3 +286,11 @@ try {
         margin-right: 2px;
     }
 </style>
+
+<script>
+function logout() {
+    if (confirm('Are you sure you want to log out?')) {
+        window.location.href = '../logout.php';
+    }
+}
+</script>

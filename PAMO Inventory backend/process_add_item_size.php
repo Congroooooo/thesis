@@ -113,23 +113,7 @@ try {
             mysqli_stmt_close($course_stmt);
             mysqli_stmt_close($insert_course_stmt);
 
-            // If category is STI-Shirts, copy shirt_type links
-            if ($originalItem['category'] === 'STI-Shirts') {
-                $shirt_type_sql = "SELECT shirt_type_id FROM shirt_type_item WHERE inventory_id = ?";
-                $shirt_type_stmt = mysqli_prepare($conn, $shirt_type_sql);
-                mysqli_stmt_bind_param($shirt_type_stmt, "i", $parent_inventory_id);
-                mysqli_stmt_execute($shirt_type_stmt);
-                $shirt_type_result = mysqli_stmt_get_result($shirt_type_stmt);
-                $insert_shirt_type_sql = "INSERT INTO shirt_type_item (inventory_id, shirt_type_id) VALUES (?, ?)";
-                $insert_shirt_type_stmt = mysqli_prepare($conn, $insert_shirt_type_sql);
-                while ($shirt_type_row = mysqli_fetch_assoc($shirt_type_result)) {
-                    $shirt_type_id = $shirt_type_row['shirt_type_id'];
-                    mysqli_stmt_bind_param($insert_shirt_type_stmt, "ii", $new_inventory_id, $shirt_type_id);
-                    mysqli_stmt_execute($insert_shirt_type_stmt);
-                }
-                mysqli_stmt_close($shirt_type_stmt);
-                mysqli_stmt_close($insert_shirt_type_stmt);
-            }
+            // Shirt types no longer use a dedicated table; links are via subcategories
         }
 
         // Log the activity

@@ -313,30 +313,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Add multi-select shirt type filter logic for STI Shirt (now works with dynamic categories)
   function attachShirtTypeFilterListeners() {
-    document
-      .querySelectorAll(".shirt-type-filter-checkbox")
-      .forEach((checkbox) => {
-        checkbox.addEventListener("change", function () {
-          // Find the main category for this checkbox (should be sti-shirt or similar)
-          const mainCategoryDiv = this.closest(".category-item");
-          const mainCategoryHeader = mainCategoryDiv?.querySelector(
-            ".main-category-header"
-          );
-          const mainCategory =
-            mainCategoryHeader?.dataset.category || "sti-shirt";
-
-          const checked = Array.from(
-            document.querySelectorAll(".shirt-type-filter-checkbox:checked")
-          ).map((cb) => cb.value);
-          if (checked.length > 0) {
-            activeSubcategories.set(mainCategory, checked);
-            activeMainCategories.add(mainCategory);
-          } else {
-            activeSubcategories.delete(mainCategory);
-          }
-          applyAllFilters();
-        });
-      });
+    // Deprecated: shirt types now piggyback on course-filter-checkbox (subcategory IDs)
   }
 
   // Call it initially and make it available for re-calling after dynamic updates
@@ -385,52 +362,33 @@ document.addEventListener("DOMContentLoaded", function () {
       const productCourses = container.dataset.courses
         ? container.dataset.courses.toLowerCase().split(",")
         : [];
+      const productSubcats = container.dataset.subcategories
+        ? container.dataset.subcategories.split(",")
+        : [];
       const productShirtTypeId = container.dataset.shirtTypeId;
       let matchesCategory = false;
       if (activeMainCategories.size > 0) {
         for (const mainCategory of activeMainCategories) {
           if (productCategory.includes(mainCategory.toLowerCase())) {
-            // STI Shirt or any category with shirt type filtering: filter by shirt type ID
+            // All categories: filter by subcategory id or course name
             if (
-              mainCategory.includes("sti-shirt") ||
-              mainCategory.includes("sti-shirts")
+              activeSubcategories.has(mainCategory) &&
+              activeSubcategories.get(mainCategory).length > 0
             ) {
-              if (
-                activeSubcategories.has(mainCategory) &&
-                activeSubcategories.get(mainCategory).length > 0
-              ) {
-                for (const shirtTypeId of activeSubcategories.get(
-                  mainCategory
-                )) {
-                  if (productShirtTypeId === shirtTypeId) {
-                    matchesCategory = true;
-                    break;
-                  }
+              for (const courseValue of activeSubcategories.get(mainCategory)) {
+                const cv = String(courseValue).toLowerCase();
+                if (
+                  productSubcats.includes(cv) ||
+                  productCourses.includes(cv) ||
+                  isProductInCourse(itemName, cv) ||
+                  itemCode.includes(cv)
+                ) {
+                  matchesCategory = true;
+                  break;
                 }
-              } else {
-                matchesCategory = true;
               }
             } else {
-              // Other categories: filter by course
-              if (
-                activeSubcategories.has(mainCategory) &&
-                activeSubcategories.get(mainCategory).length > 0
-              ) {
-                for (const courseValue of activeSubcategories.get(
-                  mainCategory
-                )) {
-                  if (
-                    productCourses.includes(courseValue.toLowerCase()) ||
-                    isProductInCourse(itemName, courseValue.toLowerCase()) ||
-                    itemCode.includes(courseValue.toLowerCase())
-                  ) {
-                    matchesCategory = true;
-                    break;
-                  }
-                }
-              } else {
-                matchesCategory = true;
-              }
+              matchesCategory = true;
             }
           }
           if (matchesCategory) break;
@@ -589,6 +547,7 @@ function showAccessoryModal(element) {
   const newInput = document.getElementById("accessoryQuantity");
   newInput.addEventListener("input", function () {
     validateAccessoryQuantity(this);
+    this.dataset.invalid = "";
   });
 
   newInput.addEventListener("blur", function () {
@@ -612,8 +571,9 @@ function validateAccessoryQuantity(input, enforceMax = false) {
   if (enforceMax) {
     const maxStock = parseInt(currentProduct.stock);
     if (parseInt(input.value) > maxStock) {
-      input.value = maxStock;
       alert(`Maximum available stock is ${maxStock}.`);
+      input.value = ""; // require explicit correct entry
+      input.dataset.invalid = "1";
     }
   }
 }
@@ -647,7 +607,11 @@ function addAccessoryToCart() {
   const quantityInput = document.getElementById("accessoryQuantity");
 
   // Check if quantity is empty or zero
-  if (!quantityInput.value || quantityInput.value === "0") {
+  if (
+    !quantityInput.value ||
+    quantityInput.value === "0" ||
+    quantityInput.dataset.invalid === "1"
+  ) {
     alert("Please enter a valid quantity");
     return;
   }
@@ -774,10 +738,19 @@ function showSizeModal(element) {
   const newInput = document.getElementById("quantity");
   newInput.addEventListener("input", function () {
     validateQuantityInput(this);
+    this.dataset.invalid = "";
   });
 
   newInput.addEventListener("blur", function () {
     validateQuantityInput(this, true);
+    // if invalid after blur, flag so submit refuses
+    const selectedSize = document.querySelector(".size-option.selected");
+    if (selectedSize) {
+      const maxStock = parseInt(selectedSize.dataset.stock);
+      if (parseInt(this.value || "0") > maxStock) {
+        this.dataset.invalid = "1";
+      }
+    }
   });
 
   document.getElementById("sizeModal").style.display = "block";
@@ -797,8 +770,12 @@ function validateQuantityInput(input, enforceMax = false) {
   if (selectedSize && enforceMax) {
     const maxStock = parseInt(selectedSize.dataset.stock);
     if (parseInt(input.value) > maxStock) {
-      input.value = maxStock;
       alert(`Maximum available stock for this size is ${maxStock}.`);
+      input.value = ""; // require the user to re-enter a valid value
+      input.dataset.invalid = "1";
+      return;
+    } else {
+      input.dataset.invalid = "";
     }
   }
 }
@@ -898,7 +875,11 @@ function addToCartWithSize() {
   const quantityInput = document.getElementById("quantity");
 
   // Check if quantity is empty or zero
-  if (!quantityInput.value || quantityInput.value === "0") {
+  if (
+    !quantityInput.value ||
+    quantityInput.value === "0" ||
+    quantityInput.dataset.invalid === "1"
+  ) {
     alert("Please enter a valid quantity");
     return;
   }
@@ -1035,8 +1016,9 @@ async function addToCart(element, customData = null) {
 
       // Update cart count in header
       const cartCount = document.querySelector(".cart-count");
-      if (cartCount) {
+      if (cartCount && typeof data.cart_count !== "undefined") {
         cartCount.textContent = data.cart_count;
+        cartCount.style.display = Number(data.cart_count) > 0 ? "flex" : "none";
       }
 
       // Show success message

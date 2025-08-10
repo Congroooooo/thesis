@@ -40,16 +40,40 @@ function redirectToLowStock() {
 
 let stockPieChart, salesLineChart;
 
-// Unique color mapping for each inventory category (custom user colors)
-const CATEGORY_COLORS = {
-  "Tertiary-Uniform": "#0d1a4a", // Dark Blue
-  "SHS-Uniform": "#4fc3f7", // Light Blue
-  "STI-Accessories": "#ff9800", // Orange
-  "STI-Shirts": "#43a047", // Green
-  "STI-Jacket": "#e53935", // Red
-  "SHS-PE": "#ffd600", // Yellow
-  "Tertiary-PE": "#8e24aa", // Purple
-};
+// Dynamic lively colors for categories (deterministic per label)
+const CATEGORY_COLOR_CACHE_KEY = "pamo_category_colors_v1";
+let CATEGORY_COLORS = {};
+try {
+  CATEGORY_COLORS =
+    JSON.parse(localStorage.getItem(CATEGORY_COLOR_CACHE_KEY) || "{}") || {};
+} catch (_) {
+  CATEGORY_COLORS = {};
+}
+
+function hashString(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (h << 5) - h + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+function colorForCategory(label) {
+  const key = String(label || "").trim() || "__unknown__";
+  if (CATEGORY_COLORS[key]) return CATEGORY_COLORS[key];
+  const hue = hashString(key) % 360; // spread hues
+  const fill = `hsl(${hue}, 75%, 70%)`; // lively pastel
+  // Persist
+  CATEGORY_COLORS[key] = fill;
+  try {
+    localStorage.setItem(
+      CATEGORY_COLOR_CACHE_KEY,
+      JSON.stringify(CATEGORY_COLORS)
+    );
+  } catch (_) {}
+  return fill;
+}
 
 async function fetchStockData(category = "", course = "") {
   const params = new URLSearchParams({ category, course });
@@ -98,9 +122,8 @@ function renderStockPieChart(data) {
   const ctx = canvas.getContext("2d");
   const labels = data.map((d) => d.category);
   const quantities = data.map((d) => d.quantity);
-  const backgroundColors = labels.map(
-    (label) => CATEGORY_COLORS[label] || "#cccccc"
-  );
+  const backgroundColors = labels.map((label) => colorForCategory(label));
+  const borderColors = backgroundColors.map((fill) => fill);
 
   if (stockPieChart) stockPieChart.destroy();
   stockPieChart = new Chart(ctx, {
@@ -111,6 +134,9 @@ function renderStockPieChart(data) {
         {
           data: quantities,
           backgroundColor: backgroundColors,
+          borderColor: borderColors,
+          borderWidth: 2,
+          hoverOffset: 6,
         },
       ],
     },
@@ -119,7 +145,17 @@ function renderStockPieChart(data) {
         legend: {
           display: false, // Disable built-in legend
         },
+        tooltip: {
+          backgroundColor: "#ffffff",
+          titleColor: "#1f2937",
+          bodyColor: "#1f2937",
+          borderColor: "#e5e7eb",
+          borderWidth: 1,
+          padding: 10,
+          displayColors: false,
+        },
       },
+      animation: { animateRotate: true, animateScale: true },
     },
   });
 
@@ -137,9 +173,8 @@ function renderStockPieChart(data) {
     if (idx > 0 && idx % itemsPerRow === 0) {
       legendHTML += '</div><div class="custom-pie-legend-row">';
     }
-    legendHTML += `<span class="custom-pie-legend-item"><span class="legend-color-box" style="background:${
-      CATEGORY_COLORS[label] || "#cccccc"
-    }"></span>${label}</span>`;
+    const fill = colorForCategory(label);
+    legendHTML += `<span class="custom-pie-legend-item"><span class="legend-color-box" style="background:${fill}; border:1px solid #e5e7eb"></span>${label}</span>`;
   });
   legendHTML += "</div>";
   legendContainer.innerHTML = legendHTML;

@@ -118,7 +118,6 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 
-    <!-- Success Modal (consistent with admin change password) -->
     <div id="mpSuccessModal" class="success-modal">
         <div>
             <i class="fas fa-check-circle success-icon"></i>

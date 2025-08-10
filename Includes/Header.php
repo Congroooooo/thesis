@@ -35,7 +35,7 @@ if (isset($_SESSION['user_id'])) {
             <li><a href="home.php"
                     class="<?php echo ($current_page == 'home.php') ? 'active' : ''; ?>">Homepage</a></li>
             <li><a href="ProItemList.php"
-                    class="<?php echo ($current_page == 'ProItemList.php') ? 'active' : ''; ?>">Item List</a></li>
+                    class="<?php echo ($current_page == 'ProItemList.php') ? 'active' : ''; ?>">Products</a></li>
             <?php if (isset($_SESSION['user_id'])): ?>
                 <li><a href="ProPreOrder.php"
                         class="<?php echo ($current_page == 'ProPreOrder.php') ? 'active' : ''; ?>">Place Order</a></li>
@@ -59,9 +59,11 @@ if (isset($_SESSION['user_id'])) {
         <div class="icons">
             <div class="icon cart-icon">
                 <a href="MyCart.php" class="fas fa-shopping-cart">
-                    <?php if (isset($_SESSION['cart_count']) && $_SESSION['cart_count'] > 0): ?>
-                        <span class="cart-count"><?php echo $_SESSION['cart_count']; ?></span>
-                    <?php endif; ?>
+                    <?php
+                        $initCount = isset($_SESSION['cart_count']) ? (int)$_SESSION['cart_count'] : 0;
+                        $initStyle = $initCount > 0 ? '' : 'style="display:none;"';
+                    ?>
+                    <span class="cart-count" <?= $initStyle ?>><?php echo $initCount; ?></span>
                 </a>
                 <!-- Cart Popup -->
                 <div class="cart-popup">
@@ -111,8 +113,8 @@ if (isset($_SESSION['user_id'])) {
                 <div class="icon">
                     <a href="profile.php" class="fas fa-user"></a>
                 </div>
-                <div class="icon">
-                    <a href="login.php" class="fas fa-sign-out-alt" title="Sign Out" onclick="signOut(event)"></a>
+                <div class="icon" style="background: #dc3545; border-radius: 50%;">
+                    <a href="login.php" class="fas fa-sign-out-alt" title="Sign Out" onclick="signOut(event)" style="color:#fff;"></a>
                 </div>
             <?php else: ?>
                 <div class="login">
@@ -368,25 +370,23 @@ if (isset($_SESSION['user_id'])) {
         }
 
         // Cart icon click handler
-        if (cartIcon) {
-            cartIcon.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                if (window.innerWidth <= 768) {
-                    openDrawer(cartDrawer);
-                    updateCartContent();
-                } else {
+        function onCartIconTap(e){
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.innerWidth <= 768) {
+                if (typeof openDrawer === 'function') openDrawer(cartDrawer);
+                updateCartContent();
+            } else {
+                if (cartPopup) {
                     cartPopup.classList.toggle('show');
-                    if (cartPopup.classList.contains('show')) {
-                        updateCartContent();
-                    }
+                    if (cartPopup.classList.contains('show')) updateCartContent();
                 }
-                
-                if (notificationPopup) {
-                    notificationPopup.classList.remove('show');
-                }
-            });
+            }
+            if (notificationPopup) notificationPopup.classList.remove('show');
+        }
+        if (cartIcon) {
+            cartIcon.addEventListener('click', onCartIconTap, { passive: false });
+            cartIcon.addEventListener('touchstart', onCartIconTap, { passive: false });
         }
 
         // Notification icon click handler
@@ -543,29 +543,43 @@ if (isset($_SESSION['user_id'])) {
     // Update cart content when page loads
     document.addEventListener('DOMContentLoaded', function() {
         updateCartContent();
-    });
 
-    // Update cart content when cart icon is clicked
-    if (cartIcon) {
-        cartIcon.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
+        function toggleCart(e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            const cartIconEl = document.querySelector('.cart-icon');
+            if (!cartIconEl) return;
+            const cartPopupEl = document.querySelector('.cart-popup');
+            const notificationPopupEl = document.querySelector('.notification-popup');
+            const cartDrawerEl = document.querySelector('.cart-drawer');
             if (window.innerWidth <= 768) {
-                openDrawer(cartDrawer);
+                if (typeof openDrawer === 'function' && cartDrawerEl) openDrawer(cartDrawerEl);
                 updateCartContent();
-            } else {
-                cartPopup.classList.toggle('show');
-                if (cartPopup.classList.contains('show')) {
+            } else if (cartPopupEl) {
+                cartPopupEl.classList.toggle('show');
+                if (cartPopupEl.classList.contains('show')) {
                     updateCartContent();
                 }
             }
-            
-            if (notificationPopup) {
-                notificationPopup.classList.remove('show');
+            if (notificationPopupEl) {
+                notificationPopupEl.classList.remove('show');
+            }
+        }
+
+        // Bind on the container and on the inner anchor to be safe
+        const cartIconEl = document.querySelector('.cart-icon');
+        const cartAnchorEl = document.querySelector('.cart-icon a');
+        if (cartIconEl) cartIconEl.addEventListener('click', toggleCart);
+        if (cartAnchorEl) cartAnchorEl.addEventListener('click', toggleCart);
+
+        // Global delegated safety (covers dynamically replaced nodes)
+        document.addEventListener('click', function(e){
+            const t = e.target;
+            if (!t) return;
+            if (t.closest && t.closest('.cart-icon')) {
+                toggleCart(e);
             }
         });
-    }
+    });
 </script>
 
 <!-- Include cart functionality -->

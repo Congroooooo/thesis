@@ -309,41 +309,32 @@
             }
         });
 
-        // Toggle sort order for next click
         tbody.dataset.order = currentOrder === 'asc' ? 'desc' : 'asc';
 
-        // Clear tbody and append sorted rows
         tbody.innerHTML = '';
         rows.forEach(row => tbody.appendChild(row));
     }
 
-    // Add this to your existing DOMContentLoaded event listener
     document.addEventListener('DOMContentLoaded', function () {
-        // Initial filter
         filterUsers();
 
-        // Add event listeners for all filters
         document.getElementById('searchInput').addEventListener('input', filterUsers);
-            // Enforce letters-only input in search field
             document.getElementById('searchInput').addEventListener('input', function(){
                 this.value = this.value.replace(/[^A-Za-z\s]/g, '');
             });
-            // Correlate Role and Program filters
             const roleSel = document.getElementById('roleFilter');
             const programSel = document.getElementById('programFilter');
 
             roleSel.addEventListener('change', function(){
-                // If role is selected (not all), limit program options to matching category
                 const roleVal = this.value.toLowerCase();
                 const current = programSel.value;
                 Array.from(programSel.options).forEach((opt, idx) => {
-                    if (idx === 0) return; // skip "All"
+                    if (idx === 0) return;
                     const abbr = opt.value;
                     const category = (window.abbrToCategory && window.abbrToCategory[abbr]) ? window.abbrToCategory[abbr].toLowerCase() : '';
                     const visible = roleVal === 'all' || (category && category === roleVal);
                     opt.hidden = !visible;
                 });
-                // If current selection doesn't match, reset to All
                 const currentCategory = window.abbrToCategory && window.abbrToCategory[current] ? window.abbrToCategory[current].toLowerCase() : '';
                 if (roleVal !== 'all' && current && currentCategory !== roleVal) {
                     programSel.value = 'all';
@@ -356,12 +347,10 @@
                 if (abbr !== 'all') {
                     const cat = window.abbrToCategory && window.abbrToCategory[abbr] ? window.abbrToCategory[abbr].toLowerCase() : '';
                     if (cat) {
-                        // Lock role to the program's category and disable role select
                         roleSel.value = cat;
                         roleSel.disabled = true;
                     }
                 } else {
-                    // If program back to All, re-enable role select
                     roleSel.disabled = false;
                 }
                 filterUsers();
@@ -371,7 +360,6 @@
         document.getElementById('programFilter').addEventListener('change', filterUsers);
         document.getElementById('statusFilter').addEventListener('change', filterUsers);
         
-        // Change Password modal submit (AJAX)
         const changePasswordForm = document.getElementById('changePasswordForm');
         if (changePasswordForm) {
             changePasswordForm.addEventListener('submit', function(e){
@@ -429,7 +417,6 @@
                     }
                 } catch(e) { /* silent */ }
             });
-            // Letters-only for names, digits-only for ID
             const onlyLetters = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^A-Za-z\s]/g,''); });
             const onlySuffixChars = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^A-Za-z.\s-]/g,''); });
             const onlyDigits = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/\D/g,'').slice(0,11); });
@@ -450,7 +437,7 @@
                         if (!data || !data.success) throw new Error(data && data.message ? data.message : 'Request failed');
                         closeModal('addAccountModal');
                         addForm.reset();
-                        // Show success credentials modal
+
                         const modalHtml = `
                         <div class="modal" id="createSuccessModal" style="display:flex; align-items:center; justify-content:center;">
                           <div class="modal-content" style="max-width:520px">
@@ -468,7 +455,6 @@
                         </div>`;
                         document.body.insertAdjacentHTML('beforeend', modalHtml);
                         document.getElementById('createSuccessOk').addEventListener('click', ()=>{
-                            // Append the new account to the table without refresh
                             try {
                                 const tbody = document.getElementById('accountsTbody');
                                 const tr = document.createElement('tr');
@@ -490,7 +476,6 @@
                                     <td>${status}</td>
                                 `;
                                 if (tbody) tbody.prepend(tr);
-                                // Rebind row click behavior for selection
                                 tr.addEventListener('click', function(){
                                     const isSelected = this.classList.contains('selected');
                                     document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
@@ -533,24 +518,18 @@
 
     document.querySelectorAll('.account-row').forEach(row => {
         row.addEventListener('click', function () {
-            // Check if this row is already selected
             const isSelected = this.classList.contains('selected');
 
-            // Remove selection from all rows
             document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
 
             if (isSelected) {
-                // If row was already selected, deselect it
                 this.classList.remove('selected');
                 selectedUserId = null;
-                // Disable buttons
                 document.getElementById('changePasswordBtn').disabled = true;
                 document.getElementById('updateStatusBtn').disabled = true;
             } else {
-                // If row wasn't selected, select it
                 this.classList.add('selected');
                 selectedUserId = this.dataset.id;
-                // Enable buttons
                 document.getElementById('changePasswordBtn').disabled = false;
                 document.getElementById('updateStatusBtn').disabled = false;
             }
@@ -562,7 +541,6 @@
             alert('Please select an account first.');
             return;
         }
-        // Open modal and seed selected id
         document.getElementById('changePasswordUserId').value = selectedUserId;
         const modal = document.getElementById('changePasswordModal');
         modal.style.display = 'flex';
@@ -574,7 +552,6 @@
             return;
         }
         document.getElementById('selectedUserId').value = selectedUserId;
-        // Pre-select the current status of the chosen user
         try {
             const row = document.querySelector(`tr[data-id="${selectedUserId}"]`);
             const statusCell = row ? row.querySelector('td:last-child') : null;
@@ -607,13 +584,13 @@
     }
 
     document.getElementById('updateStatusForm').addEventListener('submit', async function (e) {
-       e.preventDefault();
-       const formData = new FormData(this);
+        e.preventDefault();
+        const formData = new FormData(this);
 
        try {
            const response = await fetch('update_status.php', {
-               method: 'POST',
-               body: formData
+            method: 'POST',
+            body: formData
            });
 
            const data = await response.json();
@@ -635,33 +612,29 @@
                return;
            }
 
-           // Update the status in the table immediately without reload
-           const row = document.querySelector(`tr[data-id="${formData.get('userId')}"]`);
-           if (row) {
+                    const row = document.querySelector(`tr[data-id="${formData.get('userId')}"]`);
+                    if (row) {
                const statusCell = row.querySelector('td:last-child');
                if (statusCell) {
                    statusCell.textContent = formData.get('status');
                    
-                   // Re-apply current filters so visibility reflects the new status
                    filterUsers();
                    
-                   // Show success message after table is updated
                    closeModal('updateStatusModal');
                    const modal = document.getElementById('successModal');
                     if (modal) {
                         modal.querySelector('p').textContent = 'Status updated successfully';
                         modal.style.display = 'flex';
                     }
-                   
-                   // Clear selection
-                   selectedUserId = null;
-                   document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
-                   document.getElementById('changePasswordBtn').disabled = true;
-                   document.getElementById('updateStatusBtn').disabled = true;
-               }
+
+                    selectedUserId = null;
+                    document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
+                    document.getElementById('changePasswordBtn').disabled = true;
+                    document.getElementById('updateStatusBtn').disabled = true;
+                }
            }
        } catch (error) {
-           console.error('Error:', error);
+                console.error('Error:', error);
            const toast = document.createElement('div');
            toast.textContent = 'Error updating status. Please try again.';
            toast.style.position = 'fixed';
@@ -675,9 +648,8 @@
            document.body.appendChild(toast);
            setTimeout(() => toast.remove(), 2500);
        }
-   });
+    });
 
-    // Add this to your existing styles
     document.head.insertAdjacentHTML('beforeend', `
         <style>
             body {
@@ -710,7 +682,7 @@
             .header-section .container {
                 position: relative;
                 z-index: 2;
-                max-width: 1320px; /* align with manage_programs header spacing */
+                max-width: 1320px;
                 margin: 0 auto;
                 padding: 0 32px;
             }

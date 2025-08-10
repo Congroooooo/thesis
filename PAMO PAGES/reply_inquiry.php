@@ -3,7 +3,14 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 header('Content-Type: application/json');
-if (!isset($_SESSION['user_id']) || $_SESSION['program_or_position'] !== 'PAMO') {
+// Robust PAMO authorization: accept abbreviation or full name containing PAMO
+$isPamo = false;
+if (isset($_SESSION['program_abbreviation']) && strtoupper(trim($_SESSION['program_abbreviation'])) === 'PAMO') {
+    $isPamo = true;
+} elseif (isset($_SESSION['program_or_position']) && stripos($_SESSION['program_or_position'], 'PAMO') !== false) {
+    $isPamo = true;
+}
+if (!isset($_SESSION['user_id']) || !$isPamo) {
     echo json_encode(['success' => false, 'error' => 'Unauthorized.']);
     exit;
 }

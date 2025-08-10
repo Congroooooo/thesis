@@ -36,9 +36,6 @@
         </div>
     </section>
 
-    <!-- Add this right after the header section -->
-    
-
     <div class="container">
         <aside class="sidebar" id="sidebar" data-aos="fade-right">
             <span class="close-sidebar" id="closeSidebar">&times;</span>
@@ -54,7 +51,6 @@
                 die("Connection failed: " . mysqli_connect_error());
             }
 
-            // UPDATED SQL: Join inventory with course_item and course, group by inventory.id
             $sql = "SELECT inventory.*, GROUP_CONCAT(DISTINCT course.course_name) AS courses
                     FROM inventory
                     LEFT JOIN course_item ON inventory.id = course_item.inventory_id
@@ -65,12 +61,7 @@
 
             $products = [];
 
-            // Fetch shirt types for STI Shirt filter
-            $shirtTypes = [];
-            $shirtTypeRes = mysqli_query($conn, "SELECT id, name FROM shirt_type ORDER BY name ASC");
-            while ($row = mysqli_fetch_assoc($shirtTypeRes)) {
-                $shirtTypes[] = $row;
-            }
+            // Shirt types are now represented by subcategories; no separate query
 
             while ($row = mysqli_fetch_assoc($result)) {
                 $itemCode = $row['item_code'];
@@ -82,7 +73,12 @@
                 $baseItemCode = strtok($itemCode, '-');
                 $courses = isset($row['courses']) ? array_map('trim', explode(',', $row['courses'])) : [];
 
-                // Handle both full paths and filenames
+                $subcats = [];
+                $subSql = "SELECT s.id FROM inventory_subcategory isub JOIN subcategories s ON s.id = isub.subcategory_id WHERE isub.inventory_id = " . intval($row['id']);
+                if ($subRes = mysqli_query($conn, $subSql)) {
+                    while ($srow = mysqli_fetch_assoc($subRes)) { $subcats[] = (string)$srow['id']; }
+                }
+
                 if (!empty($imagePath)) {
                     if (strpos($imagePath, 'uploads/') === false) {
                         $itemImage = '../uploads/itemlist/' . $imagePath;
@@ -91,17 +87,6 @@
                     }
                 } else {
                     $itemImage = '';
-                }
-
-                $shirtTypeId = '';
-                $shirtTypeName = '';
-                if ($itemCategory === 'STI-Shirts') {
-                    $shirtTypeSql = "SELECT st.id, st.name FROM shirt_type_item sti JOIN shirt_type st ON sti.shirt_type_id = st.id WHERE sti.inventory_id = " . intval($row['id']) . " LIMIT 1";
-                    $shirtTypeRes = mysqli_query($conn, $shirtTypeSql);
-                    if ($shirtTypeRow = mysqli_fetch_assoc($shirtTypeRes)) {
-                        $shirtTypeId = $shirtTypeRow['id'];
-                        $shirtTypeName = $shirtTypeRow['name'];
-                    }
                 }
 
                 if (!isset($products[$baseItemCode])) {
@@ -113,8 +98,7 @@
                         'sizes' => $sizes,
                         'stock' => $row['actual_quantity'],
                         'courses' => $courses,
-                        'shirt_type_id' => $shirtTypeId,
-                        'shirt_type_name' => $shirtTypeName,
+                        'subcategories' => $subcats,
                         'variants' => [
                             [
                                 'item_code' => $itemCode,
@@ -130,7 +114,7 @@
                     $products[$baseItemCode]['prices'][] = $itemPrice;
                     $products[$baseItemCode]['stock'] += $row['actual_quantity'];
                     $products[$baseItemCode]['courses'] = array_unique(array_merge($products[$baseItemCode]['courses'], $courses));
-                    // Fallback: use the first variant's image if this one is missing
+                    $products[$baseItemCode]['subcategories'] = array_unique(array_merge($products[$baseItemCode]['subcategories'], $subcats));
                     $variantImage = $itemImage;
                     if (empty($variantImage)) {
                         $variantImage = $products[$baseItemCode]['image'];
@@ -147,17 +131,16 @@
             ?>
             
             <?php
-            // Build a set of categories that have products
             $categoriesWithProducts = [];
             foreach ($products as $product) {
-                $cat = strtolower(str_replace(' ', '-', $product['category']));
-                $categoriesWithProducts[$cat] = true;
+                if ((int)($product['stock'] ?? 0) > 0) {
+                    $cat = strtolower(str_replace(' ', '-', $product['category']));
+                    $categoriesWithProducts[$cat] = true;
+                }
             }
 
-            // Fetch categories dynamically from the database
             $dynamicCategories = [];
             
-            // Get all categories with their subcategories
             $categoriesQuery = "
                 SELECT 
                     c.id, 
@@ -201,7 +184,6 @@
                 }
             }
             
-            // Also get legacy categories from inventory table that might not be in categories table yet
             $legacyCategoriesQuery = "
                 SELECT DISTINCT category 
                 FROM inventory 
@@ -223,19 +205,15 @@
                 }
             }
             
-            // Helper function to normalize category names for data attributes
             function normalizeCategoryName($name) {
                 return strtolower(str_replace([' ', '_'], '-', $name));
             }
             
-            // Debug: Show what categories we found
             echo "<!-- DEBUG: Found " . count($dynamicCategories) . " categories: " . json_encode($dynamicCategories) . " -->";
             ?>
             
             <?php if (count($dynamicCategories) > 0): ?>
-                <!-- DEBUG: Categories loaded successfully -->
             <?php else: ?>
-                <!-- DEBUG: No categories found, using fallback -->
             <?php endif; ?>
             <div class="category-list">
                 <?php if (!empty($dynamicCategories)): ?>
@@ -255,34 +233,19 @@
                                         <div class="course-category">
                                             <div class="course-header">
                                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                                    <?php if ($category['name'] === 'STI-Shirts'): ?>
-                                                        <input type="checkbox" class="shirt-type-filter-checkbox" value="<?= htmlspecialchars($subcategory['id']) ?>">
-                                                    <?php else: ?>
-                                                        <input type="checkbox" class="course-filter-checkbox" value="<?= htmlspecialchars($subcategory['name']) ?>">
-                                                    <?php endif; ?>
+                                                    <input type="checkbox" class="course-filter-checkbox" value="<?= htmlspecialchars($subcategory['id']) ?>" data-name="<?= htmlspecialchars($subcategory['name']) ?>">
                                                     <span><?= htmlspecialchars($subcategory['name']) ?></span>
                                                 </label>
                                             </div>
                                         </div>
                                     <?php endforeach; ?>
-                                <?php elseif ($category['name'] === 'STI-Shirts'): ?>
-                                    <!-- Fallback for STI-Shirts using shirt_type table -->
-                                    <?php foreach ($shirtTypes as $type): ?>
-                                    <div class="course-category">
-                                        <div class="course-header">
-                                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                                <input type="checkbox" class="shirt-type-filter-checkbox" value="<?= $type['id'] ?>">
-                                                <span><?= htmlspecialchars($type['name']) ?></span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <?php endforeach; ?>
+                                <?php else: ?>
                                 <?php endif; ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <!-- Fallback to hardcoded categories if API fails -->
+
                     <div class="category-item">
                         <div class="main-category-header" data-category="tertiary-uniform">
                             <span>Tertiary Uniform</span>
@@ -363,10 +326,10 @@
             <div class="products-grid">
                 <?php
                 foreach ($products as $baseItemCode => $product):
+                    if ((int)($product['stock'] ?? 0) <= 0) { continue; }
                     $availableSizes = $product['sizes'];
                     $prices = $product['prices'];
                     $courses = $product['courses'];
-                    // Create stocksBySize array with item_code for each size
                     $stocksBySize = [];
                     $itemCodesBySize = [];
                     foreach ($product['variants'] as $variant) {
@@ -386,10 +349,8 @@
                         data-item-code="<?php echo htmlspecialchars($product['variants'][0]['item_code']); ?>"
                         data-item-name="<?php echo htmlspecialchars($product['name']); ?>"
                         data-courses="<?php echo htmlspecialchars(implode(',', $courses)); ?>"
-                        data-shirt-type-id="<?php echo htmlspecialchars($product['shirt_type_id'] ?? ''); ?>"
-                        data-shirt-type-name="<?php echo htmlspecialchars($product['shirt_type_name'] ?? ''); ?>">
+                        data-subcategories="<?php echo htmlspecialchars(implode(',', ($product['subcategories'] ?? []))); ?>">
                         <?php
-// Find the first non-empty image among variants
 $productImage = '';
 foreach ($product['variants'] as $variant) {
     if (!empty($variant['image'])) {
@@ -398,7 +359,7 @@ foreach ($product['variants'] as $variant) {
     }
 }
 if (empty($productImage)) {
-    $productImage = '../uploads/itemlist/default.png'; // or your default image path
+    $productImage = '../uploads/itemlist/default.png';
 }
 ?>
 <img src="<?php echo $productImage; ?>" alt="<?php echo $product['name']; ?>">
@@ -424,7 +385,6 @@ if (empty($productImage)) {
                     </div>
                 <?php endforeach; ?>
                 
-                <!-- No results message -->
                 <div id="no-results-message" class="no-results-message" style="display: none;">
                     <i class="fas fa-search"></i>
                     <h3>No products found</h3>
@@ -434,7 +394,6 @@ if (empty($productImage)) {
         </main>
     </div>
 
-    <!-- Size Selection Modal -->
     <div id="sizeModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
@@ -461,7 +420,6 @@ if (empty($productImage)) {
         </div>
     </div>
 
-    <!-- Accessories Quantity Modal -->
     <div id="accessoryModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeAccessoryModal()">&times;</span>
@@ -496,29 +454,24 @@ if (empty($productImage)) {
         const sidebar = document.getElementById('sidebar');
         const closeSidebar = document.getElementById('closeSidebar');
 
-        // Toggle sidebar on filter button click
         filterToggle.addEventListener('click', function() {
             sidebar.classList.toggle('active');
         });
 
-        // Close sidebar when close button is clicked
         closeSidebar.addEventListener('click', function() {
             sidebar.classList.remove('active');
         });
 
-        // Close sidebar when clicking outside
         document.addEventListener('click', function(e) {
             if (!sidebar.contains(e.target) && !filterToggle.contains(e.target)) {
                 sidebar.classList.remove('active');
             }
         });
 
-        // Prevent clicks inside sidebar from closing it
         sidebar.addEventListener('click', function(e) {
             e.stopPropagation();
         });
 
-        // Close sidebar on window resize if screen becomes large enough
         window.addEventListener('resize', function() {
             if (window.innerWidth >= 768) {
                 sidebar.classList.remove('active');
@@ -529,21 +482,17 @@ if (empty($productImage)) {
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Get modal elements
         const modal = document.getElementById('sizeModal');
         const closeBtn = modal.querySelector('.close');
         
-        // Function to open modal
         function openModal() {
             modal.classList.add('show');
         }
         
-        // Function to close modal
         function closeModal() {
             modal.classList.remove('show');
         }
         
-        // Add click event to all "ADD TO CART" buttons
         document.querySelectorAll('.cart').forEach(button => {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -551,17 +500,14 @@ if (empty($productImage)) {
             });
         });
         
-        // Close modal when clicking the close button
         closeBtn.addEventListener('click', closeModal);
         
-        // Close modal when clicking outside
         window.addEventListener('click', function(e) {
             if (e.target === modal) {
                 closeModal();
             }
         });
         
-        // Prevent modal from closing when clicking inside modal content
         modal.querySelector('.modal-content').addEventListener('click', function(e) {
             e.stopPropagation();
         });

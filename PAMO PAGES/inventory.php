@@ -352,19 +352,7 @@ function page_link($page, $query_string) {
                             <option value="__add__">+ Add new subcategory…</option>
                         </select>
                     </div>
-                    <div class="input-group" id="shirtTypeGroup" style="display:none;">
-                        <label for="shirtTypeSelect">Shirt Type:</label>
-                        <select id="shirtTypeSelect" name="shirt_type_id" style="width:100%;">
-                            <option value="">Select Shirt Type</option>
-                            <?php
-                            $conn = mysqli_connect("localhost", "root", "", "proware");
-                            $result = mysqli_query($conn, "SELECT id, name FROM shirt_type ORDER BY name ASC");
-                            while ($row = mysqli_fetch_assoc($result)) {
-                                echo '<option value="' . $row['id'] . '">' . htmlspecialchars($row['name']) . '</option>';
-                            }
-                            ?>
-                        </select>
-                    </div>
+                    <!-- Shirt types are now handled as subcategories under STI Shirts -->
                     <div class="input-group" id="courseGroup" style="display:none;">
                         <label for="courseSelect">Course:</label>
                         <select id="courseSelect" name="course_id[]" multiple style="width:100%;">

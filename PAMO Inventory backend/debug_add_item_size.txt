@@ -1,41 +1,29 @@
 Array
 (
-    [deliveryOrderNumber] => 123123123
-    [existingItem] => PTAM039
+    [deliveryOrderNumber] => 321353532
+    [existingItem] => STI40
     [newSize] => Array
         (
             [0] => M
             [1] => L
-            [2] => XL
-            [3] => XXL
-            [4] => 3XL
         )
 
     [newItemCode] => Array
         (
-            [0] => PTAM039-003
-            [1] => PTAM039-004
-            [2] => PTAM039-005
-            [3] => PTAM039-006
-            [4] => PTAM039-007
+            [0] => STI40-003
+            [1] => STI40-004
         )
 
     [newQuantity] => Array
         (
-            [0] => 2
-            [1] => 13
-            [2] => 23
-            [3] => 14
-            [4] => 5
+            [0] => 1
+            [1] => 1
         )
 
     [newDamage] => Array
         (
             [0] => 0
             [1] => 0
-            [2] => 0
-            [3] => 0
-            [4] => 0
         )
 
 )
