@@ -107,7 +107,7 @@
                                 <th onclick="sortTable(2)">Birthday</th>
                                 <th onclick="sortTable(3)">ID Number</th>
                                 <th onclick="sortTable(4)">Role</th>
-                                <th onclick="sortTable(5)">PositionProgram/</th>
+                                <th onclick="sortTable(5)">Position/Program</th>
                                 <th onclick="sortTable(6)">Status</th>
             </tr>
         </thead>
@@ -463,16 +463,22 @@
                                 const role = data.role_category || '';
                                 const program = data.program_or_position || '';
                                 const status = 'active';
-                                const dateCreated = new Date().toISOString().slice(0,19).replace('T',' ');
+                                const fmtBirthday = (iso)=>{
+                                    if (!iso) return 'N/A';
+                                    const parts = String(iso).split('-');
+                                    if (parts.length !== 3) return 'N/A';
+                                    const [y,m,d] = parts.map(p=>parseInt(p,10));
+                                    if (!y || !m || !d) return 'N/A';
+                                    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                                    return `${months[m-1]} ${String(d).padStart(2,'0')}, ${y}`;
+                                };
                                 tr.innerHTML = `
                                     <td>${data.first_name || ''}</td>
                                     <td>${data.last_name || ''}</td>
-                                    <td>${data.birthday ? new Date(data.birthday).toLocaleDateString(undefined,{month:'short', day:'2-digit', year:'numeric'}) : 'N/A'}</td>
+                                    <td>${fmtBirthday(data.birthday)}</td>
                                     <td>${data.id_number || ''}</td>
                                     <td>${role}</td>
-                                    <td>${program}</td>
-                                    <td>${data.generated_email || ''}</td>
-                                    <td>********</td>
+                                    <td class="has-tooltip" data-fulltext="${program}">${program}</td>
                                     <td>${status}</td>
                                 `;
                                 if (tbody) tbody.prepend(tr);
@@ -491,6 +497,7 @@
                                         document.getElementById('updateStatusBtn').disabled = false;
                                     }
                                 });
+                                filterUsers();
                             } catch(e) { /* ignore */ }
                             const m = document.getElementById('createSuccessModal');
                             if (m) m.remove();

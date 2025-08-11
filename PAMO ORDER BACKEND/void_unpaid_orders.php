@@ -16,22 +16,17 @@ $stmt = $conn->prepare($query);
 $stmt->execute();
 $unpaid_orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Debug: Output number of orders found
 file_put_contents(__DIR__ . '/void_debug.log', date('Y-m-d H:i:s') . " - Found " . count($unpaid_orders) . " unpaid approved orders\n", FILE_APPEND);
 
 foreach ($unpaid_orders as $order) {
     try {
-        // Start transaction
         $conn->beginTransaction();
 
-        // Update order status to voided
         $updateStmt = $conn->prepare("UPDATE pre_orders SET status = 'voided' WHERE id = ?");
         $updateStmt->execute([$order['id']]);
 
-        // Increment strike for the user
         $strikeStmt = $conn->prepare("UPDATE account SET pre_order_strikes = pre_order_strikes + 1, last_strike_time = NOW() WHERE id = ?");
         $strikeStmt->execute([$order['user_id']]);
-        // Check if strikes >= 3, then set is_strike = 1
         $checkStrikeStmt = $conn->prepare("SELECT pre_order_strikes FROM account WHERE id = ?");
         $checkStrikeStmt->execute([$order['user_id']]);
         $strikes = $checkStrikeStmt->fetchColumn();
@@ -40,14 +35,11 @@ foreach ($unpaid_orders as $order) {
             $blockStmt->execute([$order['user_id']]);
         }
 
-        // Debug: Log each voided order
         file_put_contents(__DIR__ . '/void_debug.log', date('Y-m-d H:i:s') . " - Voided order ID: {$order['id']}\n", FILE_APPEND);
 
-        // Create notification for the user
         $message = "Your order #{$order['order_number']} has been voided because payment was not made within 5 minutes. Please place a new order if you still wish to purchase these items.";
         createNotification($conn, $order['user_id'], $message, $order['order_number'], 'voided');
 
-        // Log the activity
         $order_items = json_decode($order['items'], true);
         foreach ($order_items as $item) {
             $activity_description = "Voided - Order #: {$order['order_number']}, Item: {$item['item_name']}, Quantity: {$item['quantity']}";
@@ -68,10 +60,8 @@ foreach ($unpaid_orders as $order) {
             ]);
         }
 
-        // Commit transaction
         $conn->commit();
     } catch (Exception $e) {
-        // Rollback transaction on error
         if ($conn->inTransaction()) {
             $conn->rollBack();
         }
