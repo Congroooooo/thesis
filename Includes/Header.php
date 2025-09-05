@@ -97,7 +97,26 @@ if (isset($_SESSION['user_id'])) {
                 </div>
             </div>
 
-            <?php if (isset($_SESSION['user_id']) && isset($_SESSION['role_category']) && $_SESSION['role_category'] === 'COLLEGE STUDENT') : ?>
+            <?php
+            $showMailbox = false;
+            if (isset($_SESSION['user_id'])) {
+                $role = isset($_SESSION['role_category']) ? strtoupper(trim($_SESSION['role_category'])) : '';
+                $program = '';
+                if (isset($_SESSION['program_abbreviation']) && $_SESSION['program_abbreviation'] !== '') {
+                    $program = strtoupper(trim($_SESSION['program_abbreviation']));
+                } elseif (isset($_SESSION['program_or_position'])) {
+                    $program = strtoupper(trim($_SESSION['program_or_position']));
+                }
+
+                $isAdminOrPamo = (strpos($program, 'ADMIN') !== false) || (strpos($program, 'PAMO') !== false);
+
+                if ($role === 'COLLEGE STUDENT' || $role === 'SHS') {
+                    $showMailbox = true;
+                } elseif ($role === 'EMPLOYEE' && !$isAdminOrPamo) {
+                    $showMailbox = true;
+                }
+            }
+            if ($showMailbox) : ?>
                 <div class="icon mailbox-icon" id="mailboxIcon" style="position:relative;">
                     <a href="javascript:void(0);" title="Mailbox">
                         <i class="fas fa-envelope"></i>

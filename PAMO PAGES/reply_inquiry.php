@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['inquiry_id'], $_POST[
         echo json_encode(['success' => false, 'error' => 'Invalid input.']);
         exit;
     }
-    $stmt = $conn->prepare("UPDATE inquiries SET reply = :reply, status = 'replied' WHERE id = :id");
+    $stmt = $conn->prepare("UPDATE inquiries SET reply = :reply, status = 'replied', updated_at = NOW(), student_read = 0 WHERE id = :id");
     $stmt->bindParam(':reply', $reply, PDO::PARAM_STR);
     $stmt->bindParam(':id', $inquiry_id, PDO::PARAM_INT);
     if ($stmt->execute()) {
