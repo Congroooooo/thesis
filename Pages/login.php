@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $programAbbrUpper = strtoupper(trim(($pp['abbreviation'] ?? '') !== '' ? $pp['abbreviation'] : ($pp['name'] ?? '')));
                 }
             } catch (Exception $e) {
-                // ignore lookup errors
+
             }
             $_SESSION['program_abbreviation'] = $programAbbrUpper;
 
@@ -148,7 +148,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
-    <!-- Add Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </body>
 </html>

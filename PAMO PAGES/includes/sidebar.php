@@ -61,6 +61,11 @@ try {
                 <span class="notif-badge"><?php echo $pendingOrdersCount; ?></span>
             <?php endif; ?>
         </li>
+        <li <?php echo basename($_SERVER['PHP_SELF']) == 'pamo_preorder.php' ? 'class="active"' : ''; ?>
+            onclick="window.location.href='<?php echo $basePath; ?>pamo_preorder.php'">
+            <span class="active-bar"></span>
+            <i class="material-icons">shopping_cart</i>Pre-Order
+        </li>
         <li <?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'class="active"' : ''; ?>
             onclick="window.location.href='<?php echo $basePath; ?>reports.php'">
             <span class="active-bar"></span>

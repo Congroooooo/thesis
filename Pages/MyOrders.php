@@ -157,12 +157,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
                                     <div class="order-item">
                                         <div class="item-image">
                                             <?php
-                                            $image_path = $item['image_path'] ?? 'default.jpg';
-                                            // Ensure we're using just the filename
-                                            $image_filename = basename($image_path);
+                                            $image_path = $item['image_path'] ?? '';
+                                            $resolved = null;
+                                            // 1) Try stored image path
+                                            if (!empty($image_path)) {
+                                                $name = basename($image_path);
+                                                $candidateItemlist = __DIR__ . '/../uploads/itemlist/' . $name;
+                                                $candidateRaw = __DIR__ . '/../' . ltrim($image_path, '/');
+                                                if (is_file($candidateItemlist)) {
+                                                    $resolved = 'uploads/itemlist/' . $name;
+                                                } elseif (is_file($candidateRaw)) {
+                                                    $resolved = ltrim($image_path, './');
+                                                }
+                                            }
+                                            // 2) Try inventory by exact item_code + size
+                                            if ($resolved === null) {
+                                                try {
+                                                    $sizeParam = $item['size'] ?? null;
+                                                    $q = $conn->prepare("SELECT image_path FROM inventory WHERE item_code = ? AND (sizes = ? OR ? IS NULL) AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
+                                                    $q->execute([$item['item_code'], $sizeParam, $sizeParam]);
+                                                    $rowImg = $q->fetch(PDO::FETCH_ASSOC);
+                                                    if ($rowImg && !empty($rowImg['image_path'])) {
+                                                        $name = basename($rowImg['image_path']);
+                                                        $cand1 = __DIR__ . '/../uploads/itemlist/' . $name;
+                                                        $cand2 = __DIR__ . '/../' . ltrim($rowImg['image_path'], '/');
+                                                        if (is_file($cand1)) {
+                                                            $resolved = 'uploads/itemlist/' . $name;
+                                                        } elseif (is_file($cand2)) {
+                                                            $resolved = ltrim($rowImg['image_path'], './');
+                                                        }
+                                                    }
+                                                } catch (Throwable $e) {}
+                                            }
+                                            // 3) Last attempt: legacy prefix-suffixed item codes
+                                            if ($resolved === null) {
+                                                try {
+                                                    $like = $item['item_code'] . '-%';
+                                                    $q2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code LIKE ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
+                                                    $q2->execute([$like]);
+                                                    $rowImg2 = $q2->fetch(PDO::FETCH_ASSOC);
+                                                    if ($rowImg2 && !empty($rowImg2['image_path'])) {
+                                                        $name = basename($rowImg2['image_path']);
+                                                        $cand1 = __DIR__ . '/../uploads/itemlist/' . $name;
+                                                        $cand2 = __DIR__ . '/../' . ltrim($rowImg2['image_path'], '/');
+                                                        if (is_file($cand1)) {
+                                                            $resolved = 'uploads/itemlist/' . $name;
+                                                        } elseif (is_file($cand2)) {
+                                                            $resolved = ltrim($rowImg2['image_path'], './');
+                                                        }
+                                                    }
+                                                } catch (Throwable $e) {}
+                                            }
+                                            // 4) Fallback to default image
+                                            if ($resolved === null) {
+                                                $resolved = is_file(__DIR__ . '/../uploads/itemlist/default.png') ? 'uploads/itemlist/default.png' : 'uploads/itemlist/default.jpg';
+                                            }
                                             ?>
-                                            <img src="../uploads/itemlist/<?php echo htmlspecialchars($image_filename); ?>" 
-                                                 alt="<?php echo htmlspecialchars($clean_name); ?>">
+                                            <img src="../<?php echo htmlspecialchars($resolved); ?>" alt="<?php echo htmlspecialchars($clean_name); ?>">
                                         </div>
                                         <div class="item-details">
                                             <span class="item-name"><?php echo htmlspecialchars($clean_name); ?></span>

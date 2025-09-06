@@ -34,21 +34,37 @@
         $inventory_item = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($inventory_item) {
-            // Fallback logic for image
+            // Normalize/resolve image path to a valid public path
             $image_path = $inventory_item['image_path'];
-            if (empty($image_path) || !file_exists(__DIR__ . '/../uploads/itemlist/' . basename($image_path))) {
-                $prefix = explode('-', $cart_item['item_code'])[0];
-                $stmt2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code LIKE ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
-                $likePrefix = $prefix . '-%';
-                $stmt2->execute([$likePrefix]);
-                $row2 = $stmt2->fetch(PDO::FETCH_ASSOC);
-                if ($row2 && !empty($row2['image_path']) && file_exists(__DIR__ . '/../uploads/itemlist/' . basename($row2['image_path']))) {
-                    $image_path = $row2['image_path'];
-                } else {
-                    $image_path = 'uploads/itemlist/default.jpg';
+            $resolved = null;
+            if (!empty($image_path)) {
+                $name = basename($image_path);
+                $candidateItemlist = __DIR__ . '/../uploads/itemlist/' . $name;
+                $candidateRaw = __DIR__ . '/../' . ltrim($image_path, '/');
+                if (file_exists($candidateItemlist)) {
+                    $resolved = 'uploads/itemlist/' . $name;
+                } elseif (file_exists($candidateRaw)) {
+                    $resolved = ltrim($image_path, './');
                 }
             }
-            $inventory_item['image_path'] = $image_path;
+            if ($resolved === null) {
+                // Try to reuse any image for this item code
+                $stmt2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code = ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
+                $stmt2->execute([$cart_item['item_code']]);
+                $row2 = $stmt2->fetch(PDO::FETCH_ASSOC);
+                if ($row2 && !empty($row2['image_path'])) {
+                    $name = basename($row2['image_path']);
+                    if (file_exists(__DIR__ . '/../uploads/itemlist/' . $name)) {
+                        $resolved = 'uploads/itemlist/' . $name;
+                    } elseif (file_exists(__DIR__ . '/../' . ltrim($row2['image_path'], '/'))) {
+                        $resolved = ltrim($row2['image_path'], './');
+                    }
+                }
+            }
+            if ($resolved === null) {
+                $resolved = file_exists(__DIR__ . '/../uploads/itemlist/default.png') ? 'uploads/itemlist/default.png' : 'uploads/itemlist/default.jpg';
+            }
+            $inventory_item['image_path'] = $resolved;
             $final_cart_items[] = array_merge($cart_item, $inventory_item);
         } else {
             // Try to find the item with a LIKE query to catch potential formatting differences
@@ -57,27 +73,29 @@
             $inventory_item = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($inventory_item) {
-                // Fallback logic for image
+                // Normalize/resolve image path
                 $image_path = $inventory_item['image_path'];
-                if (empty($image_path) || !file_exists(__DIR__ . '/../uploads/itemlist/' . basename($image_path))) {
-                    $prefix = explode('-', $cart_item['item_code'])[0];
-                    $stmt2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code LIKE ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
-                    $likePrefix = $prefix . '-%';
-                    $stmt2->execute([$likePrefix]);
-                    $row2 = $stmt2->fetch(PDO::FETCH_ASSOC);
-                    if ($row2 && !empty($row2['image_path']) && file_exists(__DIR__ . '/../uploads/itemlist/' . basename($row2['image_path']))) {
-                        $image_path = $row2['image_path'];
-                    } else {
-                        $image_path = 'uploads/itemlist/default.jpg';
+                $resolved = null;
+                if (!empty($image_path)) {
+                    $name = basename($image_path);
+                    $candidateItemlist = __DIR__ . '/../uploads/itemlist/' . $name;
+                    $candidateRaw = __DIR__ . '/../' . ltrim($image_path, '/');
+                    if (file_exists($candidateItemlist)) {
+                        $resolved = 'uploads/itemlist/' . $name;
+                    } elseif (file_exists($candidateRaw)) {
+                        $resolved = ltrim($image_path, './');
                     }
                 }
-                $inventory_item['image_path'] = $image_path;
+                if ($resolved === null) {
+                    $resolved = file_exists(__DIR__ . '/../uploads/itemlist/default.png') ? 'uploads/itemlist/default.png' : 'uploads/itemlist/default.jpg';
+                }
+                $inventory_item['image_path'] = $resolved;
                 $final_cart_items[] = array_merge($cart_item, $inventory_item);
             } else {
                 $final_cart_items[] = array_merge($cart_item, [
                     'item_name' => 'Item no longer available',
                     'price' => 0,
-                    'image_path' => 'uploads/itemlist/default.jpg'
+                    'image_path' => file_exists(__DIR__ . '/../uploads/itemlist/default.png') ? 'uploads/itemlist/default.png' : 'uploads/itemlist/default.jpg'
                 ]);
             }
         }
@@ -252,4 +270,5 @@
     </script>
 </body>
 
+</html>
 </html>

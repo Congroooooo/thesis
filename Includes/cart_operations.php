@@ -146,32 +146,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $final_cart_items = [];
                 foreach ($cart_items as $item) {
                     if ($item['item_name']) {
-                        // Fix image path
-                        if ($item['image_path']) {
+                        // Normalize image path to something usable by header and pages
+                        if (!empty($item['image_path'])) {
                             $image_name = basename($item['image_path']);
-                            $item['image_path'] = '../uploads/itemlist/' . $image_name;
-                            // Fallback: check if file exists, else fallback to prefix or default
-                            if (!file_exists(__DIR__ . '/../uploads/itemlist/' . $image_name)) {
-                                $prefix = explode('-', $item['item_code'])[0];
-                                $stmt2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code LIKE ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
-                                $likePrefix = $prefix . '-%';
-                                $stmt2->execute([$likePrefix]);
+                            $itemlistPath = __DIR__ . '/../uploads/itemlist/' . $image_name;
+                            $rawPath = __DIR__ . '/../' . ltrim($item['image_path'], '/');
+                            if (file_exists($itemlistPath)) {
+                                $item['image_path'] = '../uploads/itemlist/' . $image_name;
+                            } elseif (file_exists($rawPath)) {
+                                // Use stored path (works for uploads/itemlist or uploads/preorder if still not migrated)
+                                $item['image_path'] = '../' . ltrim($item['image_path'], '/');
+                            } else {
+                                // Try exact match by item_code
+                                $stmt2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code = ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
+                                $stmt2->execute([$item['item_code']]);
                                 $row2 = $stmt2->fetch(PDO::FETCH_ASSOC);
                                 if ($row2 && !empty($row2['image_path'])) {
-                                    $item['image_path'] = '../uploads/itemlist/' . basename($row2['image_path']);
+                                    $item['image_path'] = '../' . ltrim($row2['image_path'], '/');
                                 } else {
                                     $item['image_path'] = '../uploads/itemlist/default.jpg';
                                 }
                             }
                         } else {
-                            // Fallback: use prefix or default
-                            $prefix = explode('-', $item['item_code'])[0];
-                            $stmt2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code LIKE ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
-                            $likePrefix = $prefix . '-%';
-                            $stmt2->execute([$likePrefix]);
+                            // No image stored: try exact match first
+                            $stmt2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code = ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
+                            $stmt2->execute([$item['item_code']]);
                             $row2 = $stmt2->fetch(PDO::FETCH_ASSOC);
                             if ($row2 && !empty($row2['image_path'])) {
-                                $item['image_path'] = '../uploads/itemlist/' . basename($row2['image_path']);
+                                $item['image_path'] = '../' . ltrim($row2['image_path'], '/');
                             } else {
                                 $item['image_path'] = '../uploads/itemlist/default.jpg';
                             }

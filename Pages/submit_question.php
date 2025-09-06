@@ -17,7 +17,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['question'])) {
         exit;
     }
 
-    // Use PDO for binding
     $stmt = $conn->prepare("INSERT INTO inquiries (user_id, question) VALUES (?, ?)");
     $stmt->bindParam(1, $user_id, PDO::PARAM_INT);
     $stmt->bindParam(2, $question, PDO::PARAM_STR);
