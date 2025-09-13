@@ -13,7 +13,7 @@ $endDate = isset($_GET['endDate']) ? trim($_GET['endDate']) : '';
 $where = [];
 if ($search) {
     $s = mysqli_real_escape_string($conn, $search);
-    $where[] = "(action_type LIKE '%$s%' OR item_code LIKE '%$s%' OR description LIKE '%$s%')";
+    $where[] = "(action_type LIKE '%$s%' OR description LIKE '%$s%')";
 }
 if ($startDate) {
     $where[] = "DATE(timestamp) >= '" . mysqli_real_escape_string($conn, $startDate) . "'";
@@ -23,7 +23,7 @@ if ($endDate) {
 }
 $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
-$sql = "SELECT timestamp, action_type, item_code, description
+$sql = "SELECT timestamp, action_type, description
         FROM activities $where_clause
         ORDER BY timestamp DESC";
 
@@ -33,18 +33,17 @@ $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 
 // Set header
-$headers = ['Date/Time', 'Action Type', 'Item Code', 'Description'];
+$headers = ['Date/Time', 'Action Type', 'Description'];
 $sheet->fromArray($headers, NULL, 'A1');
 
 // Make header row bold
-$sheet->getStyle('A1:D1')->getFont()->setBold(true);
+$sheet->getStyle('A1:C1')->getFont()->setBold(true);
 
 $rowNum = 2;
 while ($row = mysqli_fetch_assoc($result)) {
     $sheet->fromArray([
         $row['timestamp'],
         $row['action_type'],
-        $row['item_code'],
         $row['description']
     ], NULL, 'A' . $rowNum);
     $rowNum++;

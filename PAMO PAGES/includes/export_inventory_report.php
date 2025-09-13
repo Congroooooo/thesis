@@ -1,5 +1,4 @@
 <?php
-// Disable output compression and clean output buffer
 ini_set('zlib.output_compression', 0);
 if (ob_get_level()) ob_end_clean();
 
@@ -47,16 +46,13 @@ $result = mysqli_query($conn, $sql);
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 
-// Set header
 $headers = ['Item Code', 'Item Name', 'Category', 'Beginning Quantity', 'New Delivery', 'Actual Quantity', 'Damage', 'Sold Quantity', 'Status', 'Date Delivered'];
 $sheet->fromArray($headers, NULL, 'A1');
 
-// Make header row bold
 $sheet->getStyle('A1:J1')->getFont()->setBold(true);
 
 $rowNum = 2;
 while ($row = mysqli_fetch_assoc($result)) {
-    // Calculate status based on actual_quantity and threshold
     if ($row['actual_quantity'] <= 0) {
         $status = 'Out of Stock';
     } else if ($row['actual_quantity'] <= $lowStockThreshold) {
@@ -76,27 +72,25 @@ while ($row = mysqli_fetch_assoc($result)) {
         $status,
         $row['display_date']
     ], NULL, 'A' . $rowNum);
-    // Set color for Status column (I)
+
     $statusCell = 'I' . $rowNum;
     $statusLower = strtolower($status);
     if ($statusLower === 'in stock') {
         $sheet->getStyle($statusCell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('92D050'); // green
+            ->getStartColor()->setRGB('92D050');
     } elseif ($statusLower === 'low stock') {
         $sheet->getStyle($statusCell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('FFC000'); // orange
+            ->getStartColor()->setRGB('FFC000');
     } elseif ($statusLower === 'out of stock') {
         $sheet->getStyle($statusCell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('FF0000'); // red
+            ->getStartColor()->setRGB('FF0000');
     }
     $rowNum++;
 }
 
-// Center-align Quantity (D, E, F, G, H) columns
 $lastDataRow = $rowNum - 1;
 $sheet->getStyle('D2:H' . $lastDataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
-// Auto-size columns
 foreach (range('A', $sheet->getHighestColumn()) as $col) {
     $sheet->getColumnDimension($col)->setAutoSize(true);
 }

@@ -2,6 +2,11 @@
 require_once '../Includes/connection.php';
 header('Content-Type: application/json');
 session_start();
+if (!isset($_SESSION['user_id']) || strtoupper($_SESSION['role_category'] ?? '') !== 'EMPLOYEE' || strtoupper($_SESSION['program_abbreviation'] ?? '') !== 'ADMIN') {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'messages' => ['error' => 'Unauthorized']]);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

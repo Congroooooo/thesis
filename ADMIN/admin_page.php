@@ -1,3 +1,16 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../Pages/login.php?redirect=../ADMIN/admin_page.php");
+    exit();
+}
+$role = strtoupper($_SESSION['role_category'] ?? '');
+$programAbbr = strtoupper($_SESSION['program_abbreviation'] ?? '');
+if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
+    header("Location: ../Pages/home.php");
+    exit();
+}
+?>
 <div class="header-section">
     <div class="container">
         <div class="header-flex">

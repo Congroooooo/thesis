@@ -25,7 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $notifications = getUnreadNotifications($conn, $user_id);
                     $count = getNotificationCount($conn, $user_id);
 
-                    // Format notifications with proper messages
                     foreach ($notifications as &$notification) {
                         $notification['formatted_message'] = $notification['message'];
                         $notification['time_ago'] = getTimeAgo(strtotime($notification['created_at']));
@@ -74,7 +73,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Helper function to format time ago
 function getTimeAgo($timestamp) {
     $current_time = time();
     $time_difference = $current_time - $timestamp;

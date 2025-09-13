@@ -139,7 +139,6 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                 echo '<thead><tr>
                         <th>Date/Time</th>
                         <th>Action Type</th>
-                        <th>Item Code</th>
                         <th>Description</th>
                       </tr></thead><tbody>';
                 
@@ -147,7 +146,6 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                     echo "<tr>";
                     echo "<td>{$row['timestamp']}</td>";
                     echo "<td>{$row['action_type']}</td>";
-                    echo "<td>{$row['item_code']}</td>";
                     echo "<td>{$row['description']}</td>";
                     echo "</tr>";
                 }

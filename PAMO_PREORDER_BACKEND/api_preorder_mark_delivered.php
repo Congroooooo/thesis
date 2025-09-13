@@ -106,6 +106,14 @@ try {
     $updPre = $conn->prepare("UPDATE preorder_items SET status='delivered', updated_at=CURRENT_TIMESTAMP WHERE id = ?");
     $updPre->execute([$preId]);
 
+    // Audit trail: log this delivery action
+    try {
+        $userId = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : null;
+        $desc = sprintf('Pre-order delivered → base_code=%s, sizes=%s', $base, implode(',', array_keys($delivered)));
+        $log = $conn->prepare('INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES (?,?,?,?, NOW())');
+        $log->execute(['PreOrder Delivered', $desc, $base, $userId]);
+    } catch (Throwable $e) { /* best-effort logging */ }
+
     $conn->commit();
     echo json_encode(['success' => true]);
     exit;

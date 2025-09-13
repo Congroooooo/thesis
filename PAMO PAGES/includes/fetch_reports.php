@@ -198,7 +198,7 @@ if ($type === 'inventory') {
     $result = mysqli_query($conn, $sql);
     $tableHtml .= '<h3>Audit Trail</h3>';
     $tableHtml .= '<table><thead><tr>';
-    $tableHtml .= '<th>Date/Time</th><th>Action Type</th><th>Item Code</th><th>Description</th>';
+    $tableHtml .= '<th>Date/Time</th><th>Action Type</th><th>Description</th>';
     $tableHtml .= '</tr></thead><tbody>';
     $rowCount = 0;
     while ($row = mysqli_fetch_assoc($result)) {
@@ -206,12 +206,11 @@ if ($type === 'inventory') {
         $tableHtml .= '<tr>';
         $tableHtml .= '<td>' . $row['timestamp'] . '</td>';
         $tableHtml .= '<td>' . $row['action_type'] . '</td>';
-        $tableHtml .= '<td>' . $row['item_code'] . '</td>';
         $tableHtml .= '<td>' . $row['description'] . '</td>';
         $tableHtml .= '</tr>';
     }
     if ($rowCount === 0) {
-        $tableHtml .= '<tr><td colspan="4" style="text-align:center; background:#fffbe7; color:#bdb76b; font-size:1.1em; font-style:italic;">No results found.</td></tr>';
+        $tableHtml .= '<tr><td colspan="3" style="text-align:center; background:#fffbe7; color:#bdb76b; font-size:1.1em; font-style:italic;">No results found.</td></tr>';
     }
     $tableHtml .= '</tbody></table>';
     $params = [];

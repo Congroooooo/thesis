@@ -1,6 +1,7 @@
 <?php
 header('Content-Type: application/json');
 require_once __DIR__ . '/../Includes/connection.php';
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception('POST required');
@@ -41,6 +42,14 @@ try {
             if ($sid > 0) $ins->execute([$preId, $sid]);
         }
     }
+
+    // Audit trail: log pre-order creation
+    try {
+        $userId = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : null;
+        $desc = sprintf('Pre-order created → base_code=%s, name=%s, price=%.2f, sizes=%s', $baseCode, $itemName, $price, $sizesCsv);
+        $log = $conn->prepare('INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES (?,?,?,?, NOW())');
+        $log->execute(['PreOrder Created', $desc, $baseCode, $userId]);
+    } catch (Throwable $e) { /* best-effort logging */ }
 
     echo json_encode(['success' => true, 'id' => $preId, 'image_path' => $imagePath]);
     exit;

@@ -22,7 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $size = isset($_POST['size']) && !empty($_POST['size']) ? $_POST['size'] : null;
                 $user_id = $_SESSION['user_id'];
 
-                // Check if user is blocked due to strikes or cooldown
                 $stmt = $conn->prepare("SELECT is_strike, last_strike_time FROM account WHERE id = ?");
                 $stmt->execute([$user_id]);
                 $userRow = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -38,14 +37,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $response['message'] = 'You recently cancelled or failed to claim an order. As a penalty, you cannot place a new order for 5 minutes. Please try again later.';
                             break;
                         } else {
-                            // Auto-clear last_strike_time after cooldown
                             $clearStmt = $conn->prepare("UPDATE account SET last_strike_time = NULL WHERE id = ?");
                             $clearStmt->execute([$user_id]);
                         }
                     }
                 }
 
-                // Get item details from inventory including available stock
                 $stmt = $conn->prepare("SELECT category, actual_quantity FROM inventory WHERE item_code = ? OR item_code LIKE ? LIMIT 1");
                 $stmt->execute([$item_code, $item_code . '-%']);
                 $item = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -55,7 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     break;
                 }
 
-                // Get reserved stock in orders (pending/approved)
                 $reserved = 0;
                 $orderStmt = $conn->prepare("SELECT items FROM orders WHERE status IN ('pending', 'approved')");
                 $orderStmt->execute();
@@ -70,34 +66,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                // Get current quantity in cart for this item
                 $stmt = $conn->prepare("SELECT SUM(quantity) as cart_quantity FROM cart WHERE user_id = ? AND item_code = ?");
                 $stmt->execute([$user_id, $item_code]);
                 $cart_quantity = $stmt->fetch(PDO::FETCH_ASSOC)['cart_quantity'] ?? 0;
 
-                // Check if adding this quantity would exceed available stock (minus reserved)
                 $available_stock = $item['actual_quantity'] - $reserved;
                 if (($cart_quantity + $quantity) > $available_stock) {
                     $response['message'] = 'Adding this quantity would exceed available stock. Available: ' . $available_stock . ' (after reservation. Please come back ater 5 minutes)';
                     break;
                 }
 
-                // Set size to 'One Size' for accessories if not set
                 if (stripos($item['category'], 'accessories') !== false || stripos($item['category'], 'sti-accessories') !== false) {
                     $size = 'One Size';
                 }
 
-                // Check if item already exists in cart with the same size
                 $stmt = $conn->prepare("SELECT id, quantity FROM cart WHERE user_id = ? AND item_code = ? AND (size = ? OR (size IS NULL AND ? IS NULL))");
                 $stmt->execute([$user_id, $item_code, $size, $size]);
                 $existing_item = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($existing_item) {
-                    // Update quantity if item exists with same size
                     $stmt = $conn->prepare("UPDATE cart SET quantity = quantity + ? WHERE id = ?");
                     $success = $stmt->execute([$quantity, $existing_item['id']]);
                 } else {
-                    // Insert new item if it doesn't exist with this size
                     $stmt = $conn->prepare("INSERT INTO cart (user_id, item_code, quantity, size) VALUES (?, ?, ?, ?)");
                     $success = $stmt->execute([$user_id, $item_code, $quantity, $size]);
                 }
@@ -108,7 +98,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     break;
                 }
 
-                // Get total items in cart
                 $stmt = $conn->prepare("SELECT SUM(quantity) as total FROM cart WHERE user_id = ?");
                 $stmt->execute([$user_id]);
                 $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
@@ -127,7 +116,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $user_id = $_SESSION['user_id'];
                 
-                // Get all cart items including size, using LIKE for item_code matching
                 $stmt = $conn->prepare("
                     SELECT 
                         c.*,
@@ -146,7 +134,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $final_cart_items = [];
                 foreach ($cart_items as $item) {
                     if ($item['item_name']) {
-                        // Normalize image path to something usable by header and pages
                         if (!empty($item['image_path'])) {
                             $image_name = basename($item['image_path']);
                             $itemlistPath = __DIR__ . '/../uploads/itemlist/' . $image_name;
@@ -154,10 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             if (file_exists($itemlistPath)) {
                                 $item['image_path'] = '../uploads/itemlist/' . $image_name;
                             } elseif (file_exists($rawPath)) {
-                                // Use stored path (works for uploads/itemlist or uploads/preorder if still not migrated)
                                 $item['image_path'] = '../' . ltrim($item['image_path'], '/');
                             } else {
-                                // Try exact match by item_code
                                 $stmt2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code = ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
                                 $stmt2->execute([$item['item_code']]);
                                 $row2 = $stmt2->fetch(PDO::FETCH_ASSOC);
@@ -168,7 +153,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 }
                             }
                         } else {
-                            // No image stored: try exact match first
                             $stmt2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code = ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
                             $stmt2->execute([$item['item_code']]);
                             $row2 = $stmt2->fetch(PDO::FETCH_ASSOC);
@@ -178,17 +162,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $item['image_path'] = '../uploads/itemlist/default.jpg';
                             }
                         }
-                        // Remove any size suffix from item name (e.g., "Item Name S" -> "Item Name")
                         $item['item_name'] = rtrim($item['item_name'], " SMLX234567");
                         
-                        // Make sure size is included in response (even if it's null)
                         if (!isset($item['size'])) {
                             $item['size'] = null;
                         }
                         
                         $final_cart_items[] = $item;
                     } else {
-                        // Try one more time with a broader search
                         $stmt = $conn->prepare("
                             SELECT item_name, price, image_path, category 
                             FROM inventory 
@@ -199,18 +180,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $inventory_item = $stmt->fetch(PDO::FETCH_ASSOC);
 
                         if ($inventory_item) {
-                            // Fix image path for found inventory item
                             if ($inventory_item['image_path']) {
                                 $image_name = basename($inventory_item['image_path']);
                                 $inventory_item['image_path'] = '../uploads/itemlist/' . $image_name;
                             } else {
                                 $inventory_item['image_path'] = '../uploads/itemlist/default.jpg';
                             }
-                            // Remove any size suffix from item name
                             $inventory_item['item_name'] = rtrim($inventory_item['item_name'], " SMLX234567");
                             $final_cart_items[] = array_merge($item, $inventory_item);
                         } else {
-                            // Fallback for items that might not be in inventory anymore
                             $final_cart_items[] = array_merge($item, [
                                 'item_name' => 'Item no longer available',
                                 'price' => 0,
@@ -220,7 +198,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                // Update cart count
                 $stmt = $conn->prepare("SELECT SUM(quantity) as total FROM cart WHERE user_id = ?");
                 $stmt->execute([$user_id]);
                 $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
@@ -241,7 +218,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $quantity = intval($_POST['quantity']);
                 $user_id = $_SESSION['user_id'];
 
-                // Get the cart row
                 $stmt = $conn->prepare("SELECT item_code, quantity as current_cart_quantity FROM cart WHERE id = ? AND user_id = ?");
                 $stmt->execute([$item_id, $user_id]);
                 $cart_item = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -251,13 +227,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     break;
                 }
 
-                // Try to get inventory row (exact match first)
                 $stmt = $conn->prepare("SELECT actual_quantity FROM inventory WHERE item_code = ?");
                 $stmt->execute([$cart_item['item_code']]);
                 $inventory_item = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if (!$inventory_item) {
-                    // Try LIKE match for variants
                     $stmt = $conn->prepare("SELECT actual_quantity FROM inventory WHERE ? LIKE CONCAT(item_code, '-%') LIMIT 1");
                     $stmt->execute([$cart_item['item_code']]);
                     $inventory_item = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -274,7 +248,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'actual_quantity' => $inventory_item['actual_quantity']
                 ];
 
-                // Get total quantity in cart for this item (excluding current item)
                 $stmt = $conn->prepare("
                     SELECT SUM(quantity) as other_cart_quantity 
                     FROM cart 
@@ -283,17 +256,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([$user_id, $item['item_code'], $item_id]);
                 $other_cart_quantity = $stmt->fetch(PDO::FETCH_ASSOC)['other_cart_quantity'] ?? 0;
 
-                // Check if new quantity would exceed available stock
                 if (($other_cart_quantity + $quantity) > $item['actual_quantity']) {
                     $response['message'] = 'Updating to this quantity would exceed available stock. Available: ' . $item['actual_quantity'];
                     break;
                 }
 
-                // Update item quantity
                 $stmt = $conn->prepare("UPDATE cart SET quantity = ? WHERE id = ? AND user_id = ?");
                 $stmt->execute([$quantity, $item_id, $user_id]);
 
-                // Get total items in cart
                 $stmt = $conn->prepare("SELECT SUM(quantity) as total FROM cart WHERE user_id = ?");
                 $stmt->execute([$user_id]);
                 $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
@@ -313,11 +283,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $item_id = $_POST['item_id'];
                 $user_id = $_SESSION['user_id'];
 
-                // Remove item from cart
                 $stmt = $conn->prepare("DELETE FROM cart WHERE id = ? AND user_id = ?");
                 $stmt->execute([$item_id, $user_id]);
 
-                // Get total items in cart
                 $stmt = $conn->prepare("SELECT SUM(quantity) as total FROM cart WHERE user_id = ?");
                 $stmt->execute([$user_id]);
                 $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;

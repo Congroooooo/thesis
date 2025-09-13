@@ -69,13 +69,12 @@
     </div>
 </footer>
 
-<!-- Add Font Awesome for icons -->
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
 <style>
     .footer {
         background-color: #003366;
-        /* STI Blue */
         color: #ffffff;
         padding: 4rem 0 0 0;
         font-family: 'Montserrat', sans-serif;
@@ -106,7 +105,6 @@
 
     .footer h3 {
         color: #FEFBC7;
-        /* STI Yellow */
         font-size: 1.5rem;
         margin-bottom: 1rem;
         letter-spacing: 1px;
@@ -261,12 +259,12 @@
         }
     }
 
-    /* Remove the old hover effects */
+
     .footer-links a::after {
         display: none;
     }
 
-    /* Remove the old animation */
+
     @keyframes linkHover {
         from {
             transform: translateX(0);

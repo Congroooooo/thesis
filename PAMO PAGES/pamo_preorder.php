@@ -140,6 +140,10 @@ $basePath = '';
                 const $tbody = $('#preorderRows').empty();
                 (resp.items||[]).forEach(it => {
                     const img = it.image_path ? `../${it.image_path}` : '../uploads/itemlist/default.png';
+                    const isPending = (String(it.status).toLowerCase() === 'pending');
+                    const actionCell = isPending
+                      ? `<button class="table-btn" onclick="openDeliver(this)">Mark Delivered</button>`
+                      : `<button class="table-btn" disabled style="opacity:.6; cursor:not-allowed;">Delivered</button>`;
                     const row = `
                         <tr data-id="${it.id}" data-sizes="${it.sizes}">
                             <td><img src="${img}" alt="" style="width:58px;height:58px;object-fit:cover;border-radius:6px;"></td>
@@ -150,7 +154,7 @@ $basePath = '';
                             <td><strong>${it.total_requests}</strong></td>
                             <td>${it.status}</td>
                             <td>
-                                <button class="table-btn" onclick="openDeliver(this)">Mark Delivered</button>
+                                ${actionCell}
                             </td>
                         </tr>`;
                     $tbody.append(row);

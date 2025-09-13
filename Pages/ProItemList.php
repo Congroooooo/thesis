@@ -238,7 +238,7 @@
                     <?php endforeach; ?>
                 <?php else: ?>
 
-                    <div class="category-item">
+                    <!-- <div class="category-item">
                         <div class="main-category-header" data-category="tertiary-uniform">
                             <span>Tertiary Uniform</span>
                             <i class="fas fa-chevron-down"></i>
@@ -287,7 +287,7 @@
                             </div>
                             <?php endif; ?>
                         </div>
-                    </div>
+                    </div> 
                     <div class="category-item">
                         <div class="main-category-header" data-category="sti-shirt">
                             <span>STI Shirt</span>
@@ -306,7 +306,7 @@
                             <?php endforeach; ?>
                         </div>
                     </div>
-                <?php endif; ?>
+                <?php endif; ?> -->
             </div>
         </aside>
         <button class="filter-toggle" id="filterToggle">
