@@ -111,28 +111,15 @@ function page_link($page, $query_string) {
                 <input type="text" id="searchInput" name="search" placeholder="Search by item name..." value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>" style="margin-right: 12px;">
                 <select name="category" id="categoryFilter" onchange="document.getElementById('filterForm').submit()">
                     <option value="">All Categories</option>
-                    <option value="Tertiary-Uniform"<?php if(($_GET['category'] ?? '')=='Tertiary-Uniform') echo ' selected'; ?>>Tertiary-Uniform</option>
-                    <option value="SHS-Uniform"<?php if(($_GET['category'] ?? '')=='SHS-Uniform') echo ' selected'; ?>>SHS-Uniform</option>
-                    <option value="STI-Shirts"<?php if(($_GET['category'] ?? '')=='STI-Shirts') echo ' selected'; ?>>STI-Shirts</option>
-                    <option value="STI-Jacket"<?php if(($_GET['category'] ?? '')=='STI-Jacket') echo ' selected'; ?>>STI Jacket</option>
-                    <option value="STI-Accessories"<?php if(($_GET['category'] ?? '')=='STI-Accessories') echo ' selected'; ?>>STI-Accessories</option>
-                    <option value="SHS-PE"<?php if(($_GET['category'] ?? '')=='SHS-PE') echo ' selected'; ?>>SHS-PE</option>
-                    <option value="Tertiary-PE"<?php if(($_GET['category'] ?? '')=='Tertiary-PE') echo ' selected'; ?>>Tertiary-PE</option>
+                    <?php foreach ($categories as $cat): ?>
+                        <option value="<?php echo htmlspecialchars($cat); ?>"<?php if(($_GET['category'] ?? '') == $cat) echo ' selected'; ?>><?php echo htmlspecialchars($cat); ?></option>
+                    <?php endforeach; ?>
                 </select>
                 <select name="size" id="sizeFilter" onchange="document.getElementById('filterForm').submit()">
                     <option value="">All Sizes</option>
-                    <option value="XS"<?php if(($_GET['size'] ?? '')=='XS') echo ' selected'; ?>>XS</option>
-                    <option value="S"<?php if(($_GET['size'] ?? '')=='S') echo ' selected'; ?>>S</option>
-                    <option value="M"<?php if(($_GET['size'] ?? '')=='M') echo ' selected'; ?>>M</option>
-                    <option value="L"<?php if(($_GET['size'] ?? '')=='L') echo ' selected'; ?>>L</option>
-                    <option value="XL"<?php if(($_GET['size'] ?? '')=='XL') echo ' selected'; ?>>XL</option>
-                    <option value="XXL"<?php if(($_GET['size'] ?? '')=='XXL') echo ' selected'; ?>>XXL</option>
-                    <option value="3XL"<?php if(($_GET['size'] ?? '')=='3XL') echo ' selected'; ?>>3XL</option>
-                    <option value="4XL"<?php if(($_GET['size'] ?? '')=='4XL') echo ' selected'; ?>>4XL</option>
-                    <option value="5XL"<?php if(($_GET['size'] ?? '')=='5XL') echo ' selected'; ?>>5XL</option>
-                    <option value="6XL"<?php if(($_GET['size'] ?? '')=='6XL') echo ' selected'; ?>>6XL</option>
-                    <option value="7XL"<?php if(($_GET['size'] ?? '')=='7XL') echo ' selected'; ?>>7XL</option>
-                    <option value="One Size"<?php if(($_GET['size'] ?? '')=='One Size') echo ' selected'; ?>>One Size</option>
+                    <?php foreach ($sizes as $size_option): ?>
+                        <option value="<?php echo htmlspecialchars($size_option); ?>"<?php if(($_GET['size'] ?? '') == $size_option) echo ' selected'; ?>><?php echo htmlspecialchars($size_option); ?></option>
+                    <?php endforeach; ?>
                 </select>
                 <select name="status" id="statusFilter" onchange="document.getElementById('filterForm').submit()">
                     <option value="">All Status</option>
@@ -187,6 +174,37 @@ function page_link($page, $query_string) {
 
                           if (!$conn) {
                               die("Connection failed: " . mysqli_connect_error());
+                          }
+
+                          // Fetch distinct categories for the filter dropdown
+                          $categories_query = "SELECT DISTINCT category FROM inventory WHERE category IS NOT NULL AND category != '' ORDER BY category ASC";
+                          $categories_result = mysqli_query($conn, $categories_query);
+                          $categories = [];
+                          while ($row = mysqli_fetch_assoc($categories_result)) {
+                              $categories[] = $row['category'];
+                          }
+
+                          // Fetch distinct sizes for the filter dropdown
+                          $sizes_query = "SELECT DISTINCT sizes FROM inventory WHERE sizes IS NOT NULL AND sizes != '' ORDER BY 
+                              CASE 
+                                  WHEN sizes = 'XS' THEN 1
+                                  WHEN sizes = 'S' THEN 2
+                                  WHEN sizes = 'M' THEN 3
+                                  WHEN sizes = 'L' THEN 4
+                                  WHEN sizes = 'XL' THEN 5
+                                  WHEN sizes = 'XXL' THEN 6
+                                  WHEN sizes = '3XL' THEN 7
+                                  WHEN sizes = '4XL' THEN 8
+                                  WHEN sizes = '5XL' THEN 9
+                                  WHEN sizes = '6XL' THEN 10
+                                  WHEN sizes = '7XL' THEN 11
+                                  WHEN sizes = 'One Size' THEN 12
+                                  ELSE 13
+                              END ASC";
+                          $sizes_result = mysqli_query($conn, $sizes_query);
+                          $sizes = [];
+                          while ($row = mysqli_fetch_assoc($sizes_result)) {
+                              $sizes[] = $row['sizes'];
                           }
 
                           $category = isset($_GET['category']) ? mysqli_real_escape_string($conn, $_GET['category']) : '';
@@ -393,7 +411,7 @@ function page_link($page, $query_string) {
                     </div>
                     <div class="input-group">
                         <label for="newItemQuantity">Initial Stock:</label>
-                        <input type="number" id="newItemQuantity" name="newItemQuantity" min="0" required>
+                        <input type="number" id="newItemQuantity" name="newItemQuantity" min="1" required>
                     </div>
                     <div class="input-group">
                         <label for="newItemDamage">Damaged Items:</label>

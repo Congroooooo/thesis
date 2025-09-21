@@ -34,7 +34,7 @@ try {
     $delivery_order = (string)$_POST['deliveryOrderNumber'];
 
     if ($price <= 0) throw new Exception("Price must be greater than zero");
-    if ($quantity < 0) throw new Exception("Quantity cannot be negative");
+    if ($quantity <= 0) throw new Exception("Initial stock must be 1 or more");
     if ($damage < 0) throw new Exception("Damage count cannot be negative");
 
     $beginning_quantity = 0;
