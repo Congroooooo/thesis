@@ -1,3 +1,7 @@
+<?php
+include("../Includes/sessionStart.php");
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -46,14 +50,12 @@
             <button class="clear-filters" id="clearFiltersBtn" type="button">Clear Filters</button>
 
             <?php
-            require_once '../Includes/connection.php'; // PDO $conn
+            require_once '../Includes/connection.php';
 
             $sql = "SELECT inventory.* FROM inventory ORDER BY inventory.created_at DESC";
             $result = $conn->query($sql);
 
             $products = [];
-
-            // Shirt types are now represented by subcategories; no separate query
 
             while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $itemCode = $row['item_code'];
@@ -200,8 +202,6 @@
             function normalizeCategoryName($name) {
                 return strtolower(str_replace([' ', '_'], '-', $name));
             }
-            
-                // echo "<!-- categories loaded: " . count($dynamicCategories) . " -->";
             ?>
             
             <?php if (count($dynamicCategories) > 0): ?>
@@ -238,75 +238,16 @@
                     <?php endforeach; ?>
                 <?php else: ?>
 
-                    <!-- <div class="category-item">
-                        <div class="main-category-header" data-category="tertiary-uniform">
-                            <span>Tertiary Uniform</span>
-                            <i class="fas fa-chevron-down"></i>
-                        </div>
-                        <div class="subcategories">
                             <?php if (isset($categoriesWithProducts['tertiary-uniform'])): ?>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="course-filter-checkbox" value="BSCM">
-                                        <span>BSCM</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="course-filter-checkbox" value="BSTM">
-                                        <span>BSTM</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="course-filter-checkbox" value="BSIT/BSCS/BSCPE">
-                                        <span>BSIT/BSCS/BSCPE</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="course-filter-checkbox" value="BSBA">
-                                        <span>BSBA</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="course-filter-checkbox" value="BMMA">
-                                        <span>BMMA</span>
-                                    </label>
-                                </div>
-                            </div>
+           
                             <?php endif; ?>
-                        </div>
-                    </div> 
-                    <div class="category-item">
-                        <div class="main-category-header" data-category="sti-shirt">
-                            <span>STI Shirt</span>
-                            <i class="fas fa-chevron-down"></i>
-                        </div>
-                        <div class="subcategories">
                             <?php foreach ($shirtTypes as $type): ?>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="shirt-type-filter-checkbox" value="<?= $type['id'] ?>">
-                                        <span><?= htmlspecialchars($type['name']) ?></span>
-                                    </label>
-                                </div>
-                            </div>
+<?= $type['id'] ?>">
+                                        <span><?= htmlspecialchars($type['name']) ?>
+
                             <?php endforeach; ?>
-                        </div>
-                    </div>
-                <?php endif; ?> -->
+
+                <?php endif; ?> 
             </div>
         </aside>
         <button class="filter-toggle" id="filterToggle">

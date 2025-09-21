@@ -3,7 +3,11 @@ try {
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
 
-    require_once '../Includes/connection.php'; // PDO $conn
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    require_once '../Includes/connection.php';
     $conn->beginTransaction();
 
     $required_fields = ['newItemCode', 'category_id', 'newItemName', 'newSize', 'newItemPrice', 'newItemQuantity', 'deliveryOrderNumber'];
@@ -68,8 +72,78 @@ try {
         $imagePath = $uploadDir . $uniqueName;
         $dbFilePath = 'uploads/itemlist/' . $uniqueName;
 
-        if (!move_uploaded_file($imageTmpPath, $imagePath)) {
-            throw new Exception('Error moving uploaded file');
+        // Process and optimize the image
+        $imageInfo = getimagesize($imageTmpPath);
+        if ($imageInfo === false) {
+            throw new Exception('Invalid image file');
+        }
+
+        // Create image resource based on type
+        switch ($imageInfo[2]) {
+            case IMAGETYPE_JPEG:
+                $sourceImage = imagecreatefromjpeg($imageTmpPath);
+                break;
+            case IMAGETYPE_PNG:
+                $sourceImage = imagecreatefrompng($imageTmpPath);
+                break;
+            case IMAGETYPE_GIF:
+                $sourceImage = imagecreatefromgif($imageTmpPath);
+                break;
+            default:
+                throw new Exception('Unsupported image type');
+        }
+
+        if ($sourceImage === false) {
+            throw new Exception('Failed to create image resource');
+        }
+
+        // Get original dimensions
+        $originalWidth = imagesx($sourceImage);
+        $originalHeight = imagesy($sourceImage);
+
+        // Calculate new dimensions while maintaining aspect ratio
+        // Target: 600x800 max for high quality display
+        $maxWidth = 600;
+        $maxHeight = 800;
+        
+        $ratio = min($maxWidth / $originalWidth, $maxHeight / $originalHeight);
+        $newWidth = (int)($originalWidth * $ratio);
+        $newHeight = (int)($originalHeight * $ratio);
+
+        // Create new image with calculated dimensions
+        $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+        
+        // Preserve transparency for PNG and GIF
+        if ($imageInfo[2] == IMAGETYPE_PNG || $imageInfo[2] == IMAGETYPE_GIF) {
+            imagealphablending($resizedImage, false);
+            imagesavealpha($resizedImage, true);
+            $transparent = imagecolorallocatealpha($resizedImage, 255, 255, 255, 127);
+            imagefill($resizedImage, 0, 0, $transparent);
+        }
+
+        // Resize with high quality
+        imagecopyresampled($resizedImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
+
+        // Save the optimized image
+        $saved = false;
+        switch ($imageInfo[2]) {
+            case IMAGETYPE_JPEG:
+                $saved = imagejpeg($resizedImage, $imagePath, 92); // High quality JPEG
+                break;
+            case IMAGETYPE_PNG:
+                $saved = imagepng($resizedImage, $imagePath, 2); // High quality PNG (compression level 0-9, 2 is good balance)
+                break;
+            case IMAGETYPE_GIF:
+                $saved = imagegif($resizedImage, $imagePath);
+                break;
+        }
+
+        // Clean up memory
+        imagedestroy($sourceImage);
+        imagedestroy($resizedImage);
+
+        if (!$saved) {
+            throw new Exception('Failed to save optimized image');
         }
     } else {
         throw new Exception('Image upload is required');

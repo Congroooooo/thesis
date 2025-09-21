@@ -1,10 +1,17 @@
+<?php
+// Start session before any HTML output
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+include("../Includes/loader.php");
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FAQ</title>
-    <link rel="stylesheet" href="../CSS/header.css">
     <link rel="stylesheet" href="../CSS/global.css">
     <link rel="stylesheet" href="../CSS/faq.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">

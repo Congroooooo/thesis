@@ -1,4 +1,7 @@
-<?php require_once '../Backend/ProOrderDetailsLogic.php'; ?>
+<?php 
+require_once '../Backend/ProOrderDetailsLogic.php'; 
+include("../Includes/sessionStart.php");
+?>
 <!DOCTYPE html>
 <html lang="en">
 

@@ -1,30 +1,18 @@
-<!DOCTYPE html>
-<html lang="en">
+<?php
+include("../Includes/sessionStart.php");
+include("../Includes/loader.php");
+require_once '../Includes/connection.php';
 
-<head>
-    <title>Pre Order Page</title>
-    <link rel="stylesheet" href="../CSS/header.css">
-    <link rel="stylesheet" href="../CSS/ProPreOrder.css">
-    <link rel="stylesheet" href="../CSS/global.css">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Smooch+Sans:wght@100..900&display=swap"
-        rel="stylesheet">
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
+// Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
 
-<body>
-    <?php
-    include("../Includes/Header.php");
-    require_once '../Includes/connection.php';
-
-    // Fetch cart items for the current user
-    $stmt = $conn->prepare("SELECT * FROM cart WHERE user_id = ?");
-    $stmt->execute([$_SESSION['user_id']]);
-    $cart_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Fetch cart items for the current user
+$stmt = $conn->prepare("SELECT * FROM cart WHERE user_id = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$cart_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $final_cart_items = [];
     foreach ($cart_items as $cart_item) {
@@ -103,6 +91,28 @@
     
     $total_amount = 0;
     ?>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Pre Order Page</title>
+    <link rel="stylesheet" href="../CSS/header.css">
+    <link rel="stylesheet" href="../CSS/ProPreOrder.css">
+    <link rel="stylesheet" href="../CSS/global.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Smooch+Sans:wght@100..900&display=swap"
+        rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <?php include("../Includes/Header.php"); ?>
+    
     <div class="preorder-container">
         <div class="process-steps">
             <div class="step active">1. Order Cart</div>
@@ -270,5 +280,4 @@
     </script>
 </body>
 
-</html>
 </html>

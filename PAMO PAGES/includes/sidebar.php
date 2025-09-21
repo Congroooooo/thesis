@@ -37,9 +37,10 @@ try {
 ?>
 <nav class="sidebar">
     <div class="logo-area">
+        <a href="<?php echo $basePath; ?>dashboard.php">
         <div class="logo">
-            <img src="../Images/STI-LOGO.png" alt="PAMO Logo">
-            <h2>PAMO</h2>
+            <img src="../Images/logoPamo.png" alt="PAMO Logo">
+            </a>
         </div>
     </div>
     <ul class="nav-links">
@@ -209,33 +210,30 @@ try {
     }
     .logo-area {
         background: #cfcecf;
-        padding: 18px 0 10px 0;
-        margin-bottom: 8px;
+        padding: 15px 15px 5px 15px;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #e0e0e0;
     }
 
     .logo {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        flex-direction: column;
+        gap: 8px;
+        transition: transform 0.3s ease;
     }
-
+    
+    .logo:hover {
+        transform: scale(1.05);
+    }
+    
     .logo img {
-        width: 56px;
-        height: 56px;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-        background: #fff;
-    }
-
-    .logo h2 {
-        font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-        font-weight: 800;
-        font-size: 2.1rem;
-        color: yellow;
-        letter-spacing: 2px;
-        margin: 0;
-        text-shadow: 0 1px 0 #fff, 0 2px 8px rgba(0,0,0,0.04);
+        height: 80px;
+        width: auto;
+        max-width: 180px;
+        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
+        border-radius: 8px;
     }
 
     .nav-links li {

@@ -1,10 +1,7 @@
-// Initialize table when the document is loaded
 document.addEventListener("DOMContentLoaded", function () {
-  // Initialize date inputs
   const startDate = document.getElementById("startDate");
   const endDate = document.getElementById("endDate");
 
-  // Disable end date until start date is selected
   endDate.disabled = true;
 
   startDate.addEventListener("change", function () {
@@ -15,7 +12,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // Add search functionality
   const searchInput = document.getElementById("searchInput");
   if (searchInput) {
     searchInput.addEventListener("input", function () {
@@ -24,7 +20,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Add event listener for Apply Filters button
   const applyFiltersBtn = document.getElementById("applyFiltersBtn");
   if (applyFiltersBtn) {
     applyFiltersBtn.addEventListener("click", function () {
@@ -54,7 +49,6 @@ function loadTableData() {
   });
 }
 
-// Utility to collect all current filter/search values
 function getCurrentReportFilters() {
   return {
     search: document.getElementById("searchInput")?.value || "",
@@ -64,50 +58,63 @@ function getCurrentReportFilters() {
   };
 }
 
-// AJAX-based pagination for reports (now always sends all filters)
 function ajaxLoadReport(type, page = 1, extraParams = {}) {
   const reportDiv = document.getElementById(type + "Report");
   if (!reportDiv) return;
   showLoading();
-  // Always collect all filters
   const filters = getCurrentReportFilters();
   const params = { ...filters, ...extraParams, type, page };
   const query = new URLSearchParams(params).toString();
+  console.log("Fetching reports:", query);
   fetch("../PAMO PAGES/includes/fetch_reports.php?" + query)
-    .then((res) => res.json())
-    .then((data) => {
-      // Insert table HTML
-      if (reportDiv) reportDiv.innerHTML = data.table;
-      // Remove any existing pagination after this reportDiv
-      let next = reportDiv ? reportDiv.nextElementSibling : null;
-      if (next && next.classList.contains("pagination")) {
-        next.remove();
-      }
-      // Insert pagination after the reportDiv (outside the table)
-      if (data.pagination && reportDiv) {
-        const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = data.pagination;
-        reportDiv.parentNode.insertBefore(
-          tempDiv.firstElementChild,
-          reportDiv.nextSibling
-        );
-      }
-      hideLoading();
-      if (type === "sales") {
-        // Show the total-amount display and set the value from backend
-        const totalDisplay = document.querySelector(".total-amount-display");
-        if (totalDisplay) {
-          totalDisplay.style.display = "block";
-          const totalAmountSpan = document.getElementById("totalSalesAmount");
-          if (totalAmountSpan) {
-            totalAmountSpan.textContent =
-              "₱" +
-              Number(data.grand_total || 0).toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              });
+    .then((res) => {
+      console.log("Response status:", res.status);
+      return res.text();
+    })
+    .then((text) => {
+      console.log("Raw response:", text);
+      try {
+        const data = JSON.parse(text);
+        console.log("Parsed response data:", data);
+        if (reportDiv) reportDiv.innerHTML = data.table;
+        let next = reportDiv ? reportDiv.nextElementSibling : null;
+        if (next && next.classList.contains("pagination")) {
+          next.remove();
+        }
+        if (data.pagination && reportDiv) {
+          const tempDiv = document.createElement("div");
+          tempDiv.innerHTML = data.pagination;
+          reportDiv.parentNode.insertBefore(
+            tempDiv.firstElementChild,
+            reportDiv.nextSibling
+          );
+        }
+        hideLoading();
+        if (type === "sales") {
+          const totalDisplay = document.querySelector(".total-amount-display");
+          if (totalDisplay) {
+            totalDisplay.style.display = "block";
+            const totalAmountSpan = document.getElementById("totalSalesAmount");
+            if (totalAmountSpan) {
+              totalAmountSpan.textContent =
+                "₱" +
+                Number(data.grand_total || 0).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                });
+            }
           }
         }
+      } catch (e) {
+        console.error("JSON parsing error:", e);
+        console.error("Response text:", text);
+        if (reportDiv) {
+          reportDiv.innerHTML =
+            '<div class="error">Error parsing response: ' +
+            e.message +
+            "</div>";
+        }
+        hideLoading();
       }
     })
     .catch((err) => {
@@ -151,7 +158,7 @@ function applyDailyFilter() {
     return;
   }
   const today = new Date();
-  const formattedDate = today.toLocaleDateString("en-CA"); // 'YYYY-MM-DD'
+  const formattedDate = today.toLocaleDateString("en-CA");
   const startDate = document.getElementById("startDate");
   const endDate = document.getElementById("endDate");
   if (startDate) startDate.value = formattedDate;
@@ -162,7 +169,6 @@ function applyDailyFilter() {
   ajaxLoadReport(type, 1);
 }
 
-// Monthly filter
 function applyMonthlyFilter() {
   const dailyButton = document.querySelector(".daily-filter-btn");
   const monthlyButton = document.querySelector(".monthly-filter-btn");
@@ -192,7 +198,6 @@ function applyMonthlyFilter() {
   ajaxLoadReport(type, 1);
 }
 
-// Clear date filters and reset pagination
 function clearDates() {
   const startDate = document.getElementById("startDate");
   const endDate = document.getElementById("endDate");
@@ -213,7 +218,6 @@ function clearDates() {
   ajaxLoadReport(type, 1);
 }
 
-// Report type change
 function changeReportType() {
   const reportType = document.getElementById("reportType").value;
   document.getElementById("inventoryReport").style.display = "none";
@@ -248,7 +252,9 @@ document.addEventListener("click", function (e) {
 
 // On initial load, load the current report via AJAX
 window.addEventListener("DOMContentLoaded", function () {
+  console.log("Reports page loaded, initializing...");
   const reportType = document.getElementById("reportType").value;
+  console.log("Loading report type:", reportType);
   ajaxLoadReport(reportType, 1);
 });
 

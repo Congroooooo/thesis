@@ -44,7 +44,6 @@ function page_link($page, $query_string) {
                 const urlParams = new URLSearchParams(window.location.search);
                 console.log('Current URL params:', urlParams.toString());
                 if (!urlParams.has('status')) {
-                    // Redirect to the same page with the low stock filter
                     urlParams.set('status', 'Low Stock');
                     const newUrl = 'inventory.php?' + urlParams.toString();
                     console.log('Redirecting to:', newUrl);
@@ -99,28 +98,49 @@ function page_link($page, $query_string) {
                 <input type="text" id="searchInput" name="search" placeholder="Search by item name..." value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>" style="margin-right: 12px;">
                 <select name="category" id="categoryFilter" onchange="document.getElementById('filterForm').submit()">
                     <option value="">All Categories</option>
-                    <option value="Tertiary-Uniform"<?php if(($_GET['category'] ?? '')=='Tertiary-Uniform') echo ' selected'; ?>>Tertiary-Uniform</option>
-                    <option value="SHS-Uniform"<?php if(($_GET['category'] ?? '')=='SHS-Uniform') echo ' selected'; ?>>SHS-Uniform</option>
-                    <option value="STI-Shirts"<?php if(($_GET['category'] ?? '')=='STI-Shirts') echo ' selected'; ?>>STI-Shirts</option>
-                    <option value="STI-Jacket"<?php if(($_GET['category'] ?? '')=='STI-Jacket') echo ' selected'; ?>>STI Jacket</option>
-                    <option value="STI-Accessories"<?php if(($_GET['category'] ?? '')=='STI-Accessories') echo ' selected'; ?>>STI-Accessories</option>
-                    <option value="SHS-PE"<?php if(($_GET['category'] ?? '')=='SHS-PE') echo ' selected'; ?>>SHS-PE</option>
-                    <option value="Tertiary-PE"<?php if(($_GET['category'] ?? '')=='Tertiary-PE') echo ' selected'; ?>>Tertiary-PE</option>
+                    <?php
+                    $conn_categories = mysqli_connect("localhost", "root", "", "proware");
+                    if ($conn_categories) {
+                        $category_sql = "SELECT DISTINCT category FROM inventory WHERE category IS NOT NULL AND category != '' ORDER BY category ASC";
+                        $category_result = mysqli_query($conn_categories, $category_sql);
+                        
+                        if ($category_result) {
+                            while ($category_row = mysqli_fetch_assoc($category_result)) {
+                                $category_value = htmlspecialchars($category_row['category']);
+                                $selected = (($_GET['category'] ?? '') == $category_value) ? ' selected' : '';
+                                echo "<option value=\"$category_value\"$selected>$category_value</option>";
+                            }
+                        }
+                        mysqli_close($conn_categories);
+                    }
+                    ?>
                 </select>
                 <select name="size" id="sizeFilter" onchange="document.getElementById('filterForm').submit()">
                     <option value="">All Sizes</option>
-                    <option value="XS"<?php if(($_GET['size'] ?? '')=='XS') echo ' selected'; ?>>XS</option>
-                    <option value="S"<?php if(($_GET['size'] ?? '')=='S') echo ' selected'; ?>>S</option>
-                    <option value="M"<?php if(($_GET['size'] ?? '')=='M') echo ' selected'; ?>>M</option>
-                    <option value="L"<?php if(($_GET['size'] ?? '')=='L') echo ' selected'; ?>>L</option>
-                    <option value="XL"<?php if(($_GET['size'] ?? '')=='XL') echo ' selected'; ?>>XL</option>
-                    <option value="XXL"<?php if(($_GET['size'] ?? '')=='XXL') echo ' selected'; ?>>XXL</option>
-                    <option value="3XL"<?php if(($_GET['size'] ?? '')=='3XL') echo ' selected'; ?>>3XL</option>
-                    <option value="4XL"<?php if(($_GET['size'] ?? '')=='4XL') echo ' selected'; ?>>4XL</option>
-                    <option value="5XL"<?php if(($_GET['size'] ?? '')=='5XL') echo ' selected'; ?>>5XL</option>
-                    <option value="6XL"<?php if(($_GET['size'] ?? '')=='6XL') echo ' selected'; ?>>6XL</option>
-                    <option value="7XL"<?php if(($_GET['size'] ?? '')=='7XL') echo ' selected'; ?>>7XL</option>
-                    <option value="One Size"<?php if(($_GET['size'] ?? '')=='One Size') echo ' selected'; ?>>One Size</option>
+                    <?php
+                    $conn_sizes = mysqli_connect("localhost", "root", "", "proware");
+                    if ($conn_sizes) {
+                        $size_order = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL', '6XL', '7XL', 'One Size'];
+                        $size_sql = "SELECT DISTINCT sizes FROM inventory WHERE sizes IS NOT NULL AND sizes != '' ORDER BY sizes";
+                        $size_result = mysqli_query($conn_sizes, $size_sql);
+                        
+                        $existing_sizes = [];
+                        if ($size_result) {
+                            while ($size_row = mysqli_fetch_assoc($size_result)) {
+                                $existing_sizes[] = $size_row['sizes'];
+                            }
+                        }
+
+                        foreach ($size_order as $size) {
+                            if (in_array($size, $existing_sizes)) {
+                                $selected = (($_GET['size'] ?? '') == $size) ? ' selected' : '';
+                                echo "<option value=\"" . htmlspecialchars($size) . "\"$selected>" . htmlspecialchars($size) . "</option>";
+                            }
+                        }
+                        
+                        mysqli_close($conn_sizes);
+                    }
+                    ?>
                 </select>
                 <select name="status" id="statusFilter" onchange="document.getElementById('filterForm').submit()">
                     <option value="">All Status</option>
@@ -133,7 +153,7 @@ function page_link($page, $query_string) {
                 </button>
             </form>
         </div>
-
+ 
             <div class="inventory-content">
                 <div class="action-buttons-container">
                     <button onclick="handleEdit()" class="action-btn" id="editBtn" disabled>
@@ -331,70 +351,83 @@ function page_link($page, $query_string) {
             </div>
             <div class="modal-body">
                 <form id="addItemForm" onsubmit="submitNewItem(event)" enctype="multipart/form-data">
-                    <div class="input-group">
-                        <label for="deliveryOrderNumber">Delivery Order #:</label>
-                        <input type="text" id="deliveryOrderNumber" name="deliveryOrderNumber" required>
+                    <div class="order-section">
+                        <div class="input-group">
+                            <label for="deliveryOrderNumber">Delivery Order #:</label>
+                            <input type="text" id="deliveryOrderNumber" name="deliveryOrderNumber" required>
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label for="newProductItemCode">Item Code:</label>
-                        <input type="text" id="newProductItemCode" name="newItemCode" required>
+                    
+                    <div id="productEntries">
+                        <div class="product-entry">
+                            <span class="item-close" onclick="removeProductEntry(this)">&times;</span>
+                            <div class="item-content">
+                                <div class="input-group">
+                                    <label for="newProductItemCode_0">Item Code:</label>
+                                    <input type="text" id="newProductItemCode_0" name="products[0][itemCode]" required>
+                                </div>
+                                <div class="input-group">
+                                    <label for="newCategory_0">Category:</label>
+                                    <select id="newCategory_0" name="products[0][category_id]" required onchange="loadSubcategories(0)">
+                                        <option value="">Select Category</option>
+                                        <option value="__add__">+ Add new category…</option>
+                                    </select>
+                                </div>
+                                <div class="input-group" id="subcategoryGroup_0" style="display:none;">
+                                    <label for="subcategorySelect_0">Subcategory:</label>
+                                    <select id="subcategorySelect_0" name="products[0][subcategory_ids][]" multiple style="width:100%;">
+                                        <option value="__add__">+ Add new subcategory…</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label for="newItemName_0">Product Name:</label>
+                                    <input type="text" id="newItemName_0" name="products[0][itemName]" required>
+                                </div>
+                                <div class="input-group">
+                                    <label for="newProductSize_0">Size:</label>
+                                    <select id="newProductSize_0" name="products[0][size]" required>
+                                        <option value="">Select Size</option>
+                                        <option value="XS">XS</option>
+                                        <option value="S">S</option>
+                                        <option value="M">M</option>
+                                        <option value="L">L</option>
+                                        <option value="XL">XL</option>
+                                        <option value="XXL">XXL</option>
+                                        <option value="3XL">3XL</option>
+                                        <option value="4XL">4XL</option>
+                                        <option value="5XL">5XL</option>
+                                        <option value="6XL">6XL</option>
+                                        <option value="7XL">7XL</option>
+                                        <option value="One Size">One Size</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label for="newItemPrice_0">Price:</label>
+                                    <input type="number" id="newItemPrice_0" name="products[0][price]" min="0" step="0.01" required>
+                                </div>
+                                <div class="input-group">
+                                    <label for="newItemQuantity_0">Initial Stock:</label>
+                                    <input type="number" id="newItemQuantity_0" name="products[0][quantity]" min="0" required>
+                                </div>
+                                <div class="input-group">
+                                    <label for="newItemDamage_0">Damaged Items:</label>
+                                    <input type="number" id="newItemDamage_0" name="products[0][damage]" min="0" value="0" required>
+                                </div>
+                                <div class="input-group">
+                                    <label for="newImage_0">Product Image:</label>
+                                    <input type="file" id="newImage_0" name="products[0][image]" accept="image/*" required>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label for="newCategory">Category:</label>
-                        <select id="newCategory" name="category_id" required>
-                            <option value="">Select Category</option>
-                            <option value="__add__">+ Add new category…</option>
-                        </select>
-                    </div>
-                    <div class="input-group" id="subcategoryGroup" style="display:none;">
-                        <label for="subcategorySelect">Subcategory:</label>
-                        <select id="subcategorySelect" name="subcategory_ids[]" multiple style="width:100%;">
-                            <option value="__add__">+ Add new subcategory…</option>
-                        </select>
-                    </div>
-                    <!-- Legacy course group removed after migration to subcategories -->
-                    <div class="input-group">
-                        <label for="newItemName">Product Name:</label>
-                        <input type="text" id="newItemName" name="newItemName" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="newSize">Size:</label>
-                        <select id="newProductSize" name="newSize" required>
-                            <option value="">Select Size</option>
-                            <option value="XS">XS</option>
-                            <option value="S">S</option>
-                            <option value="M">M</option>
-                            <option value="L">L</option>
-                            <option value="XL">XL</option>
-                            <option value="XXL">XXL</option>
-                            <option value="3XL">3XL</option>
-                            <option value="4XL">4XL</option>
-                            <option value="5XL">5XL</option>
-                            <option value="6XL">6XL</option>
-                            <option value="7XL">7XL</option>
-                            <option value="One Size">One Size</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label for="newItemPrice">Price:</label>
-                        <input type="number" id="newItemPrice" name="newItemPrice" min="0" step="0.01" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="newItemQuantity">Initial Stock:</label>
-                        <input type="number" id="newItemQuantity" name="newItemQuantity" min="0" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="newItemDamage">Damaged Items:</label>
-                        <input type="number" id="newItemDamage" name="newItemDamage" min="0" value="0" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="newImage">Product Image:</label>
-                        <input type="file" id="newImage" name="newImage" accept="image/*" required>
-                    </div>
+                    
+                    <button type="button" class="add-item-btn" onclick="addProductEntry()">
+                        <i class="material-icons">add</i> Add Another Product
+                    </button>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="submit" form="addItemForm" class="save-btn">Add Product</button>
+                <button type="submit" form="addItemForm" class="save-btn">Add Products</button>
                 <button type="button" onclick="closeModal('addItemModal')" class="cancel-btn">Cancel</button>
             </div>
         </div>
@@ -711,47 +744,51 @@ function page_link($page, $query_string) {
             <div class="modal-body">
                 <form id="exchangeItemForm" onsubmit="submitExchangeItem(event)">
                     <div class="order-section">
-                        <div class="input-group">
-                            <label for="exchangeCustomerName">Customer Name:</label>
-                            <select id="exchangeCustomerName" name="customerName" required>
-                                <option value="">Search customer...</option>
-                                <?php
-                                $conn = mysqli_connect("localhost", "root", "", "proware");
-                                if (!$conn) {
-                                    die("Connection failed: " . mysqli_connect_error());
-                                }
+                        <div class="product-entry">
+                            <div class="item-content">
+                                <div class="input-group">
+                                    <label for="exchangeCustomerName">Customer Name:</label>
+                                    <select id="exchangeCustomerName" name="customerName" required>
+                                        <option value="">Search customer...</option>
+                                        <?php
+                                        $conn = mysqli_connect("localhost", "root", "", "proware");
+                                        if (!$conn) {
+                                            die("Connection failed: " . mysqli_connect_error());
+                                        }
 
-                                // Get all customers from accounts table
-                                $sql = "SELECT id, first_name, last_name, id_number, role_category FROM account WHERE status = 'active' ORDER BY first_name, last_name";
-                                $result = mysqli_query($conn, $sql);
+                                        // Get all customers from accounts table
+                                        $sql = "SELECT id, first_name, last_name, id_number, role_category FROM account WHERE status = 'active' ORDER BY first_name, last_name";
+                                        $result = mysqli_query($conn, $sql);
 
-                                while ($row = mysqli_fetch_assoc($result)) {
-                                    $fullName = $row['first_name'] . ' ' . $row['last_name'];
-                                    echo "<option value='" . $row['id'] . "' data-id-number='" . $row['id_number'] . "' data-role='" . $row['role_category'] . "'>" . 
-                                         htmlspecialchars($fullName) . " (" . $row['id_number'] . ")</option>";
-                                }
-                                mysqli_close($conn);
-                                ?>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label for="exchangeItemBought">Item Bought:</label>
-                            <select id="exchangeItemBought" name="itemBought" required onchange="loadAvailableSizes()">
-                                <option value="">Select Item (Purchased within 24 hours)</option>
-                            </select>
-                            <small id="customerFilterNote" style="color: #666; font-size: 12px; margin-top: 4px;">
-                                Loading customer purchases...
-                            </small>
-                        </div>
-                        <div class="input-group">
-                            <label for="exchangeNewSize">Exchange With Size:</label>
-                            <select id="exchangeNewSize" name="newSize" required>
-                                <option value="">Select New Size</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label for="exchangeRemarks">Remarks (Optional):</label>
-                            <textarea id="exchangeRemarks" name="remarks" rows="3" placeholder="Reason for exchange, etc."></textarea>
+                                        while ($row = mysqli_fetch_assoc($result)) {
+                                            $fullName = $row['first_name'] . ' ' . $row['last_name'];
+                                            echo "<option value='" . $row['id'] . "' data-id-number='" . $row['id_number'] . "' data-role='" . $row['role_category'] . "'>" . 
+                                                 htmlspecialchars($fullName) . " (" . $row['id_number'] . ")</option>";
+                                        }
+                                        mysqli_close($conn);
+                                        ?>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label for="exchangeItemBought">Item Bought:</label>
+                                    <select id="exchangeItemBought" name="itemBought" required onchange="loadAvailableSizes()">
+                                        <option value="">Select Item (Purchased within 24 hours)</option>
+                                    </select>
+                                    <small id="customerFilterNote" style="color: #666; font-size: 12px; margin-top: 4px;">
+                                        Loading customer purchases...
+                                    </small>
+                                </div>
+                                <div class="input-group">
+                                    <label for="exchangeNewSize">Exchange With Size:</label>
+                                    <select id="exchangeNewSize" name="newSize" required>
+                                        <option value="">Select New Size</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label for="exchangeRemarks">Remarks (Optional):</label>
+                                    <textarea id="exchangeRemarks" name="remarks" rows="3" placeholder="Reason for exchange, etc."></textarea>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -786,6 +823,191 @@ function page_link($page, $query_string) {
                 // Reset dropdowns
                 document.getElementById('exchangeItemBought').innerHTML = '<option value="">Select Item (Purchased within 24 hours)</option>';
                 document.getElementById('exchangeNewSize').innerHTML = '<option value="">Select New Size</option>';
+            }
+            // Reset the Add Item modal when closed
+            if (modalId === 'addItemModal') {
+                resetAddItemModal();
+            }
+        }
+
+        function addProductEntry() {
+            const productEntries = document.getElementById('productEntries');
+            const currentCount = productEntries.children.length;
+            const newIndex = currentCount;
+
+            const newEntry = document.createElement('div');
+            newEntry.className = 'product-entry';
+            newEntry.innerHTML = `
+                <span class="item-close" onclick="removeProductEntry(this)">&times;</span>
+                <div class="item-content">
+                    <div class="input-group">
+                        <label for="newProductItemCode_${newIndex}">Item Code:</label>
+                        <input type="text" id="newProductItemCode_${newIndex}" name="products[${newIndex}][itemCode]" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="newCategory_${newIndex}">Category:</label>
+                        <select id="newCategory_${newIndex}" name="products[${newIndex}][category_id]" required onchange="loadSubcategories(${newIndex})">
+                            <option value="">Select Category</option>
+                            <option value="__add__">+ Add new category…</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="subcategoryGroup_${newIndex}" style="display:none;">
+                        <label for="subcategorySelect_${newIndex}">Subcategory:</label>
+                        <select id="subcategorySelect_${newIndex}" name="products[${newIndex}][subcategory_ids][]" multiple style="width:100%;">
+                            <option value="__add__">+ Add new subcategory…</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="newItemName_${newIndex}">Product Name:</label>
+                        <input type="text" id="newItemName_${newIndex}" name="products[${newIndex}][itemName]" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="newProductSize_${newIndex}">Size:</label>
+                        <select id="newProductSize_${newIndex}" name="products[${newIndex}][size]" required>
+                            <option value="">Select Size</option>
+                            <option value="XS">XS</option>
+                            <option value="S">S</option>
+                            <option value="M">M</option>
+                            <option value="L">L</option>
+                            <option value="XL">XL</option>
+                            <option value="XXL">XXL</option>
+                            <option value="3XL">3XL</option>
+                            <option value="4XL">4XL</option>
+                            <option value="5XL">5XL</option>
+                            <option value="6XL">6XL</option>
+                            <option value="7XL">7XL</option>
+                            <option value="One Size">One Size</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="newItemPrice_${newIndex}">Price:</label>
+                        <input type="number" id="newItemPrice_${newIndex}" name="products[${newIndex}][price]" min="0" step="0.01" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="newItemQuantity_${newIndex}">Initial Stock:</label>
+                        <input type="number" id="newItemQuantity_${newIndex}" name="products[${newIndex}][quantity]" min="0" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="newItemDamage_${newIndex}">Damaged Items:</label>
+                        <input type="number" id="newItemDamage_${newIndex}" name="products[${newIndex}][damage]" min="0" value="0" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="newImage_${newIndex}">Product Image:</label>
+                        <input type="file" id="newImage_${newIndex}" name="products[${newIndex}][image]" accept="image/*" required>
+                    </div>
+                </div>
+            `;
+
+            productEntries.appendChild(newEntry);
+            
+            // Load categories for the new entry
+            if (typeof window.loadCategories === 'function') {
+                window.loadCategories(newIndex);
+            }
+            
+            // Set up event listeners for the new entry (these functions are defined in addItem.js)
+            if (typeof setupCategoryEventListeners === 'function') {
+                setupCategoryEventListeners(newIndex);
+            }
+            
+            if (typeof setupSubcategoryEventListeners === 'function') {
+                setupSubcategoryEventListeners(newIndex);
+            }
+            
+            // Initialize Select2 for the new subcategory select if needed
+            if (window.jQuery) {
+                $(`#subcategorySelect_${newIndex}`).select2({
+                    placeholder: "Select subcategories",
+                    allowClear: true,
+                    width: "100%"
+                });
+            }
+        }
+
+        function removeProductEntry(element) {
+            const productEntry = element.closest('.product-entry');
+            const productEntries = document.getElementById('productEntries');
+            
+            // Don't remove if it's the only entry
+            if (productEntries.children.length > 1) {
+                productEntry.remove();
+                
+                // Reindex remaining entries
+                reindexProductEntries();
+            }
+        }
+
+        function reindexProductEntries() {
+            const productEntries = document.getElementById('productEntries');
+            const entries = productEntries.children;
+            
+            for (let i = 0; i < entries.length; i++) {
+                const entry = entries[i];
+                const inputs = entry.querySelectorAll('input, select');
+                
+                inputs.forEach(input => {
+                    if (input.name) {
+                        input.name = input.name.replace(/\[\d+\]/, `[${i}]`);
+                    }
+                    if (input.id) {
+                        input.id = input.id.replace(/_\d+$/, `_${i}`);
+                    }
+                });
+                
+                const labels = entry.querySelectorAll('label');
+                labels.forEach(label => {
+                    if (label.getAttribute('for')) {
+                        label.setAttribute('for', label.getAttribute('for').replace(/_\d+$/, `_${i}`));
+                    }
+                });
+                
+                const onchangeSelect = entry.querySelector('select[onchange]');
+                if (onchangeSelect) {
+                    onchangeSelect.setAttribute('onchange', `loadSubcategories(${i})`);
+                }
+                
+                const subcategoryGroup = entry.querySelector('[id^="subcategoryGroup_"]');
+                if (subcategoryGroup) {
+                    subcategoryGroup.id = `subcategoryGroup_${i}`;
+                }
+            }
+        }
+
+        function resetAddItemModal() {
+            const productEntries = document.getElementById('productEntries');
+            
+            // Remove all entries except the first one
+            while (productEntries.children.length > 1) {
+                productEntries.removeChild(productEntries.lastChild);
+            }
+            
+            // Reset the form
+            const form = document.getElementById('addItemForm');
+            if (form) {
+                form.reset();
+            }
+            
+            // Reset Select2 elements
+            if (window.jQuery) {
+                productEntries.querySelectorAll('select[multiple]').forEach(select => {
+                    if ($(select).hasClass('select2-hidden-accessible')) {
+                        $(select).val(null).trigger('change');
+                    }
+                });
+            }
+            
+            // Hide subcategory groups
+            productEntries.querySelectorAll('[id^="subcategoryGroup_"]').forEach(group => {
+                group.style.display = 'none';
+            });
+            
+            // Force reload categories for the first entry (clear existing and reload)
+            const firstCategorySelect = document.getElementById('newCategory_0');
+            if (firstCategorySelect) {
+                firstCategorySelect.setAttribute('data-force-reload', 'true');
+                if (typeof window.loadCategories === 'function') {
+                    window.loadCategories(0);
+                }
             }
         }
 
@@ -844,13 +1066,24 @@ function page_link($page, $query_string) {
     }
 
     .input-group input,
-    .input-group select {
+    .input-group select,
+    .input-group textarea {
         width: 100%;
         padding: 8px 12px;
         border: 1px solid #ddd;
         border-radius: 4px;
-        height: 38px;
         font-size: 14px;
+        font-family: inherit;
+    }
+
+    .input-group input,
+    .input-group select {
+        height: 38px;
+    }
+
+    .input-group textarea {
+        min-height: 80px;
+        resize: vertical;
     }
 
     .input-group select {
@@ -1023,6 +1256,54 @@ function page_link($page, $query_string) {
 
     .select2-results__option--highlighted[aria-selected] {
         background-color: #007bff;
+    }
+
+    .product-entry {
+        position: relative;
+        background: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+
+    .product-entry .item-close {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 20px;
+        cursor: pointer;
+        color: #dc3545;
+        font-weight: bold;
+        display: none;
+    }
+
+    .product-entry:not(:first-child) .item-close {
+        display: block;
+    }
+
+    .product-entry .item-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        align-items: flex-start;
+    }
+
+    /* Specific styling for exchange modal */
+    #exchangeItemModal .input-group:has(textarea) {
+        grid-column: 1 / -1; /* Span full width for textarea */
+    }
+
+    #exchangeItemModal .product-entry {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+    }
+
+    #exchangeItemModal small {
+        display: block;
+        margin-top: 4px;
+        font-size: 12px;
+        color: #6c757d;
     }
     </style>
 </body>

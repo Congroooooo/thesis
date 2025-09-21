@@ -5,17 +5,18 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
-require_once '../Includes/connection.php'; // PDO $conn
+require_once '../Includes/connection.php';
+require_once '../PAMO PAGES/includes/config_functions.php';
 
 $sales_id = isset($_POST['sales_id']) ? intval($_POST['sales_id']) : 0;
-$transaction_number = isset($_POST['transaction_number']) ? mysqli_real_escape_string($conn, $_POST['transaction_number']) : '';
+$transaction_number = isset($_POST['transaction_number']) ? trim($_POST['transaction_number']) : '';
 $customer_id = isset($_POST['customer_id']) ? intval($_POST['customer_id']) : 0;
-$customer_name = isset($_POST['customer_name']) ? mysqli_real_escape_string($conn, $_POST['customer_name']) : '';
-$item_code = isset($_POST['item_code']) ? mysqli_real_escape_string($conn, $_POST['item_code']) : '';
-$old_size = isset($_POST['old_size']) ? mysqli_real_escape_string($conn, $_POST['old_size']) : '';
-$new_size = isset($_POST['new_size']) ? mysqli_real_escape_string($conn, $_POST['new_size']) : '';
-$new_item_code = isset($_POST['new_item_code']) ? mysqli_real_escape_string($conn, $_POST['new_item_code']) : '';
-$remarks = isset($_POST['remarks']) ? mysqli_real_escape_string($conn, $_POST['remarks']) : '';
+$customer_name = isset($_POST['customer_name']) ? trim($_POST['customer_name']) : '';
+$item_code = isset($_POST['item_code']) ? trim($_POST['item_code']) : '';
+$old_size = isset($_POST['old_size']) ? trim($_POST['old_size']) : '';
+$new_size = isset($_POST['new_size']) ? trim($_POST['new_size']) : '';
+$new_item_code = isset($_POST['new_item_code']) ? trim($_POST['new_item_code']) : '';
+$remarks = isset($_POST['remarks']) ? trim($_POST['remarks']) : '';
 
 if (!$sales_id || !$transaction_number || !$customer_id || !$customer_name || !$item_code || !$old_size || !$new_size || !$new_item_code) {
     echo json_encode(['success' => false, 'message' => 'All required fields must be provided']);
@@ -26,14 +27,16 @@ $processed_by = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
 if (!$processed_by) {
     $check_admin_sql = "SELECT id FROM account WHERE id = 1 LIMIT 1";
-    $check_result = mysqli_query($conn, $check_admin_sql);
-    if (mysqli_num_rows($check_result) > 0) {
+    $check_result = $conn->prepare($check_admin_sql);
+    $check_result->execute();
+    if ($check_result->rowCount() > 0) {
         $processed_by = 1;
     } else {
         $first_user_sql = "SELECT id FROM account WHERE status = 'active' ORDER BY id LIMIT 1";
-        $first_user_result = mysqli_query($conn, $first_user_sql);
-        if ($first_user_result && mysqli_num_rows($first_user_result) > 0) {
-            $first_user = mysqli_fetch_assoc($first_user_result);
+        $first_user_result = $conn->prepare($first_user_sql);
+        $first_user_result->execute();
+        if ($first_user_result && $first_user_result->rowCount() > 0) {
+            $first_user = $first_user_result->fetch(PDO::FETCH_ASSOC);
             $processed_by = $first_user['id'];
         } else {
             throw new Exception('No valid user found for processed_by field');
@@ -85,10 +88,32 @@ try {
 
     $conn->commit();
 
+    // Log to audit trail
+    try {
+        $exchange_id = $conn->lastInsertId();
+        $description = sprintf(
+            'Customer: %s, Transaction: %s, Item: %s, Size changed from %s to %s%s',
+            $customer_name,
+            $transaction_number,
+            $item_code,
+            $old_size,
+            $new_size,
+            $remarks ? ' (Remarks: ' . $remarks . ')' : ''
+        );
+
+        $log_stmt = $conn->prepare("INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES ('Exchange Item', ?, ?, ?, NOW())");
+        $log_result = $log_stmt->execute([$description, $item_code, $processed_by]);
+        
+        error_log("Exchange audit log result: " . ($log_result ? 'SUCCESS' : 'FAILED'));
+        
+    } catch (Exception $e) {
+        error_log('Failed to log exchange audit trail: ' . $e->getMessage());
+    }
+
     echo json_encode([
         'success' => true,
         'message' => 'Exchange processed successfully',
-        'exchange_id' => mysqli_insert_id($conn)
+        'exchange_id' => $conn->lastInsertId()
     ]);
 
 } catch (Exception $e) {
@@ -99,5 +124,5 @@ try {
         'message' => 'Error processing exchange: ' . $e->getMessage()
     ]);
 }
-// PDO closes automatically
+
 ?> 

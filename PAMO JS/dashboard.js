@@ -113,6 +113,34 @@ async function fetchSalesData(category, course, period) {
   }
 }
 
+// STI Color Palette Generator
+function generateSTIColors(count) {
+  const stiBlue = "#0047BA";
+  const stiYellow = "#FFD100";
+  const colors = [];
+
+  if (count <= 2) {
+    colors.push(stiBlue, stiYellow);
+  } else {
+    // Generate complementary colors based on STI palette
+    for (let i = 0; i < count; i++) {
+      const hue = i * (360 / count);
+      if (i === 0) colors.push(stiBlue);
+      else if (i === 1) colors.push(stiYellow);
+      else {
+        // Generate variations of blue and yellow tones
+        if (i % 2 === 0) {
+          colors.push(`hsl(${220 + i * 15}, 75%, ${60 + i * 5}%)`);
+        } else {
+          colors.push(`hsl(${45 + i * 10}, 85%, ${65 + i * 3}%)`);
+        }
+      }
+    }
+  }
+
+  return colors.slice(0, count);
+}
+
 function renderStockPieChart(data) {
   const canvas = document.getElementById("stockPieChart");
   if (!canvas) {
@@ -122,12 +150,12 @@ function renderStockPieChart(data) {
   const ctx = canvas.getContext("2d");
   const labels = data.map((d) => d.category);
   const quantities = data.map((d) => d.quantity);
-  const backgroundColors = labels.map((label) => colorForCategory(label));
-  const borderColors = backgroundColors.map((fill) => fill);
+  const backgroundColors = generateSTIColors(labels.length);
+  const borderColors = backgroundColors.map(() => "#ffffff");
 
   if (stockPieChart) stockPieChart.destroy();
   stockPieChart = new Chart(ctx, {
-    type: "pie",
+    type: "doughnut", // Changed to doughnut for modern look
     data: {
       labels,
       datasets: [
@@ -135,46 +163,97 @@ function renderStockPieChart(data) {
           data: quantities,
           backgroundColor: backgroundColors,
           borderColor: borderColors,
-          borderWidth: 2,
-          hoverOffset: 6,
+          borderWidth: 3,
+          hoverOffset: 8,
+          hoverBorderWidth: 4,
         },
       ],
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "65%", // Creates the doughnut hole
+      animation: {
+        animateRotate: true,
+        animateScale: true,
+        duration: 2000,
+        easing: "easeOutQuart",
+      },
       plugins: {
         legend: {
-          display: false, // Disable built-in legend
+          display: false, // We'll use custom legend
         },
         tooltip: {
-          backgroundColor: "#ffffff",
-          titleColor: "#1f2937",
-          bodyColor: "#1f2937",
-          borderColor: "#e5e7eb",
-          borderWidth: 1,
-          padding: 10,
-          displayColors: false,
+          backgroundColor: "rgba(255, 255, 255, 0.95)",
+          titleColor: "#2d3748",
+          bodyColor: "#4a5568",
+          borderColor: "#0047BA",
+          borderWidth: 2,
+          padding: 16,
+          cornerRadius: 12,
+          titleFont: {
+            family: "Poppins",
+            weight: "600",
+            size: 14,
+          },
+          bodyFont: {
+            family: "Inter",
+            weight: "500",
+            size: 13,
+          },
+          callbacks: {
+            title: function (context) {
+              return context[0].label;
+            },
+            label: function (context) {
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const percentage = ((context.parsed / total) * 100).toFixed(1);
+              return `Stock: ${context.parsed} units (${percentage}%)`;
+            },
+            labelColor: function (context) {
+              return {
+                borderColor: context.dataset.borderColor[context.dataIndex],
+                backgroundColor:
+                  context.dataset.backgroundColor[context.dataIndex],
+                borderWidth: 2,
+              };
+            },
+          },
         },
       },
-      animation: { animateRotate: true, animateScale: true },
+      onHover: (event, activeElements) => {
+        event.native.target.style.cursor =
+          activeElements.length > 0 ? "pointer" : "default";
+      },
     },
   });
 
-  // --- Custom HTML Legend ---
+  // --- Custom HTML Legend with STI Colors ---
   let legendContainer = document.getElementById("stockPieChartLegend");
   if (!legendContainer) {
     legendContainer = document.createElement("div");
     legendContainer.id = "stockPieChartLegend";
     canvas.parentNode.appendChild(legendContainer);
   }
-  // Build legend HTML (two rows)
+
+  // Build modern legend HTML
   const itemsPerRow = Math.ceil(labels.length / 2);
   let legendHTML = '<div class="custom-pie-legend-row">';
   labels.forEach((label, idx) => {
     if (idx > 0 && idx % itemsPerRow === 0) {
       legendHTML += '</div><div class="custom-pie-legend-row">';
     }
-    const fill = colorForCategory(label);
-    legendHTML += `<span class="custom-pie-legend-item"><span class="legend-color-box" style="background:${fill}; border:1px solid #e5e7eb"></span>${label}</span>`;
+    const color = backgroundColors[idx];
+    const quantity = quantities[idx];
+    legendHTML += `
+      <span class="custom-pie-legend-item">
+        <span class="legend-color-box" style="background:${color}; border-color: rgba(255,255,255,0.9)"></span>
+        <span class="legend-text">
+          <strong>${label}</strong>
+          <br>
+          <small style="color: #6b7280;">${quantity} units</small>
+        </span>
+      </span>`;
   });
   legendHTML += "</div>";
   legendContainer.innerHTML = legendHTML;
@@ -211,50 +290,131 @@ function renderSalesLineChart(data) {
       labels,
       datasets: [
         {
-          // label: "Sales", // Remove the label so legend and text are not shown
+          label: "Sales Performance",
           data: sales,
-          borderColor: "#4caf50",
-          fill: false,
-          pointBackgroundColor: "#2196f3",
-          pointRadius: 5,
-          pointHoverRadius: 7,
-          pointHitRadius: 15, // Increase clickable area
+          borderColor: "#0047BA",
+          backgroundColor: "rgba(0, 71, 186, 0.1)",
+          fill: true,
+          tension: 0.4, // Smooth curved lines
+          pointBackgroundColor: "#FFD100",
+          pointBorderColor: "#0047BA",
+          pointBorderWidth: 3,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+          pointHitRadius: 20,
+          pointHoverBackgroundColor: "#FFD100",
+          pointHoverBorderColor: "#0047BA",
+          pointHoverBorderWidth: 4,
+          borderWidth: 3,
         },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: {
+        duration: 2000,
+        easing: "easeOutQuart",
+      },
       interaction: {
         mode: "nearest",
-        intersect: true,
+        intersect: false,
       },
       plugins: {
         legend: {
-          display: false, // Remove the rectangle legend
+          display: true,
+          position: "top",
+          labels: {
+            font: {
+              family: "Poppins",
+              size: 12,
+              weight: "500",
+            },
+            color: "#4a5568",
+            usePointStyle: true,
+            pointStyle: "circle",
+            padding: 20,
+          },
         },
         tooltip: {
-          backgroundColor: "#fff",
-          borderColor: "#4caf50",
-          borderWidth: 1,
-          titleColor: "#222",
-          bodyColor: "#222",
-          padding: 12,
-          displayColors: false,
-          bodyFont: { weight: "bold" },
-          position: "nearest", // Ensures tooltip is close to the point
-          yAlign: "top", // Always show tooltip above the dot
+          backgroundColor: "rgba(255, 255, 255, 0.95)",
+          borderColor: "#0047BA",
+          borderWidth: 2,
+          titleColor: "#2d3748",
+          bodyColor: "#4a5568",
+          padding: 16,
+          cornerRadius: 12,
+          displayColors: true,
+          titleFont: {
+            family: "Poppins",
+            weight: "600",
+            size: 14,
+          },
+          bodyFont: {
+            family: "Inter",
+            weight: "500",
+            size: 13,
+          },
+          caretPadding: 10,
+          mode: "index",
+          intersect: false,
           callbacks: {
+            title: function (context) {
+              return `Date: ${context[0].label}`;
+            },
             label: function (context) {
               const idx = context.dataIndex;
               const point = filteredData[idx];
-              let label = `Sold: ${point.total_sales}`;
+              let label = `Sales: ₱${Number(
+                point.total_sales
+              ).toLocaleString()}`;
               if (!category) {
-                if (point.category) label += ` | Category: ${point.category}`;
+                if (point.category) label += `\nCategory: ${point.category}`;
               } else if (category === "Tertiary-Uniform") {
-                if (point.course) label += ` | Course: ${point.course}`;
+                if (point.course) label += `\nCourse: ${point.course}`;
               }
               return label;
+            },
+            labelColor: function (context) {
+              return {
+                borderColor: "#0047BA",
+                backgroundColor: "#FFD100",
+                borderWidth: 2,
+              };
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: {
+            color: "rgba(0, 71, 186, 0.08)",
+            lineWidth: 1,
+          },
+          ticks: {
+            font: {
+              family: "Inter",
+              size: 11,
+              weight: "400",
+            },
+            color: "#6b7280",
+            maxTicksLimit: 8,
+          },
+        },
+        y: {
+          grid: {
+            color: "rgba(0, 71, 186, 0.08)",
+            lineWidth: 1,
+          },
+          ticks: {
+            font: {
+              family: "Inter",
+              size: 11,
+              weight: "400",
+            },
+            color: "#6b7280",
+            callback: function (value) {
+              return "₱" + value.toLocaleString();
             },
           },
         },
@@ -262,9 +422,9 @@ function renderSalesLineChart(data) {
       elements: {
         point: {
           pointStyle: "circle",
-          pointRadius: 5,
-          pointHoverRadius: 7,
-          pointHitRadius: 15,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+          pointHitRadius: 20,
         },
       },
     },

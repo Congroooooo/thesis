@@ -1,3 +1,8 @@
+<?php
+include("../Includes/sessionStart.php");
+include '../Includes/loader.php';
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 

@@ -198,5 +198,10 @@ function showMessage(message) {
 
 // Event Listeners
 document.addEventListener("DOMContentLoaded", function () {
-  document.getElementById("editBtn").addEventListener("click", handleEdit);
+  const editBtn = document.getElementById("editBtn");
+  if (editBtn) {
+    editBtn.addEventListener("click", handleEdit);
+  } else {
+    console.warn("editBtn element not found in DOM");
+  }
 });

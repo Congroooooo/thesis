@@ -1,5 +1,6 @@
 <?php
-session_start();
+include("../Includes/sessionStart.php");
+include("../Includes/loader.php");
 require_once '../Includes/connection.php';
 
 // Check if user is logged in

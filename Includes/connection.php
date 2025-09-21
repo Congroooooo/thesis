@@ -1,8 +1,11 @@
 <?php
-$host = 'localhost';
-$db = 'proware';
-$user = 'root';
-$password = '';
+// Set timezone to Philippines (adjust to your local timezone)
+date_default_timezone_set('Asia/Manila');
+
+$host = 'mysql-nicko.alwaysdata.net';
+$db = 'nicko_proware';
+$user = 'nicko';
+$password = 'Systemx45c6';
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $password);

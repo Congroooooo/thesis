@@ -1,7 +1,5 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+
 
 require_once dirname(__FILE__) . '/init_cart.php';
 
@@ -268,7 +266,7 @@ if (isset($_SESSION['user_id'])) {
 
         async function updateNotificationContent() {
             try {
-                const response = await fetch('../Includes/notification_operations.php', {
+                const response = await fetch('../Includes /notification_operations.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -822,18 +820,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     .nav-links {
-        display: flex;
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        justify-content: center;
-        white-space: nowrap;
-        overflow-x: auto;
-        flex-wrap: nowrap !important;
-    }
+    left: 5%;
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    justify-content: flex-start;
+    white-space: nowrap;
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+}
+
 
     .nav-links li {
         margin: 0 10px;

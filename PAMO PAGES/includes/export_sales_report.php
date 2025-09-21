@@ -1,27 +1,34 @@
 <?php
 require __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../../Includes/connection.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-$conn = mysqli_connect("localhost", "root", "", "proware");
+// Use the PDO connection from connection.php
 
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $startDate = isset($_GET['startDate']) ? trim($_GET['startDate']) : '';
 $endDate = isset($_GET['endDate']) ? trim($_GET['endDate']) : '';
 
-$where = [];
+$where_conditions = [];
+$params = [];
+
 if ($search) {
-    $s = mysqli_real_escape_string($conn, $search);
-    $where[] = "(s.transaction_number LIKE '%$s%' OR s.item_code LIKE '%$s%' OR i.item_name LIKE '%$s%')";
+    $where_conditions[] = "(s.transaction_number LIKE ? OR s.item_code LIKE ? OR i.item_name LIKE ?)";
+    $params[] = "%$search%";
+    $params[] = "%$search%";
+    $params[] = "%$search%";
 }
 if ($startDate) {
-    $where[] = "DATE(s.sale_date) >= '" . mysqli_real_escape_string($conn, $startDate) . "'";
+    $where_conditions[] = "DATE(s.sale_date) >= ?";
+    $params[] = $startDate;
 }
 if ($endDate) {
-    $where[] = "DATE(s.sale_date) <= '" . mysqli_real_escape_string($conn, $endDate) . "'";
+    $where_conditions[] = "DATE(s.sale_date) <= ?";
+    $params[] = $endDate;
 }
-$where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+$where_clause = $where_conditions ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
 $sql = "SELECT s.transaction_number, s.item_code, i.item_name, s.size, s.quantity, s.price_per_item, s.total_amount, s.sale_date
         FROM sales s
@@ -29,7 +36,9 @@ $sql = "SELECT s.transaction_number, s.item_code, i.item_name, s.size, s.quantit
         $where_clause
         ORDER BY s.sale_date DESC";
 
-$result = mysqli_query($conn, $sql);
+$stmt = $conn->prepare($sql);
+$stmt->execute($params);
+$result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
@@ -42,7 +51,7 @@ $sheet->fromArray($headers, NULL, 'A1');
 $sheet->getStyle('A1:H1')->getFont()->setBold(true);
 
 $rowNum = 2;
-while ($row = mysqli_fetch_assoc($result)) {
+foreach ($result as $row) {
     $sheet->fromArray([
         $row['transaction_number'],
         $row['item_code'],

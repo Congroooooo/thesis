@@ -770,20 +770,29 @@ function populateNamesByRole(role) {
 // Event Listeners
 document.addEventListener("DOMContentLoaded", function () {
   // When a role is selected, update the names dropdown
-  document
-    .getElementById("roleCategory")
-    .addEventListener("change", function () {
+  const roleCategory = document.getElementById("roleCategory");
+  if (roleCategory) {
+    roleCategory.addEventListener("change", function () {
       populateNamesByRole(this.value);
     });
+  } else {
+    console.warn("roleCategory element not found in DOM");
+  }
 
   // When a name is selected, autofill the ID number
-  document
-    .getElementById("studentName")
-    .addEventListener("change", function () {
+  const studentName = document.getElementById("studentName");
+  if (studentName) {
+    studentName.addEventListener("change", function () {
       const selectedOption = this.options[this.selectedIndex];
       const idNumber = selectedOption.getAttribute("data-id-number") || "";
-      document.getElementById("studentIdNumber").value = idNumber;
+      const studentIdNumber = document.getElementById("studentIdNumber");
+      if (studentIdNumber) {
+        studentIdNumber.value = idNumber;
+      }
     });
+  } else {
+    console.warn("studentName element not found in DOM");
+  }
 
   // Add click handlers to existing close buttons
   const closeButtons = document.querySelectorAll(".item-close");

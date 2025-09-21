@@ -40,7 +40,10 @@ function updateLowStockThreshold($conn, $newValue) {
 }
 
 function logActivity($conn, $action_type, $description, $user_id = null) {
+    // Set timezone to Philippines (adjust this to your local timezone)
+    date_default_timezone_set('Asia/Manila');
     $timestamp = date('Y-m-d H:i:s');
+    
     if ($conn instanceof PDO) {
         $stmt = $conn->prepare("INSERT INTO activities (action_type, description, user_id, timestamp) VALUES (:action_type, :description, :user_id, :timestamp)");
         $stmt->bindParam(':action_type', $action_type);

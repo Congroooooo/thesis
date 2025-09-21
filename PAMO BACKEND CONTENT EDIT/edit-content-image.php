@@ -31,7 +31,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id']) && isset($_POST
             echo json_encode(['success' => false, 'error' => 'Invalid file type.']);
             exit;
         }
-        if (move_uploaded_file($newImage['tmp_name'], $targetFilePath)) {
+
+        // Process and optimize the image
+        $imageInfo = getimagesize($newImage['tmp_name']);
+        if ($imageInfo === false) {
+            echo json_encode(['success' => false, 'error' => 'Invalid image file.']);
+            exit;
+        }
+
+        // Create image resource based on type
+        switch ($imageInfo[2]) {
+            case IMAGETYPE_JPEG:
+                $sourceImage = imagecreatefromjpeg($newImage['tmp_name']);
+                break;
+            case IMAGETYPE_PNG:
+                $sourceImage = imagecreatefrompng($newImage['tmp_name']);
+                break;
+            case IMAGETYPE_GIF:
+                $sourceImage = imagecreatefromgif($newImage['tmp_name']);
+                break;
+            case IMAGETYPE_WEBP:
+                $sourceImage = imagecreatefromwebp($newImage['tmp_name']);
+                break;
+            default:
+                echo json_encode(['success' => false, 'error' => 'Unsupported image type.']);
+                exit;
+        }
+
+        if ($sourceImage === false) {
+            echo json_encode(['success' => false, 'error' => 'Failed to create image resource.']);
+            exit;
+        }
+
+        // Get original dimensions
+        $originalWidth = imagesx($sourceImage);
+        $originalHeight = imagesy($sourceImage);
+
+        // Calculate new dimensions while maintaining aspect ratio
+        // Target: 800x600 max for homepage content
+        $maxWidth = 800;
+        $maxHeight = 600;
+        
+        $ratio = min($maxWidth / $originalWidth, $maxHeight / $originalHeight);
+        $newWidth = (int)($originalWidth * $ratio);
+        $newHeight = (int)($originalHeight * $ratio);
+
+        // Create new image with calculated dimensions
+        $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+        
+        // Preserve transparency for PNG and GIF
+        if ($imageInfo[2] == IMAGETYPE_PNG || $imageInfo[2] == IMAGETYPE_GIF || $imageInfo[2] == IMAGETYPE_WEBP) {
+            imagealphablending($resizedImage, false);
+            imagesavealpha($resizedImage, true);
+            $transparent = imagecolorallocatealpha($resizedImage, 255, 255, 255, 127);
+            imagefill($resizedImage, 0, 0, $transparent);
+        }
+
+        // Resize with high quality
+        imagecopyresampled($resizedImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
+
+        // Save the optimized image
+        $saved = false;
+        switch ($imageInfo[2]) {
+            case IMAGETYPE_JPEG:
+                $saved = imagejpeg($resizedImage, $targetFilePath, 92); // High quality JPEG
+                break;
+            case IMAGETYPE_PNG:
+                $saved = imagepng($resizedImage, $targetFilePath, 2); // High quality PNG
+                break;
+            case IMAGETYPE_GIF:
+                $saved = imagegif($resizedImage, $targetFilePath);
+                break;
+            case IMAGETYPE_WEBP:
+                $saved = imagewebp($resizedImage, $targetFilePath, 92); // High quality WebP
+                break;
+        }
+
+        // Clean up memory
+        imagedestroy($sourceImage);
+        imagedestroy($resizedImage);
+
+        if ($saved) {
             // Delete old image
             $oldPath = '../' . $dbFilePath;
             if (file_exists($oldPath)) {
@@ -40,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id']) && isset($_POST
             $dbFilePath = 'uploads/Homepage contents/' . $fileName;
             $updateImage = true;
         } else {
-            echo json_encode(['success' => false, 'error' => 'Failed to upload new image.']);
+            echo json_encode(['success' => false, 'error' => 'Failed to save optimized image.']);
             exit;
         }
     }

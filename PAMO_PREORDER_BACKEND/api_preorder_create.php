@@ -25,9 +25,81 @@ try {
         $targetDir = __DIR__ . '/../uploads/preorder/';
         if (!is_dir($targetDir)) mkdir($targetDir, 0777, true);
         $targetPath = $targetDir . $fileName;
-        if (!move_uploaded_file($_FILES['image']['tmp_name'], $targetPath)) {
-            throw new Exception('Failed to save uploaded image');
+        
+        // Process and optimize the image (same logic as add_item.php)
+        $imageInfo = getimagesize($_FILES['image']['tmp_name']);
+        if ($imageInfo === false) {
+            throw new Exception('Invalid image file');
         }
+
+        // Create image resource based on type
+        switch ($imageInfo[2]) {
+            case IMAGETYPE_JPEG:
+                $sourceImage = imagecreatefromjpeg($_FILES['image']['tmp_name']);
+                break;
+            case IMAGETYPE_PNG:
+                $sourceImage = imagecreatefrompng($_FILES['image']['tmp_name']);
+                break;
+            case IMAGETYPE_GIF:
+                $sourceImage = imagecreatefromgif($_FILES['image']['tmp_name']);
+                break;
+            default:
+                throw new Exception('Unsupported image type');
+        }
+
+        if ($sourceImage === false) {
+            throw new Exception('Failed to create image resource');
+        }
+
+        // Get original dimensions
+        $originalWidth = imagesx($sourceImage);
+        $originalHeight = imagesy($sourceImage);
+
+        // Calculate new dimensions while maintaining aspect ratio
+        // Target: 600x800 max for high quality display
+        $maxWidth = 600;
+        $maxHeight = 800;
+        
+        $ratio = min($maxWidth / $originalWidth, $maxHeight / $originalHeight);
+        $newWidth = (int)($originalWidth * $ratio);
+        $newHeight = (int)($originalHeight * $ratio);
+
+        // Create new image with calculated dimensions
+        $resizedImage = imagecreatetruecolor($newWidth, $newHeight);
+        
+        // Preserve transparency for PNG and GIF
+        if ($imageInfo[2] == IMAGETYPE_PNG || $imageInfo[2] == IMAGETYPE_GIF) {
+            imagealphablending($resizedImage, false);
+            imagesavealpha($resizedImage, true);
+            $transparent = imagecolorallocatealpha($resizedImage, 255, 255, 255, 127);
+            imagefill($resizedImage, 0, 0, $transparent);
+        }
+
+        // Resize with high quality
+        imagecopyresampled($resizedImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
+
+        // Save the optimized image
+        $saved = false;
+        switch ($imageInfo[2]) {
+            case IMAGETYPE_JPEG:
+                $saved = imagejpeg($resizedImage, $targetPath, 92); // High quality JPEG
+                break;
+            case IMAGETYPE_PNG:
+                $saved = imagepng($resizedImage, $targetPath, 2); // High quality PNG
+                break;
+            case IMAGETYPE_GIF:
+                $saved = imagegif($resizedImage, $targetPath);
+                break;
+        }
+
+        // Clean up memory
+        imagedestroy($sourceImage);
+        imagedestroy($resizedImage);
+
+        if (!$saved) {
+            throw new Exception('Failed to save optimized image');
+        }
+        
         $imagePath = 'uploads/preorder/' . $fileName;
     }
 

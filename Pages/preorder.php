@@ -1,3 +1,7 @@
+<?php
+include("../Includes/sessionStart.php");
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>

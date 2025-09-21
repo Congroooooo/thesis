@@ -1,3 +1,7 @@
+<?php
+include("../Includes/sessionStart.php");
+include("../Includes/loader.php");
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -20,45 +24,12 @@
             padding: 0;
             box-sizing: border-box;
         }
-
-        /* 
-        .navbar .icons .icon {
-            position: relative;
-        }
-
-        .navbar .icons .icon .cart-count,
-        .navbar .icons .icon .notification-count {
-            position: absolute;
-            top: -5px;
-            right: -12px;
-            background-color: #ff4444;
-            color: white;
-            font-size: 0.65rem;
-            font-weight: 500;
-            padding: 2px;
-            border-radius: 8px;
-            min-width: 15px;
-            height: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid white;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-        }
-
-        .about-wrapper .cart-count,
-        .about-wrapper .notification-count {
-            all: unset;
-        }
-        */
     </style>
 </head>
 <body>
     <?php include '../Includes/Header.php'; ?>
 
     <div class="about-wrapper">
-        <!-- Hero Section -->
         <div class="hero-section" data-aos="fade-up">
             <div class="hero-content">
                 <h1>About PAMO</h1>
@@ -67,7 +38,6 @@
         </div>
 
         <div class="about-container">
-            <!-- What is PAMO Section -->
             <section class="content-section" data-aos="fade-up">
                 <div class="section-header">
                     <i class="fas fa-scroll"></i>
@@ -79,7 +49,6 @@
                 </div>
             </section>
 
-            <!-- Why Choose PAMO Section -->
             <section class="content-section benefits-section" data-aos="fade-up">
                 <div class="section-header">
                     <i class="fas fa-star"></i>
@@ -109,7 +78,6 @@
                 </div>
             </section>
 
-            <!-- Mission & Vision Section -->
             <section class="content-section mission-section" data-aos="fade-up">
                 <div class="section-header">
                     <i class="fas fa-bullseye"></i>
@@ -127,7 +95,6 @@
                 </div>
             </section>
 
-            <!-- How to Use Section -->
             <section class="content-section guide-section" data-aos="fade-up">
                 <div class="section-header">
                     <i class="fas fa-book"></i>

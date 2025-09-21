@@ -3,11 +3,12 @@ ini_set('zlib.output_compression', 0);
 if (ob_get_level()) ob_end_clean();
 
 require __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../../Includes/connection.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-$conn = mysqli_connect("localhost", "root", "", "proware");
+// Use the PDO connection from connection.php
 
 include_once __DIR__ . '/config_functions.php';
 $lowStockThreshold = getLowStockThreshold($conn);
@@ -19,29 +20,50 @@ $status = isset($_GET['status']) ? trim($_GET['status']) : '';
 $startDate = isset($_GET['startDate']) ? trim($_GET['startDate']) : '';
 $endDate = isset($_GET['endDate']) ? trim($_GET['endDate']) : '';
 
-$where = [];
-if ($category) $where[] = "category = '" . mysqli_real_escape_string($conn, $category) . "'";
-if ($size) $where[] = "sizes = '" . mysqli_real_escape_string($conn, $size) . "'";
+$where_conditions = [];
+$params = [];
+
+if ($category) {
+    $where_conditions[] = "category = ?";
+    $params[] = $category;
+}
+if ($size) {
+    $where_conditions[] = "sizes = ?";
+    $params[] = $size;
+}
 if ($status) {
-    if ($status == 'In Stock') $where[] = "actual_quantity > $lowStockThreshold";
-    else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= $lowStockThreshold";
-    else if ($status == 'Out of Stock') $where[] = "actual_quantity <= 0";
+    if ($status == 'In Stock') {
+        $where_conditions[] = "actual_quantity > ?";
+        $params[] = $lowStockThreshold;
+    }
+    else if ($status == 'Low Stock') {
+        $where_conditions[] = "actual_quantity > 0 AND actual_quantity <= ?";
+        $params[] = $lowStockThreshold;
+    }
+    else if ($status == 'Out of Stock') {
+        $where_conditions[] = "actual_quantity <= 0";
+    }
 }
 if ($search) {
-    $s = mysqli_real_escape_string($conn, $search);
-    $where[] = "(item_name LIKE '%$s%' OR item_code LIKE '%$s%')";
+    $where_conditions[] = "(item_name LIKE ? OR item_code LIKE ?)";
+    $params[] = "%$search%";
+    $params[] = "%$search%";
 }
 if ($startDate) {
-    $where[] = "DATE(created_at) >= '" . mysqli_real_escape_string($conn, $startDate) . "'";
+    $where_conditions[] = "DATE(created_at) >= ?";
+    $params[] = $startDate;
 }
 if ($endDate) {
-    $where[] = "DATE(created_at) <= '" . mysqli_real_escape_string($conn, $endDate) . "'";
+    $where_conditions[] = "DATE(created_at) <= ?";
+    $params[] = $endDate;
 }
-$where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+$where_clause = $where_conditions ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
 
 $sql = "SELECT item_code, item_name, category, beginning_quantity, new_delivery, actual_quantity, damage, sold_quantity, IFNULL(date_delivered, created_at) AS display_date FROM inventory $where_clause ORDER BY display_date DESC";
 
-$result = mysqli_query($conn, $sql);
+$stmt = $conn->prepare($sql);
+$stmt->execute($params);
+$result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
@@ -52,7 +74,7 @@ $sheet->fromArray($headers, NULL, 'A1');
 $sheet->getStyle('A1:J1')->getFont()->setBold(true);
 
 $rowNum = 2;
-while ($row = mysqli_fetch_assoc($result)) {
+foreach ($result as $row) {
     if ($row['actual_quantity'] <= 0) {
         $status = 'Out of Stock';
     } else if ($row['actual_quantity'] <= $lowStockThreshold) {
