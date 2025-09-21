@@ -2,6 +2,7 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+include("../Includes/loader.php");
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {

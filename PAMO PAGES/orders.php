@@ -2,10 +2,21 @@
 session_start();
 require_once '../Includes/connection.php';
 
-// Get status from URL parameter or filter dropdown
+
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../Pages/login.php?redirect=../PAMO PAGES/orders.php");
+    exit();
+}
+$role = strtoupper($_SESSION['role_category'] ?? '');
+$programAbbr = strtoupper($_SESSION['program_abbreviation'] ?? '');
+if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
+    header("Location: ../Pages/home.php");
+    exit();
+}
+
 $status = isset($_GET['status']) ? $_GET['status'] : '';
 
-// Build the query based on status
 $query = "
     SELECT po.*, a.first_name, a.last_name, a.email, a.program_or_position, a.id_number
     FROM orders po

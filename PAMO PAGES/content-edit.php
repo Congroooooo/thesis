@@ -1,7 +1,19 @@
 <?php
 session_start();
-include '../Includes/connection.php'; // Add DB connection for image preview
-// Feedback message logic
+include '../Includes/connection.php';
+
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../Pages/login.php?redirect=../PAMO PAGES/content-edit.php");
+    exit();
+}
+$role = strtoupper($_SESSION['role_category'] ?? '');
+$programAbbr = strtoupper($_SESSION['program_abbreviation'] ?? '');
+if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
+    header("Location: ../Pages/home.php");
+    exit();
+}
+
 $feedback = '';
 if (isset($_GET['success'])) {
     $feedback = '<div class="alert success" id="feedbackMsg">Image uploaded successfully.<span class="close-btn" onclick="this.parentElement.style.display=\'none\';">&times;</span></div>';

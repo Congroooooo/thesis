@@ -2,6 +2,18 @@
 session_start();
 include 'includes/config_functions.php';
 
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../Pages/login.php?redirect=../PAMO PAGES/inventory.php");
+    exit();
+}
+$role = strtoupper($_SESSION['role_category'] ?? '');
+$programAbbr = strtoupper($_SESSION['program_abbreviation'] ?? '');
+if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
+    header("Location: ../Pages/home.php");
+    exit();
+}
+
 $query_params = $_GET;
 unset($query_params['page']);
 $query_string = http_build_query($query_params);

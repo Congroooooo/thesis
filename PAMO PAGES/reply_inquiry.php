@@ -3,7 +3,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 header('Content-Type: application/json');
-// Robust PAMO authorization: accept abbreviation or full name containing PAMO
+
 $isPamo = false;
 if (isset($_SESSION['program_abbreviation']) && strtoupper(trim($_SESSION['program_abbreviation'])) === 'PAMO') {
     $isPamo = true;

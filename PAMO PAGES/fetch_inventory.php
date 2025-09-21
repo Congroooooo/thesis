@@ -1,5 +1,17 @@
 <?php
-// fetch_inventory.php: Returns only the <tbody> and pagination HTML for the inventory table based on filters
+
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../Pages/login.php?redirect=../PAMO PAGES/fetch_inventory.php");
+    exit();
+}
+$role = strtoupper($_SESSION['role_category'] ?? '');
+$programAbbr = strtoupper($_SESSION['program_abbreviation'] ?? '');
+if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
+    header("Location: ../Pages/home.php");
+    exit();
+}
+
 $conn = mysqli_connect("localhost", "root", "", "proware");
 if (!$conn) {
     http_response_code(500);

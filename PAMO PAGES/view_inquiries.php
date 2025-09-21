@@ -1,11 +1,18 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../Pages/login.php?redirect=../PAMO PAGES/content-edit.php");
+    exit();
+}
+$role = strtoupper($_SESSION['role_category'] ?? '');
+$programAbbr = strtoupper($_SESSION['program_abbreviation'] ?? '');
+if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
+    header("Location: ../Pages/home.php");
+    exit();
 }
 require_once '../Includes/connection.php';
 $basePath = '';
 include 'includes/sidebar.php';
-// TODO: Add authentication check for PAMO/admin
 $sql = "SELECT inquiries.id, inquiries.question, inquiries.submitted_at, inquiries.status, inquiries.reply, account.first_name, account.last_name, account.email, account.id_number
         FROM inquiries
         JOIN account ON inquiries.user_id = account.id

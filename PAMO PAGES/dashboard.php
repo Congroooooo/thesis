@@ -3,6 +3,19 @@ session_start();
 include 'includes/config_functions.php';
 include '../includes/connection.php';
 
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../Pages/login.php?redirect=../PAMO PAGES/dashboard.php");
+    exit();
+}
+$role = strtoupper($_SESSION['role_category'] ?? '');
+$programAbbr = strtoupper($_SESSION['program_abbreviation'] ?? '');
+if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
+    header("Location: ../Pages/home.php");
+    exit();
+}
+
+
 $total_items_query = "SELECT SUM(actual_quantity) as total FROM inventory";
 $total_result = $conn->query($total_items_query);
 $total_items = $total_result->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
