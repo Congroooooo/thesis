@@ -14,6 +14,43 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
     exit();
 }
 
+// Database connection and queries for dropdowns
+$mysqli_conn = mysqli_connect("localhost", "root", "", "proware");
+if (!$mysqli_conn) {
+    die("Connection failed: " . mysqli_connect_error());
+}
+
+// Fetch distinct categories for the filter dropdown
+$categories_query = "SELECT DISTINCT category FROM inventory WHERE category IS NOT NULL AND category != '' ORDER BY category ASC";
+$categories_result = mysqli_query($mysqli_conn, $categories_query);
+$categories = [];
+while ($row = mysqli_fetch_assoc($categories_result)) {
+    $categories[] = $row['category'];
+}
+
+// Fetch distinct sizes for the filter dropdown
+$sizes_query = "SELECT DISTINCT sizes FROM inventory WHERE sizes IS NOT NULL AND sizes != '' ORDER BY 
+    CASE 
+        WHEN sizes = 'XS' THEN 1
+        WHEN sizes = 'S' THEN 2
+        WHEN sizes = 'M' THEN 3
+        WHEN sizes = 'L' THEN 4
+        WHEN sizes = 'XL' THEN 5
+        WHEN sizes = 'XXL' THEN 6
+        WHEN sizes = '3XL' THEN 7
+        WHEN sizes = '4XL' THEN 8
+        WHEN sizes = '5XL' THEN 9
+        WHEN sizes = '6XL' THEN 10
+        WHEN sizes = '7XL' THEN 11
+        WHEN sizes = 'One Size' THEN 12
+        ELSE 13
+    END ASC";
+$sizes_result = mysqli_query($mysqli_conn, $sizes_query);
+$sizes = [];
+while ($row = mysqli_fetch_assoc($sizes_result)) {
+    $sizes[] = $row['sizes'];
+}
+
 $query_params = $_GET;
 unset($query_params['page']);
 $query_string = http_build_query($query_params);
@@ -170,47 +207,14 @@ function page_link($page, $query_string) {
                       </thead>
                       <tbody>
                           <?php
-                          $conn = mysqli_connect("localhost", "root", "", "proware");
-
-                          if (!$conn) {
+                          if (!$mysqli_conn) {
                               die("Connection failed: " . mysqli_connect_error());
                           }
 
-                          // Fetch distinct categories for the filter dropdown
-                          $categories_query = "SELECT DISTINCT category FROM inventory WHERE category IS NOT NULL AND category != '' ORDER BY category ASC";
-                          $categories_result = mysqli_query($conn, $categories_query);
-                          $categories = [];
-                          while ($row = mysqli_fetch_assoc($categories_result)) {
-                              $categories[] = $row['category'];
-                          }
-
-                          // Fetch distinct sizes for the filter dropdown
-                          $sizes_query = "SELECT DISTINCT sizes FROM inventory WHERE sizes IS NOT NULL AND sizes != '' ORDER BY 
-                              CASE 
-                                  WHEN sizes = 'XS' THEN 1
-                                  WHEN sizes = 'S' THEN 2
-                                  WHEN sizes = 'M' THEN 3
-                                  WHEN sizes = 'L' THEN 4
-                                  WHEN sizes = 'XL' THEN 5
-                                  WHEN sizes = 'XXL' THEN 6
-                                  WHEN sizes = '3XL' THEN 7
-                                  WHEN sizes = '4XL' THEN 8
-                                  WHEN sizes = '5XL' THEN 9
-                                  WHEN sizes = '6XL' THEN 10
-                                  WHEN sizes = '7XL' THEN 11
-                                  WHEN sizes = 'One Size' THEN 12
-                                  ELSE 13
-                              END ASC";
-                          $sizes_result = mysqli_query($conn, $sizes_query);
-                          $sizes = [];
-                          while ($row = mysqli_fetch_assoc($sizes_result)) {
-                              $sizes[] = $row['sizes'];
-                          }
-
-                          $category = isset($_GET['category']) ? mysqli_real_escape_string($conn, $_GET['category']) : '';
-                          $size = isset($_GET['size']) ? mysqli_real_escape_string($conn, $_GET['size']) : '';
-                          $status = isset($_GET['status']) ? mysqli_real_escape_string($conn, $_GET['status']) : '';
-                          $search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
+                          $category = isset($_GET['category']) ? mysqli_real_escape_string($mysqli_conn, $_GET['category']) : '';
+                          $size = isset($_GET['size']) ? mysqli_real_escape_string($mysqli_conn, $_GET['size']) : '';
+                          $status = isset($_GET['status']) ? mysqli_real_escape_string($mysqli_conn, $_GET['status']) : '';
+                          $search = isset($_GET['search']) ? mysqli_real_escape_string($mysqli_conn, $_GET['search']) : '';
 
                           $where = [];
                           if ($category) $where[] = "category = '$category'";
@@ -229,13 +233,13 @@ function page_link($page, $query_string) {
                           $offset = ($page - 1) * $limit;
 
                           $total_sql = "SELECT COUNT(*) as total FROM inventory $where_clause";
-                          $total_result = mysqli_query($conn, $total_sql);
+                          $total_result = mysqli_query($mysqli_conn, $total_sql);
                           $total_row = mysqli_fetch_assoc($total_result);
                           $total_items = $total_row['total'];
                           $total_pages = ceil($total_items / $limit);
 
                           $sql = "SELECT * FROM inventory $where_clause ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
-                          $result = mysqli_query($conn, $sql);
+                          $result = mysqli_query($mysqli_conn, $sql);
 
                           $lowStockThreshold = getLowStockThreshold($conn);
 
@@ -263,7 +267,7 @@ function page_link($page, $query_string) {
                               echo "<!-- Item Code: " . $row['item_code'] . " -->";
                               echo "</tr>";
                           }
-                          mysqli_close($conn);
+                          mysqli_close($mysqli_conn);
                           ?>
                       </tbody>
                   </table>
@@ -411,7 +415,7 @@ function page_link($page, $query_string) {
                     </div>
                     <div class="input-group">
                         <label for="newItemQuantity">Initial Stock:</label>
-                        <input type="number" id="newItemQuantity" name="newItemQuantity" min="1" required>
+                        <input type="number" id="newItemQuantity" name="newItemQuantity" min="0" required>
                     </div>
                     <div class="input-group">
                         <label for="newItemDamage">Damaged Items:</label>
@@ -694,7 +698,7 @@ function page_link($page, $query_string) {
                                 </div>
                                 <div class="input-group">
                                     <label for="newQuantity">Initial Stock:</label>
-                                    <input type="number" name="newQuantity[]" min="0" required>
+                                    <input type="number" name="newQuantity[]" min="1" required>
                                 </div>
                                 <div class="input-group">
                                     <label for="newDamage">Damaged Items:</label>

@@ -221,13 +221,16 @@ function submitNewItemSize(event) {
   entries.forEach((entry) => {
     const size = entry.querySelector("select[name='newSize[]']").value;
     const quantity = entry.querySelector("input[name='newQuantity[]']").value;
-    if (!size || !quantity) {
+    const quantityNum = parseInt(quantity);
+    if (!size || !quantity || quantityNum < 1) {
       isValid = false;
     }
   });
 
   if (!isValid) {
-    alert("Please fill in all required fields for each size entry");
+    alert(
+      "Please fill in all required fields for each size entry and ensure initial stock is at least 1"
+    );
     return;
   }
 

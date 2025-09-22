@@ -1,33 +1,25 @@
 Array
 (
-    [deliveryOrderNumber] => 123
-    [existingItem] => USHPP001
+    [deliveryOrderNumber] => 123123
+    [existingItem] => USHPWV001
     [newSize] => Array
         (
             [0] => XS
-            [1] => M
-            [2] => L
         )
 
     [newItemCode] => Array
         (
-            [0] => USHPP001-001
-            [1] => USHPP001-003
-            [2] => USHPP001-004
+            [0] => USHPWV001-001
         )
 
     [newQuantity] => Array
         (
-            [0] => 5
-            [1] => 3
-            [2] => 2
+            [0] => 12
         )
 
     [newDamage] => Array
         (
             [0] => 0
-            [1] => 0
-            [2] => 0
         )
 
 )

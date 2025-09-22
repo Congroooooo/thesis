@@ -48,9 +48,10 @@
                 }
             }
             if ($resolved === null) {
-                // Try to reuse any image for this item code
-                $stmt2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code = ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
-                $stmt2->execute([$cart_item['item_code']]);
+                // Try to reuse any image for this item code prefix (for size variants)
+                $prefix = explode('-', $cart_item['item_code'])[0];
+                $stmt2 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code LIKE ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
+                $stmt2->execute([$prefix . '%']);
                 $row2 = $stmt2->fetch(PDO::FETCH_ASSOC);
                 if ($row2 && !empty($row2['image_path'])) {
                     $name = basename($row2['image_path']);
@@ -84,6 +85,21 @@
                         $resolved = 'uploads/itemlist/' . $name;
                     } elseif (file_exists($candidateRaw)) {
                         $resolved = ltrim($image_path, './');
+                    }
+                }
+                if ($resolved === null) {
+                    // Try to find image by prefix (for size variants)
+                    $prefix = explode('-', $cart_item['item_code'])[0];
+                    $stmt3 = $conn->prepare("SELECT image_path FROM inventory WHERE item_code LIKE ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
+                    $stmt3->execute([$prefix . '%']);
+                    $row3 = $stmt3->fetch(PDO::FETCH_ASSOC);
+                    if ($row3 && !empty($row3['image_path'])) {
+                        $name = basename($row3['image_path']);
+                        if (file_exists(__DIR__ . '/../uploads/itemlist/' . $name)) {
+                            $resolved = 'uploads/itemlist/' . $name;
+                        } elseif (file_exists(__DIR__ . '/../' . ltrim($row3['image_path'], '/'))) {
+                            $resolved = ltrim($row3['image_path'], './');
+                        }
                     }
                 }
                 if ($resolved === null) {

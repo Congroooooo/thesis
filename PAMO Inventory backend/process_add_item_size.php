@@ -17,7 +17,7 @@ if (empty($existingItem) || empty($newSizes) || empty($newItemCodes) || empty($n
     exit;
 }
 
-$sql = "SELECT item_name, category, price FROM inventory WHERE item_code LIKE ? LIMIT 1";
+$sql = "SELECT item_name, category, price, image_path FROM inventory WHERE item_code LIKE ? LIMIT 1";
 $stmt = $conn->prepare($sql);
 $prefix = $existingItem . '%';
 $stmt->execute([$prefix]);
@@ -50,8 +50,8 @@ try {
             continue;
         }
 
-        $sql = "INSERT INTO inventory (item_code, item_name, category, sizes, actual_quantity, damage, price, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+        $sql = "INSERT INTO inventory (item_code, item_name, category, sizes, actual_quantity, damage, price, image_path, created_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
         $stmt = $conn->prepare($sql);
         if (!$stmt->execute([
             $newItemCode,
@@ -60,7 +60,8 @@ try {
             $newSize,
             $newQuantity,
             $newDamage,
-            $originalItem['price']
+            $originalItem['price'],
+            $originalItem['image_path']
         ])) {
             $errors[] = "Error adding size {$newSize}";
             continue;

@@ -46,14 +46,12 @@
             <button class="clear-filters" id="clearFiltersBtn" type="button">Clear Filters</button>
 
             <?php
-            require_once '../Includes/connection.php'; // PDO $conn
+            require_once '../Includes/connection.php';
 
             $sql = "SELECT inventory.* FROM inventory ORDER BY inventory.created_at DESC";
             $result = $conn->query($sql);
 
             $products = [];
-
-            // Shirt types are now represented by subcategories; no separate query
 
             while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $itemCode = $row['item_code'];
@@ -71,14 +69,53 @@
                 $subStmt->execute([intval($row['id'])]);
                 while ($srow = $subStmt->fetch(PDO::FETCH_ASSOC)) { $subcats[] = (string)$srow['id']; }
 
+                // Enhanced image resolution logic
+                $itemImage = '';
                 if (!empty($imagePath)) {
+                    // Check if the image path points to an existing file
+                    $resolvedPath = '';
                     if (strpos($imagePath, 'uploads/') === false) {
-                        $itemImage = '../uploads/itemlist/' . $imagePath;
+                        $candidateItemlist = __DIR__ . '/../uploads/itemlist/' . $imagePath;
+                        if (file_exists($candidateItemlist)) {
+                            $resolvedPath = '../uploads/itemlist/' . $imagePath;
+                        }
                     } else {
-                        $itemImage = '../' . $imagePath;
+                        $candidateRaw = __DIR__ . '/../' . ltrim($imagePath, '/');
+                        if (file_exists($candidateRaw)) {
+                            $resolvedPath = '../' . ltrim($imagePath, '/');
+                        }
                     }
-                } else {
-                    $itemImage = '';
+                    $itemImage = $resolvedPath;
+                }
+                
+                // Fallback: Try to find any image for this product prefix
+                if (empty($itemImage)) {
+                    try {
+                        $stmt = $conn->prepare("SELECT image_path FROM inventory WHERE item_code LIKE ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
+                        $stmt->execute([$baseItemCode . '%']);
+                        $fallbackRow = $stmt->fetch(PDO::FETCH_ASSOC);
+                        if ($fallbackRow && !empty($fallbackRow['image_path'])) {
+                            $fbImagePath = $fallbackRow['image_path'];
+                            if (strpos($fbImagePath, 'uploads/') === false) {
+                                $candidateItemlist = __DIR__ . '/../uploads/itemlist/' . $fbImagePath;
+                                if (file_exists($candidateItemlist)) {
+                                    $itemImage = '../uploads/itemlist/' . $fbImagePath;
+                                }
+                            } else {
+                                $candidateRaw = __DIR__ . '/../' . ltrim($fbImagePath, '/');
+                                if (file_exists($candidateRaw)) {
+                                    $itemImage = '../' . ltrim($fbImagePath, '/');
+                                }
+                            }
+                        }
+                    } catch (Exception $e) {
+                        // Fallback failed, continue with empty image
+                    }
+                }
+                
+                // Final fallback to default image
+                if (empty($itemImage)) {
+                    $itemImage = file_exists(__DIR__ . '/../uploads/itemlist/default.png') ? '../uploads/itemlist/default.png' : '../uploads/itemlist/default.jpg';
                 }
 
                 if (!isset($products[$baseItemCode])) {
@@ -107,10 +144,10 @@
                     $products[$baseItemCode]['stock'] += $row['actual_quantity'];
                     $products[$baseItemCode]['courses'] = array_unique(array_merge($products[$baseItemCode]['courses'], $courses));
                     $products[$baseItemCode]['subcategories'] = array_unique(array_merge($products[$baseItemCode]['subcategories'], $subcats));
-                    $variantImage = $itemImage;
-                    if (empty($variantImage)) {
-                        $variantImage = $products[$baseItemCode]['image'];
-                    }
+                    
+                    // Use the current variant's image if available, otherwise use the main product image
+                    $variantImage = !empty($itemImage) ? $itemImage : $products[$baseItemCode]['image'];
+                    
                     $products[$baseItemCode]['variants'][] = [
                         'item_code' => $itemCode,
                         'size' => isset($sizes[0]) ? $sizes[0] : '',
@@ -118,6 +155,11 @@
                         'stock' => $row['actual_quantity'],
                         'image' => $variantImage
                     ];
+                    
+                    // Update the main product image if it was empty and we now have a valid image
+                    if (empty($products[$baseItemCode]['image']) && !empty($itemImage)) {
+                        $products[$baseItemCode]['image'] = $itemImage;
+                    }
                 }
             }
             ?>
