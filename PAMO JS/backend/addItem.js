@@ -3,6 +3,20 @@
 function showAddItemModal() {
   document.getElementById("addItemModal").style.display = "flex";
   document.getElementById("addItemForm").reset();
+
+  // Reset size selections and details
+  const sizeCheckboxes = document.querySelectorAll(
+    '.size-checkboxes input[type="checkbox"]'
+  );
+  sizeCheckboxes.forEach((checkbox) => {
+    checkbox.checked = false;
+  });
+
+  const sizeDetailsContainer = document.getElementById("sizeDetailsContainer");
+  const sizeDetailsList = document.getElementById("sizeDetailsList");
+  if (sizeDetailsContainer) sizeDetailsContainer.classList.remove("show");
+  if (sizeDetailsList) sizeDetailsList.innerHTML = "";
+
   // reset subcategory area
   const subGroup = document.getElementById("subcategoryGroup");
   if (subGroup) subGroup.style.display = "none";
@@ -18,25 +32,207 @@ function showAddItemModal() {
   if (typeof loadCategories === "function") loadCategories();
 }
 
+function toggleSizeDetails(checkbox) {
+  const sizeDetailsContainer = document.getElementById("sizeDetailsContainer");
+  const sizeDetailsList = document.getElementById("sizeDetailsList");
+
+  if (checkbox.checked) {
+    // Add size detail form
+    addSizeDetailForm(checkbox.value);
+    // Sort the size details after adding
+    sortSizeDetails();
+    sizeDetailsContainer.classList.add("show");
+  } else {
+    // Remove size detail form
+    removeSizeDetailForm(checkbox.value);
+
+    // Hide container if no sizes selected
+    const checkedSizes = document.querySelectorAll(
+      '.size-checkboxes input[type="checkbox"]:checked'
+    );
+    if (checkedSizes.length === 0) {
+      sizeDetailsContainer.classList.remove("show");
+    }
+  }
+}
+
+function addSizeDetailForm(size) {
+  const sizeDetailsList = document.getElementById("sizeDetailsList");
+  const baseItemCode =
+    document.getElementById("newProductItemCode").value || "BASE";
+
+  // Generate size-specific item code (using getSizeNumber for item codes)
+  const sizeNumber = getSizeNumber(size);
+  const generatedCode = `${baseItemCode}-${sizeNumber
+    .toString()
+    .padStart(3, "0")}`;
+
+  // Get display order for sorting (separate from item code generation)
+  const displayOrder = getSizeDisplayOrder(size);
+
+  const sizeDetailHtml = `
+    <div class="size-detail-item" data-size="${size}" data-size-order="${displayOrder}">
+      <div class="size-detail-header">
+        <h4>Size: ${size}</h4>
+        <span class="generated-code">Code: ${generatedCode}</span>
+      </div>
+      <div class="size-detail-form">
+        <div class="input-group">
+          <label for="price_${size}">Price:</label>
+          <input type="number" id="price_${size}" name="sizes[${size}][price]" min="0" step="0.01" required>
+        </div>
+        <div class="input-group">
+          <label for="quantity_${size}">Initial Stock:</label>
+          <input type="number" id="quantity_${size}" name="sizes[${size}][quantity]" min="0" required>
+        </div>
+        <div class="input-group">
+          <label for="damage_${size}">Damaged Items:</label>
+          <input type="number" id="damage_${size}" name="sizes[${size}][damage]" min="0" value="0">
+        </div>
+      </div>
+      <input type="hidden" name="sizes[${size}][item_code]" value="${generatedCode}">
+      <input type="hidden" name="sizes[${size}][size]" value="${size}">
+    </div>
+  `;
+
+  sizeDetailsList.insertAdjacentHTML("beforeend", sizeDetailHtml);
+}
+
+function sortSizeDetails() {
+  const sizeDetailsList = document.getElementById("sizeDetailsList");
+  const sizeItems = Array.from(
+    sizeDetailsList.querySelectorAll(".size-detail-item")
+  );
+
+  // Sort by size order (data-size-order attribute)
+  sizeItems.sort((a, b) => {
+    const orderA = parseInt(a.dataset.sizeOrder);
+    const orderB = parseInt(b.dataset.sizeOrder);
+    return orderA - orderB;
+  });
+
+  // Clear the container and re-append in sorted order
+  sizeDetailsList.innerHTML = "";
+  sizeItems.forEach((item) => {
+    sizeDetailsList.appendChild(item);
+  });
+}
+
+function removeSizeDetailForm(size) {
+  const sizeDetailItem = document.querySelector(`[data-size="${size}"]`);
+  if (sizeDetailItem) {
+    sizeDetailItem.remove();
+  }
+}
+
+function getSizeNumber(size) {
+  const sizeMap = {
+    XS: 1,
+    S: 2,
+    M: 3,
+    L: 4,
+    XL: 5,
+    XXL: 6,
+    "3XL": 7,
+    "4XL": 8,
+    "5XL": 9,
+    "6XL": 10,
+    "7XL": 11,
+    "One Size": 12,
+  };
+  return sizeMap[size] || 999;
+}
+
+function getSizeDisplayOrder(size) {
+  const displayOrderMap = {
+    "One Size": 0, // Display "One Size" first
+    XS: 1,
+    S: 2,
+    M: 3,
+    L: 4,
+    XL: 5,
+    XXL: 6,
+    "3XL": 7,
+    "4XL": 8,
+    "5XL": 9,
+    "6XL": 10,
+    "7XL": 11,
+  };
+  return displayOrderMap[size] || 999;
+}
+
+// Update generated codes when base item code changes
+function updateGeneratedCodes() {
+  const baseItemCode =
+    document.getElementById("newProductItemCode").value || "BASE";
+  const sizeDetails = document.querySelectorAll(".size-detail-item");
+
+  sizeDetails.forEach((item) => {
+    const size = item.dataset.size;
+    const sizeNumber = getSizeNumber(size);
+    const generatedCode = `${baseItemCode}-${sizeNumber
+      .toString()
+      .padStart(3, "0")}`;
+
+    // Update displayed code
+    const codeSpan = item.querySelector(".generated-code");
+    if (codeSpan) codeSpan.textContent = `Code: ${generatedCode}`;
+
+    // Update hidden input
+    const hiddenInput = item.querySelector(
+      `input[name="sizes[${size}][item_code]"]`
+    );
+    if (hiddenInput) hiddenInput.value = generatedCode;
+  });
+}
+
 function submitNewItem(event) {
   event.preventDefault();
 
-  const quantity = parseInt(document.getElementById("newItemQuantity").value);
-  const damage = parseInt(document.getElementById("newItemDamage").value) || 0;
   const form = document.getElementById("addItemForm");
   const formData = new FormData(form);
 
+  // Validate required basic fields
   if (
-    !formData.get("newItemCode") ||
+    !formData.get("deliveryOrderNumber") ||
+    !formData.get("baseItemCode") ||
     !formData.get("category_id") ||
-    !formData.get("newItemName") ||
-    !formData.get("newSize") ||
-    isNaN(formData.get("newItemPrice")) ||
-    isNaN(formData.get("newItemQuantity"))
+    !formData.get("newItemName")
   ) {
-    alert("Please fill in all required fields with valid values");
+    alert("Please fill in all required basic product information");
     return;
   }
+
+  // Check if at least one size is selected
+  const checkedSizes = document.querySelectorAll(
+    '.size-checkboxes input[type="checkbox"]:checked'
+  );
+  if (checkedSizes.length === 0) {
+    alert("Please select at least one size for the product");
+    return;
+  }
+
+  // Validate all size detail forms
+  let allSizeDetailsValid = true;
+  checkedSizes.forEach((checkbox) => {
+    const size = checkbox.value;
+    const priceInput = document.getElementById(`price_${size}`);
+    const quantityInput = document.getElementById(`quantity_${size}`);
+
+    if (!priceInput.value || parseFloat(priceInput.value) <= 0) {
+      alert(`Please enter a valid price for size ${size}`);
+      allSizeDetailsValid = false;
+      return;
+    }
+
+    if (!quantityInput.value || parseInt(quantityInput.value) < 0) {
+      alert(`Please enter a valid initial stock for size ${size}`);
+      allSizeDetailsValid = false;
+      return;
+    }
+  });
+
+  if (!allSizeDetailsValid) return;
 
   // If shirt type is visible and selected, add it to course_id[]
   const shirtTypeGroup = document.getElementById("shirtTypeGroup");
@@ -67,7 +263,7 @@ function submitNewItem(event) {
         try {
           const data = JSON.parse(xhr.responseText);
           if (data.success) {
-            alert("New product added successfully!");
+            alert("New product(s) added successfully!");
             location.reload();
           } else {
             throw new Error(data.message || "Unknown error");
@@ -239,6 +435,12 @@ document.addEventListener("DOMContentLoaded", function () {
         subGroup.style.display = "none";
       }
     });
+  }
+
+  // Add event listener for base item code changes
+  const baseItemCodeInput = document.getElementById("newProductItemCode");
+  if (baseItemCodeInput) {
+    baseItemCodeInput.addEventListener("input", updateGeneratedCodes);
   }
 
   // Initialize Select2 only if elements exist (legacy guards)

@@ -365,65 +365,66 @@ function page_link($page, $query_string) {
             </div>
             <div class="modal-body">
                 <form id="addItemForm" onsubmit="submitNewItem(event)" enctype="multipart/form-data">
-                    <div class="input-group">
-                        <label for="deliveryOrderNumber">Delivery Order #:</label>
-                        <input type="text" id="deliveryOrderNumber" name="deliveryOrderNumber" required>
+                    <div class="product-basic-info">
+                        <h3>Product Information</h3>
+                        <div class="input-group">
+                            <label for="deliveryOrderNumber">Delivery Order #:</label>
+                            <input type="text" id="deliveryOrderNumber" name="deliveryOrderNumber" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="newProductItemCode">Base Item Code (Prefix):</label>
+                            <input type="text" id="newProductItemCode" name="baseItemCode" placeholder="e.g., USHPWV001" required>
+                            <small>This will be used as prefix for generating size-specific item codes</small>
+                        </div>
+                        <div class="input-group">
+                            <label for="newCategory">Category:</label>
+                            <select id="newCategory" name="category_id" required>
+                                <option value="">Select Category</option>
+                                <option value="__add__">+ Add new category…</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="subcategoryGroup" style="display:none;">
+                            <label for="subcategorySelect">Subcategory:</label>
+                            <select id="subcategorySelect" name="subcategory_ids[]" multiple style="width:100%;">
+                                <option value="__add__">+ Add new subcategory…</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="newItemName">Product Name:</label>
+                            <input type="text" id="newItemName" name="newItemName" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="newImage">Product Image:</label>
+                            <input type="file" id="newImage" name="newImage" accept="image/*" required>
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label for="newProductItemCode">Item Code:</label>
-                        <input type="text" id="newProductItemCode" name="newItemCode" required>
+
+                    <div class="size-selection-section">
+                        <h3>Size Selection</h3>
+                        <div class="input-group">
+                            <label>Select Sizes:</label>
+                            <div class="size-checkboxes">
+                                <label class="checkbox-label"><input type="checkbox" value="XS" onchange="toggleSizeDetails(this)"> XS</label>
+                                <label class="checkbox-label"><input type="checkbox" value="S" onchange="toggleSizeDetails(this)"> S</label>
+                                <label class="checkbox-label"><input type="checkbox" value="M" onchange="toggleSizeDetails(this)"> M</label>
+                                <label class="checkbox-label"><input type="checkbox" value="L" onchange="toggleSizeDetails(this)"> L</label>
+                                <label class="checkbox-label"><input type="checkbox" value="XL" onchange="toggleSizeDetails(this)"> XL</label>
+                                <label class="checkbox-label"><input type="checkbox" value="XXL" onchange="toggleSizeDetails(this)"> XXL</label>
+                                <label class="checkbox-label"><input type="checkbox" value="3XL" onchange="toggleSizeDetails(this)"> 3XL</label>
+                                <label class="checkbox-label"><input type="checkbox" value="4XL" onchange="toggleSizeDetails(this)"> 4XL</label>
+                                <label class="checkbox-label"><input type="checkbox" value="5XL" onchange="toggleSizeDetails(this)"> 5XL</label>
+                                <label class="checkbox-label"><input type="checkbox" value="6XL" onchange="toggleSizeDetails(this)"> 6XL</label>
+                                <label class="checkbox-label"><input type="checkbox" value="7XL" onchange="toggleSizeDetails(this)"> 7XL</label>
+                                <label class="checkbox-label"><input type="checkbox" value="One Size" onchange="toggleSizeDetails(this)"> One Size</label>
+                            </div>
+                        </div>
                     </div>
-                    <div class="input-group">
-                        <label for="newCategory">Category:</label>
-                        <select id="newCategory" name="category_id" required>
-                            <option value="">Select Category</option>
-                            <option value="__add__">+ Add new category…</option>
-                        </select>
-                    </div>
-                    <div class="input-group" id="subcategoryGroup" style="display:none;">
-                        <label for="subcategorySelect">Subcategory:</label>
-                        <select id="subcategorySelect" name="subcategory_ids[]" multiple style="width:100%;">
-                            <option value="__add__">+ Add new subcategory…</option>
-                        </select>
-                    </div>
-                    <!-- Legacy course group removed after migration to subcategories -->
-                    <div class="input-group">
-                        <label for="newItemName">Product Name:</label>
-                        <input type="text" id="newItemName" name="newItemName" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="newSize">Size:</label>
-                        <select id="newProductSize" name="newSize" required>
-                            <option value="">Select Size</option>
-                            <option value="XS">XS</option>
-                            <option value="S">S</option>
-                            <option value="M">M</option>
-                            <option value="L">L</option>
-                            <option value="XL">XL</option>
-                            <option value="XXL">XXL</option>
-                            <option value="3XL">3XL</option>
-                            <option value="4XL">4XL</option>
-                            <option value="5XL">5XL</option>
-                            <option value="6XL">6XL</option>
-                            <option value="7XL">7XL</option>
-                            <option value="One Size">One Size</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label for="newItemPrice">Price:</label>
-                        <input type="number" id="newItemPrice" name="newItemPrice" min="0" step="0.01" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="newItemQuantity">Initial Stock:</label>
-                        <input type="number" id="newItemQuantity" name="newItemQuantity" min="0" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="newItemDamage">Damaged Items:</label>
-                        <input type="number" id="newItemDamage" name="newItemDamage" min="0" value="0" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="newImage">Product Image:</label>
-                        <input type="file" id="newImage" name="newImage" accept="image/*" required>
+
+                    <div id="sizeDetailsContainer" class="size-details-container">
+                        <h3>Size Details</h3>
+                        <div id="sizeDetailsList">
+                            <!-- Size-specific forms will be dynamically added here -->
+                        </div>
                     </div>
                 </form>
             </div>
@@ -804,6 +805,24 @@ function page_link($page, $query_string) {
 
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
+            
+            // Reset the form if it's the Add Item modal
+            if (modalId === 'addItemModal') {
+                const form = document.getElementById('addItemForm');
+                if (form) form.reset();
+                
+                // Reset size selections and details
+                const sizeCheckboxes = document.querySelectorAll('.size-checkboxes input[type="checkbox"]');
+                sizeCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                
+                const sizeDetailsContainer = document.getElementById("sizeDetailsContainer");
+                const sizeDetailsList = document.getElementById("sizeDetailsList");
+                if (sizeDetailsContainer) sizeDetailsContainer.classList.remove("show");
+                if (sizeDetailsList) sizeDetailsList.innerHTML = "";
+            }
+            
             // Reset the form if it's the Add Item Size modal
             if (modalId === 'addItemSizeModal') {
                 const form = document.getElementById('addItemSizeForm');
@@ -1057,6 +1076,133 @@ function page_link($page, $query_string) {
 
     .select2-results__option--highlighted[aria-selected] {
         background-color: #007bff;
+    }
+
+    /* New styles for multi-size product addition */
+    .product-basic-info {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #e9ecef;
+    }
+
+    .product-basic-info h3 {
+        margin: 0 0 15px 0;
+        color: #495057;
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .size-selection-section {
+        background: #fff3cd;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #ffeaa7;
+    }
+
+    .size-selection-section h3 {
+        margin: 0 0 15px 0;
+        color: #856404;
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .size-checkboxes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-weight: normal;
+    }
+
+    .checkbox-label:hover {
+        background: #f8f9fa;
+        border-color: #007bff;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        width: auto;
+        height: auto;
+        margin: 0;
+    }
+
+    .size-details-container {
+        display: none;
+    }
+
+    .size-details-container.show {
+        display: block;
+    }
+
+    .size-details-container h3 {
+        margin: 0 0 15px 0;
+        color: #495057;
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .size-detail-item {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        position: relative;
+    }
+
+    .size-detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .size-detail-header h4 {
+        margin: 0;
+        color: #0066cc;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .generated-code {
+        font-family: 'Courier New', monospace;
+        background: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        font-size: 12px;
+        color: #666;
+    }
+
+    .size-detail-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 15px;
+    }
+
+    .input-group small {
+        color: #6c757d;
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .modal-content {
+        max-height: 90vh;
+        overflow-y: auto;
     }
     </style>
 </body>

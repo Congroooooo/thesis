@@ -23,7 +23,7 @@
     $is_logged_in = isset($_SESSION['user_id']);
     ?>
     <script>window.isLoggedIn = <?php echo $is_logged_in ? 'true' : 'false'; ?>;</script>
-    <section class="header">
+    <section class="header"> 
         <div class="header-content">
             <h1 data-aos="fade-up">All Products - PAMO</h1>
             <p data-aos="fade-up" data-aos-delay="100">Explore our full range of items, all in one place!</p>
