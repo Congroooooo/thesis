@@ -278,7 +278,6 @@
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <!-- No dynamic categories available, show fallback message or empty state -->
                 <?php endif; ?>
             </div>
         </aside>

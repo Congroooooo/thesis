@@ -327,6 +327,9 @@ function removeSizeDetailForm(size, productIndex) {
 }
 
 function getSizeNumber(size) {
+  // Normalize the size by trimming whitespace
+  const normalizedSize = size ? size.trim() : size;
+
   const sizeMap = {
     "One Size": 0,
     XS: 1,
@@ -341,7 +344,8 @@ function getSizeNumber(size) {
     "6XL": 10,
     "7XL": 11,
   };
-  return sizeMap[size] || 999;
+
+  return sizeMap[normalizedSize] !== undefined ? sizeMap[normalizedSize] : 999;
 }
 
 function getSizeDisplayOrder(size) {

@@ -14,21 +14,14 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
     exit();
 }
 
-// Database connection and queries for dropdowns
-$mysqli_conn = mysqli_connect("localhost", "root", "", "proware");
-if (!$mysqli_conn) {
-    die("Connection failed: " . mysqli_connect_error());
-}
-
-// Fetch distinct categories for the filter dropdown
+require_once '../Includes/connection.php';
 $categories_query = "SELECT DISTINCT category FROM inventory WHERE category IS NOT NULL AND category != '' ORDER BY category ASC";
-$categories_result = mysqli_query($mysqli_conn, $categories_query);
+$categories_result = $conn->query($categories_query);
 $categories = [];
-while ($row = mysqli_fetch_assoc($categories_result)) {
+while ($row = $categories_result->fetch(PDO::FETCH_ASSOC)) {
     $categories[] = $row['category'];
 }
 
-// Fetch distinct sizes for the filter dropdown
 $sizes_query = "SELECT DISTINCT sizes FROM inventory WHERE sizes IS NOT NULL AND sizes != '' ORDER BY 
     CASE 
         WHEN sizes = 'XS' THEN 1
@@ -45,9 +38,9 @@ $sizes_query = "SELECT DISTINCT sizes FROM inventory WHERE sizes IS NOT NULL AND
         WHEN sizes = 'One Size' THEN 12
         ELSE 13
     END ASC";
-$sizes_result = mysqli_query($mysqli_conn, $sizes_query);
+$sizes_result = $conn->query($sizes_query);
 $sizes = [];
-while ($row = mysqli_fetch_assoc($sizes_result)) {
+while ($row = $sizes_result->fetch(PDO::FETCH_ASSOC)) {
     $sizes[] = $row['sizes'];
 }
 
@@ -93,7 +86,6 @@ function page_link($page, $query_string) {
                 const urlParams = new URLSearchParams(window.location.search);
                 console.log('Current URL params:', urlParams.toString());
                 if (!urlParams.has('status')) {
-                    // Redirect to the same page with the low stock filter
                     urlParams.set('status', 'Low Stock');
                     const newUrl = 'inventory.php?' + urlParams.toString();
                     console.log('Redirecting to:', newUrl);
@@ -113,16 +105,14 @@ function page_link($page, $query_string) {
                     width: "100%"
                 });
             }
-            
-            // Initialize Select2 for exchange customer name
+
             if (window.jQuery && $("#exchangeCustomerName").length) {
                 $("#exchangeCustomerName").select2({
                     placeholder: "Search customer...",
                     allowClear: true,
                     width: "100%"
                 });
-                
-                // Add event listener for customer selection
+
                 $("#exchangeCustomerName").on('change', function() {
                     loadCustomerPurchases();
                 });
@@ -207,67 +197,81 @@ function page_link($page, $query_string) {
                       </thead>
                       <tbody>
                           <?php
-                          if (!$mysqli_conn) {
-                              die("Connection failed: " . mysqli_connect_error());
+                          $category = $_GET['category'] ?? '';
+                          $size = $_GET['size'] ?? '';
+                          $status = $_GET['status'] ?? '';
+                          $search = $_GET['search'] ?? '';
+                          $where_conditions = [];
+                          $params = [];
+                          
+                          if ($category) {
+                              $where_conditions[] = "category = ?";
+                              $params[] = $category;
                           }
-
-                          $category = isset($_GET['category']) ? mysqli_real_escape_string($mysqli_conn, $_GET['category']) : '';
-                          $size = isset($_GET['size']) ? mysqli_real_escape_string($mysqli_conn, $_GET['size']) : '';
-                          $status = isset($_GET['status']) ? mysqli_real_escape_string($mysqli_conn, $_GET['status']) : '';
-                          $search = isset($_GET['search']) ? mysqli_real_escape_string($mysqli_conn, $_GET['search']) : '';
-
-                          $where = [];
-                          if ($category) $where[] = "category = '$category'";
-                          if ($size) $where[] = "sizes = '$size'";
+                          if ($size) {
+                              $where_conditions[] = "sizes = ?";
+                              $params[] = $size;
+                          }
                           if ($status) {
-                              if ($status == 'In Stock') $where[] = "actual_quantity > " . getLowStockThreshold($conn);
-                              else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= " . getLowStockThreshold($conn);
-                              else if ($status == 'Out of Stock') $where[] = "actual_quantity <= 0";
+                              $lowStockThreshold = getLowStockThreshold($conn);
+                              if ($status == 'In Stock') {
+                                  $where_conditions[] = "actual_quantity > ?";
+                                  $params[] = $lowStockThreshold;
+                              } else if ($status == 'Low Stock') {
+                                  $where_conditions[] = "actual_quantity > 0 AND actual_quantity <= ?";
+                                  $params[] = $lowStockThreshold;
+                              } else if ($status == 'Out of Stock') {
+                                  $where_conditions[] = "actual_quantity <= 0";
+                              }
                           }
-                          if ($search) $where[] = "(item_name LIKE '%$search%' OR item_code LIKE '%$search%')";
+                          if ($search) {
+                              $where_conditions[] = "(item_name LIKE ? OR item_code LIKE ?)";
+                              $params[] = "%$search%";
+                              $params[] = "%$search%";
+                          }
 
-                          $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-
-                          $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+                          $where_clause = $where_conditions ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+                          $page = max(1, intval($_GET['page'] ?? 1));
                           $limit = 15;
                           $offset = ($page - 1) * $limit;
 
                           $total_sql = "SELECT COUNT(*) as total FROM inventory $where_clause";
-                          $total_result = mysqli_query($mysqli_conn, $total_sql);
-                          $total_row = mysqli_fetch_assoc($total_result);
+                          $total_stmt = $conn->prepare($total_sql);
+                          $total_stmt->execute($params);
+                          $total_row = $total_stmt->fetch(PDO::FETCH_ASSOC);
                           $total_items = $total_row['total'];
                           $total_pages = ceil($total_items / $limit);
 
                           $sql = "SELECT * FROM inventory $where_clause ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
-                          $result = mysqli_query($mysqli_conn, $sql);
+                          $stmt = $conn->prepare($sql);
+                          $stmt->execute($params);
 
                           $lowStockThreshold = getLowStockThreshold($conn);
 
-                          while ($row = mysqli_fetch_assoc($result)) {
+                          while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                               $statusClass = '';
                               if ($row['actual_quantity'] <= 0) {
-                                  $status = 'Out of Stock';
+                                  $display_status = 'Out of Stock';
                                   $statusClass = 'status-out-of-stock';
                               } else if ($row['actual_quantity'] <= $lowStockThreshold) {
-                                  $status = 'Low Stock';
+                                  $display_status = 'Low Stock';
                                   $statusClass = 'status-low-stock';
                               } else {
-                                  $status = 'In Stock';
+                                  $display_status = 'In Stock';
                                   $statusClass = 'status-in-stock';
                               }
 
-                              echo "<tr data-item-code='" . $row['item_code'] . "' data-created-at='" . $row['created_at'] . "' data-category='" . strtolower($row['category']) . "' onclick='selectRow(this, \"" . $row['item_code'] . "\", " . $row['price'] . ")'>";
-                              echo "<td>" . $row['item_code'] . "</td>";
-                              echo "<td>" . $row['item_name'] . "</td>";
-                              echo "<td>" . $row['category'] . "</td>";
+                              echo "<tr data-item-code='" . htmlspecialchars($row['item_code']) . "' data-created-at='" . htmlspecialchars($row['created_at']) . "' data-category='" . strtolower(htmlspecialchars($row['category'])) . "' onclick='selectRow(this, \"" . htmlspecialchars($row['item_code']) . "\", " . $row['price'] . ")'>";
+                              echo "<td>" . htmlspecialchars($row['item_code']) . "</td>";
+                              echo "<td>" . htmlspecialchars($row['item_name']) . "</td>";
+                              echo "<td>" . htmlspecialchars($row['category']) . "</td>";
                               echo "<td>" . (isset($row['actual_quantity']) ? $row['actual_quantity'] : '0') . "</td>";
-                              echo "<td>" . $row['sizes'] . "</td>";
+                              echo "<td>" . htmlspecialchars($row['sizes']) . "</td>";
                               echo "<td>₱" . number_format($row['price'], 2) . "</td>";
-                              echo "<td class='" . $statusClass . "'>" . $status . "</td>";
-                              echo "<!-- Item Code: " . $row['item_code'] . " -->";
+                              echo "<td class='" . $statusClass . "'>" . $display_status . "</td>";
+                              echo "<!-- Item Code: " . htmlspecialchars($row['item_code']) . " -->";
                               echo "</tr>";
                           }
-                          mysqli_close($mysqli_conn);
                           ?>
                       </tbody>
                   </table>
@@ -365,7 +369,6 @@ function page_link($page, $query_string) {
             </div>
             <div class="modal-body">
                 <form id="addItemForm" onsubmit="submitNewItem(event)" enctype="multipart/form-data">
-                    <!-- Shared delivery order section -->
                     <div class="delivery-order-section">
                         <h3>Delivery Information</h3>
                         <div class="input-group">
@@ -374,9 +377,7 @@ function page_link($page, $query_string) {
                         </div>
                     </div>
 
-                    <!-- Products container -->
                     <div id="productsContainer">
-                        <!-- First product form -->
                         <div class="product-item" data-product-index="0">
                             <div class="product-header">
                                 <h3>Product #1</h3>
@@ -436,13 +437,12 @@ function page_link($page, $query_string) {
                             <div id="sizeDetailsContainer_0" class="size-details-container">
                                 <h4>Size Details</h4>
                                 <div id="sizeDetailsList_0">
-                                    <!-- Size-specific forms will be dynamically added here -->
+
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Add another product button -->
                     <div class="add-product-section">
                         <button type="button" class="add-product-btn" onclick="addAnotherProduct()">
                             <i class="material-icons">add_circle</i> Add Another Item
@@ -512,18 +512,12 @@ function page_link($page, $query_string) {
                                     <select name="itemId[]" required>
                                         <option value="">Select Product</option>
                                         <?php
-                                        $conn = mysqli_connect("localhost", "root", "", "proware");
-                                        if (!$conn) {
-                                            die("Connection failed: " . mysqli_connect_error());
-                                        }
-
                                         $sql = "SELECT item_code, item_name, category FROM inventory ORDER BY item_name";
-                                        $result = mysqli_query($conn, $sql);
+                                        $stmt = $conn->query($sql);
 
-                                        while ($row = mysqli_fetch_assoc($result)) {
-                                            echo "<option value='" . $row['item_code'] . "'>" . $row['item_name'] . " (" . $row['item_code'] . ") - " . $row['category'] . "</option>";
+                                        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                            echo "<option value='" . htmlspecialchars($row['item_code']) . "'>" . htmlspecialchars($row['item_name']) . " (" . htmlspecialchars($row['item_code']) . ") - " . htmlspecialchars($row['category']) . "</option>";
                                         }
-                                        mysqli_close($conn);
                                         ?>
                                     </select>
                                 </div>
@@ -573,7 +567,7 @@ function page_link($page, $query_string) {
                             <label for="studentName">Name:</label>
                             <select id="studentName" name="studentName" required>
                                 <option value="">Select Name</option>
-                                <!-- Options will be populated by JS -->
+
                             </select>
                         </div>
                         <div class="input-group">
@@ -592,11 +586,6 @@ function page_link($page, $query_string) {
                                 <select name="itemId[]" required>
                                     <option value="">Select Product</option>
                                     <?php
-                                    $conn = mysqli_connect("localhost", "root", "", "proware");
-                                    if (!$conn) {
-                                        die("Connection failed: " . mysqli_connect_error());
-                                    }
-                                    // Get unique products based on item code prefix
                                     $sql = "SELECT DISTINCT 
                                             SUBSTRING_INDEX(item_code, '-', 1) as prefix,
                                             item_name,
@@ -604,12 +593,11 @@ function page_link($page, $query_string) {
                                             FROM inventory 
                                             WHERE actual_quantity > 0
                                             ORDER BY item_name";
-                                    $result = mysqli_query($conn, $sql);
-                                    while ($row = mysqli_fetch_assoc($result)) {
-                                        echo "<option value='" . $row['prefix'] . "' data-category='" . htmlspecialchars($row['category'], ENT_QUOTES) . "'>" . 
-                                             $row['item_name'] . " (" . $row['prefix'] . ")</option>";
+                                    $stmt = $conn->query($sql);
+                                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                        echo "<option value='" . htmlspecialchars($row['prefix']) . "' data-category='" . htmlspecialchars($row['category'], ENT_QUOTES) . "'>" . 
+                                             htmlspecialchars($row['item_name']) . " (" . htmlspecialchars($row['prefix']) . ")</option>";
                                     }
-                                    mysqli_close($conn);
                                     ?>
                                 </select>
                             </div>
@@ -670,25 +658,18 @@ function page_link($page, $query_string) {
                             <select id="existingItem" name="existingItem" required onchange="updateItemCodePrefix()">
                                 <option value="">Select Item</option>
                                 <?php
-                                $conn = mysqli_connect("localhost", "root", "", "proware");
-                                if (!$conn) {
-                                    die("Connection failed: " . mysqli_connect_error());
-                                }
-
-                                // Get unique items based on their prefix (before the dash)
                                 $sql = "SELECT DISTINCT 
                                         SUBSTRING_INDEX(item_code, '-', 1) as prefix,
                                         item_name,
                                         category
                                         FROM inventory 
                                         ORDER BY item_name";
-                                $result = mysqli_query($conn, $sql);
+                                $stmt = $conn->query($sql);
 
-                                while ($row = mysqli_fetch_assoc($result)) {
-                                    echo "<option value='" . $row['prefix'] . "' data-name='" . $row['item_name'] . "' data-category='" . $row['category'] . "'>" . 
-                                         $row['item_name'] . " (" . $row['prefix'] . ")</option>";
+                                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                    echo "<option value='" . htmlspecialchars($row['prefix']) . "' data-name='" . htmlspecialchars($row['item_name']) . "' data-category='" . htmlspecialchars($row['category']) . "'>" . 
+                                         htmlspecialchars($row['item_name']) . " (" . htmlspecialchars($row['prefix']) . ")</option>";
                                 }
-                                mysqli_close($conn);
                                 ?>
                             </select>
                         </div>
@@ -751,7 +732,7 @@ function page_link($page, $query_string) {
                 <span class="close" onclick="closeModal('salesReceiptModal')">&times;</span>
             </div>
             <div class="modal-body" id="salesReceiptBody">
-                <!-- Receipt content will be injected here -->
+
             </div>
             <div class="modal-footer">
                 <button type="button" onclick="printSalesReceipt()" class="save-btn">Print</button>
@@ -774,21 +755,14 @@ function page_link($page, $query_string) {
                             <select id="exchangeCustomerName" name="customerName" required>
                                 <option value="">Search customer...</option>
                                 <?php
-                                $conn = mysqli_connect("localhost", "root", "", "proware");
-                                if (!$conn) {
-                                    die("Connection failed: " . mysqli_connect_error());
-                                }
-
-                                // Get all customers from accounts table
                                 $sql = "SELECT id, first_name, last_name, id_number, role_category FROM account WHERE status = 'active' ORDER BY first_name, last_name";
-                                $result = mysqli_query($conn, $sql);
+                                $stmt = $conn->query($sql);
 
-                                while ($row = mysqli_fetch_assoc($result)) {
+                                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                                     $fullName = $row['first_name'] . ' ' . $row['last_name'];
-                                    echo "<option value='" . $row['id'] . "' data-id-number='" . $row['id_number'] . "' data-role='" . $row['role_category'] . "'>" . 
-                                         htmlspecialchars($fullName) . " (" . $row['id_number'] . ")</option>";
+                                    echo "<option value='" . $row['id'] . "' data-id-number='" . htmlspecialchars($row['id_number']) . "' data-role='" . htmlspecialchars($row['role_category']) . "'>" . 
+                                         htmlspecialchars($fullName) . " (" . htmlspecialchars($row['id_number']) . ")</option>";
                                 }
-                                mysqli_close($conn);
                                 ?>
                             </select>
                         </div>
@@ -828,13 +802,11 @@ function page_link($page, $query_string) {
 
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
-            
-            // Reset the form if it's the Add Item modal
+
             if (modalId === 'addItemModal') {
                 const form = document.getElementById('addItemForm');
                 if (form) form.reset();
-                
-                // Reset size selections and details
+
                 const sizeCheckboxes = document.querySelectorAll('.size-checkboxes input[type="checkbox"]');
                 sizeCheckboxes.forEach(checkbox => {
                     checkbox.checked = false;
@@ -845,21 +817,20 @@ function page_link($page, $query_string) {
                 if (sizeDetailsContainer) sizeDetailsContainer.classList.remove("show");
                 if (sizeDetailsList) sizeDetailsList.innerHTML = "";
             }
-            
-            // Reset the form if it's the Add Item Size modal
+
             if (modalId === 'addItemSizeModal') {
                 const form = document.getElementById('addItemSizeForm');
                 if (form) form.reset();
-                // Reset Select2 for Select Item
+
                 if (window.jQuery && $('#existingItem').length) {
                     $('#existingItem').val(null).trigger('change');
                 }
             }
-            // Reset the form if it's the Exchange Item modal
+
             if (modalId === 'exchangeItemModal') {
                 const form = document.getElementById('exchangeItemForm');
                 if (form) form.reset();
-                // Reset dropdowns
+
                 document.getElementById('exchangeItemBought').innerHTML = '<option value="">Select Item (Purchased within 24 hours)</option>';
                 document.getElementById('exchangeNewSize').innerHTML = '<option value="">Select New Size</option>';
             }
@@ -907,26 +878,38 @@ function page_link($page, $query_string) {
     }
 
     .input-group {
-        margin-bottom: 0;
+        margin-bottom: 20px;
         display: flex;
         flex-direction: column;
     }
 
     .input-group label {
         display: block;
-        margin-bottom: 8px;
-        font-weight: bold;
-        color: #333;
+        margin-bottom: 10px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 14px;
+        letter-spacing: 0.3px;
     }
 
     .input-group input,
     .input-group select {
         width: 100%;
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        height: 38px;
+        padding: 12px 16px;
+        border: 1px solid #ced4da;
+        border-radius: 6px;
+        height: 44px;
         font-size: 14px;
+        background-color: #fff;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .input-group input:focus,
+    .input-group select:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
     }
 
     .input-group select {
@@ -1070,7 +1053,6 @@ function page_link($page, $query_string) {
         min-height: 60px;
     }
 
-    /* Select2 styling for exchange modal */
     .select2-container--default .select2-selection--single {
         height: 38px;
         padding: 4px 12px;
@@ -1102,19 +1084,44 @@ function page_link($page, $query_string) {
     }
 
     /* New styles for multi-size product addition */
+    .size-detail-header h4 {
+        margin: 0;
+        color: #0066cc;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .generated-code {
+        font-family: 'Courier New', monospace;
+        background: #fff;
+        padding: 6px 12px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        font-size: 12px;
+        color: #666;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
     .delivery-order-section {
         background: #f0f8ff;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 25px;
         border: 1px solid #b3d9ff;
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
     }
 
     .delivery-order-section h3 {
-        margin: 0 0 15px 0;
+        margin: 0 0 20px 0;
         color: #0066cc;
         font-size: 16px;
         font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #b3d9ff;
+    }
+
+    .delivery-order-section .input-group {
+        margin-bottom: 0;
     }
 
     .product-item {
@@ -1168,63 +1175,107 @@ function page_link($page, $query_string) {
 
     .product-basic-info {
         background: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 25px;
         border: 1px solid #e9ecef;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
 
     .product-basic-info h4 {
-        margin: 0 0 15px 0;
+        margin: 0 0 20px 0;
         color: #495057;
         font-size: 16px;
         font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .product-basic-info .input-group {
+        margin-bottom: 22px;
+    }
+
+    .product-basic-info .input-group:last-child {
+        margin-bottom: 0;
     }
 
     .size-selection-section {
         background: #fff3cd;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 25px;
         border: 1px solid #ffeaa7;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
 
     .size-selection-section h4 {
-        margin: 0 0 15px 0;
+        margin: 0 0 20px 0;
         color: #856404;
         font-size: 16px;
         font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #ffeaa7;
+    }
+
+    .size-selection-section .input-group {
+        margin-bottom: 18px;
+    }
+
+    .size-selection-section .input-group label {
+        margin-bottom: 12px;
+        font-weight: 600;
+        color: #856404;
     }
 
     .size-checkboxes {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 10px;
-        margin-top: 10px;
+        gap: 12px;
+        margin-top: 15px;
     }
 
     .checkbox-label {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
+        gap: 10px;
+        padding: 12px 16px;
         background: white;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        border: 2px solid #e9ecef;
+        border-radius: 6px;
         cursor: pointer;
-        transition: all 0.2s;
-        font-weight: normal;
+        transition: all 0.3s ease;
+        font-weight: 500;
+        font-size: 14px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        min-height: 44px;
+        line-height: 1.2;
     }
 
     .checkbox-label:hover {
         background: #f8f9fa;
         border-color: #007bff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(0, 123, 255, 0.15);
+    }
+
+    .checkbox-label input[type="checkbox"]:checked {
+        accent-color: #007bff;
+    }
+
+    .checkbox-label:has(input[type="checkbox"]:checked) {
+        color: #007bff;
+        font-weight: 600;
+        border-color: #007bff;
     }
 
     .checkbox-label input[type="checkbox"] {
-        width: auto;
-        height: auto;
+        width: 18px;
+        height: 18px;
         margin: 0;
+        accent-color: #007bff;
+        flex-shrink: 0;
+        position: relative;
+        top: 0;
     }
 
     .size-details-container {
@@ -1236,77 +1287,78 @@ function page_link($page, $query_string) {
     }
 
     .size-details-container h4 {
-        margin: 0 0 15px 0;
+        margin: 0 0 20px 0;
         color: #495057;
         font-size: 16px;
         font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
     }
 
     .size-detail-item {
         background: #e7f3ff;
         border: 1px solid #b3d9ff;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 15px;
+        border-radius: 10px;
+        padding: 25px;
+        margin-bottom: 20px;
         position: relative;
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
     }
 
     .size-detail-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 15px;
-    }
-
-    .size-detail-header h4 {
-        margin: 0;
-        color: #0066cc;
-        font-size: 14px;
-        font-weight: 600;
-    }
-
-    .generated-code {
-        font-family: 'Courier New', monospace;
-        background: #fff;
-        padding: 4px 8px;
-        border-radius: 4px;
-        border: 1px solid #ddd;
-        font-size: 12px;
-        color: #666;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #b3d9ff;
     }
 
     .size-detail-form {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
-        gap: 15px;
+        gap: 20px;
+    }
+
+    .size-detail-form .input-group {
+        margin-bottom: 0;
     }
 
     .add-product-section {
         text-align: center;
-        padding: 20px;
+        padding: 25px;
         border: 2px dashed #28a745;
-        border-radius: 8px;
-        margin-top: 20px;
+        border-radius: 10px;
+        margin-top: 25px;
+        background: #f8fff9;
+        transition: all 0.3s ease;
+    }
+
+    .add-product-section:hover {
+        background: #f0fff4;
+        border-color: #20c997;
     }
 
     .add-product-btn {
         background: #28a745;
         color: white;
         border: none;
-        padding: 12px 24px;
-        border-radius: 6px;
+        padding: 14px 28px;
+        border-radius: 8px;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         font-size: 16px;
-        font-weight: 500;
-        transition: all 0.2s;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
     }
 
     .add-product-btn:hover {
         background: #218838;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
     }
 
     .add-product-section small {
@@ -1319,12 +1371,40 @@ function page_link($page, $query_string) {
     .input-group small {
         color: #6c757d;
         font-size: 12px;
-        margin-top: 4px;
+        margin-top: 6px;
+        line-height: 1.4;
     }
 
     .modal-content {
         max-height: 90vh;
         overflow-y: auto;
+        padding: 0;
+    }
+
+    .modal-header {
+        padding: 20px 25px;
+        border-bottom: 2px solid #e9ecef;
+        background: #f8f9fa;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        color: #495057;
+        font-size: 20px;
+        font-weight: 600;
+    }
+
+    .modal-body {
+        padding: 25px;
+    }
+
+    .modal-footer {
+        border-top: 2px solid #e9ecef;
+        padding: 20px 25px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        background: #f8f9fa;
     }
     </style>
 </body>
