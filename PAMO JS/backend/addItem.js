@@ -1,32 +1,24 @@
-// Add Item Modal Backend Functions
-
-let productCounter = 1; // Start from 1 since product 0 is already in the modal
+let productCounter = 1;
 
 function showAddItemModal() {
   document.getElementById("addItemModal").style.display = "flex";
   document.getElementById("addItemForm").reset();
 
-  // Reset product counter and remove additional products
   productCounter = 1;
   const productsContainer = document.getElementById("productsContainer");
   const productItems = productsContainer.querySelectorAll(".product-item");
 
-  // Keep only the first product, remove the rest
   for (let i = 1; i < productItems.length; i++) {
     productItems[i].remove();
   }
 
-  // Reset the first product
   resetProduct(0);
 
-  // Hide remove button for first product
   const removeBtn = document.querySelector(".remove-product-btn");
   if (removeBtn) removeBtn.style.display = "none";
 
-  // refresh categories when opening
   if (typeof loadCategories === "function") {
     loadCategories();
-    // Also setup the first product (index 0)
     setTimeout(() => {
       setupCategoryHandlerForProduct(0);
       if (typeof setupItemCodeHandlerForProduct === "function") {
@@ -37,7 +29,6 @@ function showAddItemModal() {
 }
 
 function resetProduct(productIndex) {
-  // Reset size selections and details for specific product
   const sizeCheckboxes = document.querySelectorAll(
     `.size-checkboxes[data-product="${productIndex}"] input[type="checkbox"]`
   );
@@ -54,7 +45,6 @@ function resetProduct(productIndex) {
   if (sizeDetailsContainer) sizeDetailsContainer.classList.remove("show");
   if (sizeDetailsList) sizeDetailsList.innerHTML = "";
 
-  // reset subcategory area for this product
   const subGroup = document.getElementById(`subcategoryGroup_${productIndex}`);
   if (subGroup) subGroup.style.display = "none";
   const subSel = document.getElementById(`subcategorySelect_${productIndex}`);
@@ -69,8 +59,6 @@ function resetProduct(productIndex) {
 
 function addAnotherProduct() {
   const productsContainer = document.getElementById("productsContainer");
-
-  // Find the next available product index based on existing products
   const existingProducts = document.querySelectorAll(".product-item");
   const existingIndices = Array.from(existingProducts).map((item) =>
     parseInt(item.dataset.productIndex)
@@ -150,18 +138,15 @@ function addAnotherProduct() {
 
   productsContainer.insertAdjacentHTML("beforeend", productHtml);
 
-  // Show remove button for first product if this is the second product
   if (productIndex === 1) {
     const firstRemoveBtn = document.querySelector(".remove-product-btn");
     if (firstRemoveBtn) firstRemoveBtn.style.display = "block";
   }
 
-  // Load categories for the new product
   if (typeof loadCategories === "function") {
     loadCategoriesForProduct(productIndex);
   }
 
-  // Setup item code handler for the new product
   if (typeof setupItemCodeHandlerForProduct === "function") {
     setupItemCodeHandlerForProduct(productIndex);
   }
@@ -175,10 +160,8 @@ function removeProduct(productIndex) {
     productItem.remove();
   }
 
-  // Update product numbers and indices
   updateProductNumbers();
 
-  // Hide remove button for first product if only one product remains
   const productItems = document.querySelectorAll(".product-item");
   if (productItems.length === 1) {
     const firstRemoveBtn = document.querySelector(".remove-product-btn");
@@ -194,12 +177,10 @@ function updateProductNumbers() {
       header.textContent = `Product #${index + 1}`;
     }
 
-    // Update data-product-index to maintain sequential ordering
     const oldIndex = item.dataset.productIndex;
     const newIndex = index;
 
     if (oldIndex !== newIndex.toString()) {
-      // Update all elements that reference the old product index
       updateProductIndexReferences(oldIndex, newIndex, item);
       item.dataset.productIndex = newIndex;
     }
@@ -207,24 +188,20 @@ function updateProductNumbers() {
 }
 
 function updateProductIndexReferences(oldIndex, newIndex, productItem) {
-  // Update all IDs and names that contain the old product index
   const elementsToUpdate = productItem.querySelectorAll(
     `[id*="_${oldIndex}"], [name*="[${oldIndex}]"], [onclick*="${oldIndex}"]`
   );
 
   elementsToUpdate.forEach((element) => {
-    // Update IDs
     if (element.id) {
       element.id = element.id.replace(`_${oldIndex}`, `_${newIndex}`);
     }
 
-    // Update names for form fields
     if (element.name) {
       element.name = element.name.replace(`[${oldIndex}]`, `[${newIndex}]`);
       element.name = element.name.replace(`_${oldIndex}`, `_${newIndex}`);
     }
 
-    // Update onclick attributes
     if (element.getAttribute("onclick")) {
       const onclickValue = element.getAttribute("onclick");
       element.setAttribute(
@@ -233,7 +210,6 @@ function updateProductIndexReferences(oldIndex, newIndex, productItem) {
       );
     }
 
-    // Update onchange attributes for size checkboxes
     if (element.getAttribute("onchange")) {
       const onchangeValue = element.getAttribute("onchange");
       element.setAttribute(
@@ -243,13 +219,11 @@ function updateProductIndexReferences(oldIndex, newIndex, productItem) {
     }
   });
 
-  // Update data-product attributes for size checkboxes container
   const sizeCheckboxes = productItem.querySelector(".size-checkboxes");
   if (sizeCheckboxes) {
     sizeCheckboxes.dataset.product = newIndex;
   }
 
-  // Update data-product attributes for existing size detail items
   const sizeDetailItems = productItem.querySelectorAll(".size-detail-item");
   sizeDetailItems.forEach((item) => {
     item.dataset.product = newIndex;
@@ -265,16 +239,12 @@ function toggleSizeDetails(checkbox, productIndex) {
   );
 
   if (checkbox.checked) {
-    // Add size detail form
     addSizeDetailForm(checkbox.value, productIndex);
-    // Sort the size details after adding
     sortSizeDetails(productIndex);
     sizeDetailsContainer.classList.add("show");
   } else {
-    // Remove size detail form
     removeSizeDetailForm(checkbox.value, productIndex);
 
-    // Hide container if no sizes selected
     const checkedSizes = document.querySelectorAll(
       `.size-checkboxes[data-product="${productIndex}"] input[type="checkbox"]:checked`
     );
@@ -292,13 +262,11 @@ function addSizeDetailForm(size, productIndex) {
     document.getElementById(`newProductItemCode_${productIndex}`).value ||
     "BASE";
 
-  // Generate size-specific item code (using getSizeNumber for item codes)
   const sizeNumber = getSizeNumber(size);
   const generatedCode = `${baseItemCode}-${sizeNumber
     .toString()
     .padStart(3, "0")}`;
 
-  // Get display order for sorting (separate from item code generation)
   const displayOrder = getSizeDisplayOrder(size);
 
   const sizeDetailHtml = `
@@ -337,14 +305,12 @@ function sortSizeDetails(productIndex) {
     sizeDetailsList.querySelectorAll(".size-detail-item")
   );
 
-  // Sort by size order (data-size-order attribute)
   sizeItems.sort((a, b) => {
     const orderA = parseInt(a.dataset.sizeOrder);
     const orderB = parseInt(b.dataset.sizeOrder);
     return orderA - orderB;
   });
 
-  // Clear the container and re-append in sorted order
   sizeDetailsList.innerHTML = "";
   sizeItems.forEach((item) => {
     sizeDetailsList.appendChild(item);
@@ -362,6 +328,7 @@ function removeSizeDetailForm(size, productIndex) {
 
 function getSizeNumber(size) {
   const sizeMap = {
+    "One Size": 0,
     XS: 1,
     S: 2,
     M: 3,
@@ -373,14 +340,13 @@ function getSizeNumber(size) {
     "5XL": 9,
     "6XL": 10,
     "7XL": 11,
-    "One Size": 12,
   };
   return sizeMap[size] || 999;
 }
 
 function getSizeDisplayOrder(size) {
   const displayOrderMap = {
-    "One Size": 0, // Display "One Size" first
+    "One Size": 0,
     XS: 1,
     S: 2,
     M: 3,
@@ -396,7 +362,6 @@ function getSizeDisplayOrder(size) {
   return displayOrderMap[size] || 999;
 }
 
-// Update generated codes when base item code changes
 function updateGeneratedCodes(productIndex) {
   const baseItemCode =
     document.getElementById(`newProductItemCode_${productIndex}`).value ||
@@ -412,11 +377,9 @@ function updateGeneratedCodes(productIndex) {
       .toString()
       .padStart(3, "0")}`;
 
-    // Update displayed code
     const codeSpan = item.querySelector(".generated-code");
     if (codeSpan) codeSpan.textContent = `Code: ${generatedCode}`;
 
-    // Update hidden input
     const hiddenInput = item.querySelector(
       `input[name="products[${productIndex}][sizes][${size}][item_code]"]`
     );
@@ -430,26 +393,22 @@ function submitNewItem(event) {
   const form = document.getElementById("addItemForm");
   const formData = new FormData(form);
 
-  // Validate delivery order number
   const deliveryOrderNumber = formData.get("deliveryOrderNumber");
   if (!deliveryOrderNumber) {
     alert("Please enter a delivery order number");
     return;
   }
 
-  // Get all product containers
   const productContainers = document.querySelectorAll(".product-item");
   if (productContainers.length === 0) {
     alert("No products found to add");
     return;
   }
 
-  // Validate each product
   let allProductsValid = true;
   productContainers.forEach((container, index) => {
     const productIndex = container.dataset.productIndex;
 
-    // Validate basic product information
     const baseItemCode = document.getElementById(
       `newProductItemCode_${productIndex}`
     ).value;
@@ -470,7 +429,6 @@ function submitNewItem(event) {
       return;
     }
 
-    // Check if at least one size is selected
     const checkedSizes = container.querySelectorAll(
       '.size-checkboxes input[type="checkbox"]:checked'
     );
@@ -484,7 +442,6 @@ function submitNewItem(event) {
       return;
     }
 
-    // Validate all size detail forms for this product
     checkedSizes.forEach((checkbox) => {
       const size = checkbox.value;
       const priceInput = document.getElementById(
@@ -515,7 +472,6 @@ function submitNewItem(event) {
       }
     });
 
-    // Handle shirt type if visible
     const shirtTypeGroup = document.getElementById(
       `shirtTypeGroup_${productIndex}`
     );
@@ -525,7 +481,6 @@ function submitNewItem(event) {
       );
       const shirtTypeValue = shirtTypeSelect.value;
       if (shirtTypeValue) {
-        // Find the option in the course select with the same text/value
         const courseSelect = document.getElementById(
           `courseSelect_${productIndex}`
         );
@@ -574,7 +529,6 @@ function submitNewItem(event) {
   xhr.send(formData);
 }
 
-// Global function declarations (moved outside DOMContentLoaded for early access)
 window.loadCategoriesForProduct = function (productIndex) {
   fetch("../PAMO Inventory backend/api_categories_list.php")
     .then(async (r) => {
@@ -596,7 +550,6 @@ window.loadCategoriesForProduct = function (productIndex) {
       sel.appendChild(new Option("+ Add new category…", "__add__"));
       if (current) sel.value = current;
 
-      // Setup category change handler for this product
       setupCategoryHandlerForProduct(productIndex);
     })
     .catch((err) => {
@@ -614,10 +567,8 @@ window.setupCategoryHandlerForProduct = function (productIndex) {
   const subGroup = document.getElementById(`subcategoryGroup_${productIndex}`);
 
   if (catSel) {
-    // Remove any existing listeners to avoid duplicates
     catSel.removeEventListener("change", catSel._categoryHandler);
 
-    // Create and store the handler
     catSel._categoryHandler = async function () {
       if (this.value === "__add__") {
         const res = await promptNewCategory();
@@ -641,7 +592,6 @@ window.setupCategoryHandlerForProduct = function (productIndex) {
     catSel.addEventListener("change", catSel._categoryHandler);
   }
 
-  // Setup subcategory select2 for this product
   const subSel = document.getElementById(`subcategorySelect_${productIndex}`);
   if (window.jQuery && subSel && $(subSel).length) {
     $(subSel)
@@ -757,9 +707,7 @@ function promptNewSubcategory(categoryId) {
   });
 }
 
-// Event listener for category change
 document.addEventListener("DOMContentLoaded", function () {
-  // Dynamic categories & subcategories
   window.loadCategories = function () {
     fetch("../PAMO Inventory backend/api_categories_list.php")
       .then(async (r) => {
@@ -767,7 +715,6 @@ document.addEventListener("DOMContentLoaded", function () {
         return r.json();
       })
       .then((list) => {
-        // Load for the original single-product modal (if it exists)
         const sel = document.getElementById("newCategory");
         if (sel) {
           const current = sel.value;
@@ -783,7 +730,6 @@ document.addEventListener("DOMContentLoaded", function () {
           if (current) sel.value = current;
         }
 
-        // Also load for the first product in multi-product modal
         const sel0 = document.getElementById("newCategory_0");
         if (sel0) {
           const current0 = sel0.value;
@@ -804,7 +750,6 @@ document.addEventListener("DOMContentLoaded", function () {
       });
   };
 
-  // Load categories for specific product by index
   window.loadCategoriesForProduct = function (productIndex) {
     fetch("../PAMO Inventory backend/api_categories_list.php")
       .then(async (r) => {
@@ -826,7 +771,6 @@ document.addEventListener("DOMContentLoaded", function () {
         sel.appendChild(new Option("+ Add new category…", "__add__"));
         if (current) sel.value = current;
 
-        // Setup category change handler for this product
         setupCategoryHandlerForProduct(productIndex);
       })
       .catch((err) => {
@@ -865,8 +809,7 @@ document.addEventListener("DOMContentLoaded", function () {
           opt.textContent = sc.name;
           select.appendChild(opt);
         });
-        // Always show group for categories that support subcategories,
-        // even if none exist yet so user can add one immediately.
+
         group.style.display = "block";
         if (window.jQuery && $(select).length) {
           $(select).trigger("change.select2");
@@ -875,7 +818,6 @@ document.addEventListener("DOMContentLoaded", function () {
       .catch((err) => console.error("Failed to load subcategories:", err));
   }
 
-  // Load subcategories for specific product by index
   function loadSubcategoriesForProduct(categoryId, productIndex) {
     const group = document.getElementById(`subcategoryGroup_${productIndex}`);
     const select = document.getElementById(`subcategorySelect_${productIndex}`);
@@ -902,8 +844,7 @@ document.addEventListener("DOMContentLoaded", function () {
           opt.textContent = sc.name;
           select.appendChild(opt);
         });
-        // Always show group for categories that support subcategories,
-        // even if none exist yet so user can add one immediately.
+
         group.style.display = "block";
         if (window.jQuery && $(select).length) {
           $(select).trigger("change.select2");
@@ -951,7 +892,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Setup category change handler for specific product
   function setupCategoryHandlerForProduct(productIndex) {
     const catSel = document.getElementById(`newCategory_${productIndex}`);
     const subGroup = document.getElementById(
@@ -959,10 +899,8 @@ document.addEventListener("DOMContentLoaded", function () {
     );
 
     if (catSel) {
-      // Remove any existing listeners to avoid duplicates
       catSel.removeEventListener("change", catSel._categoryHandler);
 
-      // Create and store the handler
       catSel._categoryHandler = async function () {
         if (this.value === "__add__") {
           const res = await promptNewCategory();
@@ -986,7 +924,6 @@ document.addEventListener("DOMContentLoaded", function () {
       catSel.addEventListener("change", catSel._categoryHandler);
     }
 
-    // Setup subcategory select2 for this product
     const subSel = document.getElementById(`subcategorySelect_${productIndex}`);
     if (window.jQuery && subSel && $(subSel).length) {
       $(subSel)
@@ -1032,9 +969,7 @@ document.addEventListener("DOMContentLoaded", function () {
         width: "100%",
       })
       .on("select2:select", async function (e) {
-        // Handle when an item is selected in Select2
         if (e.params.data.id === "__add__") {
-          // Immediately unselect the "__add__" option
           const currentVals = $(this).val() || [];
           const filteredVals = currentVals.filter((v) => v !== "__add__");
           $(this).val(filteredVals).trigger("change.select2");
@@ -1048,7 +983,6 @@ document.addEventListener("DOMContentLoaded", function () {
           const res = await promptNewSubcategory(catId);
           if (res && res.success) {
             await loadSubcategories(catId);
-            // Add the new subcategory to current selection
             const newSelection = [...filteredVals, String(res.id)];
             $("#subcategorySelect").val(newSelection).trigger("change.select2");
           }
@@ -1078,13 +1012,11 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Add event listener for base item code changes
   const baseItemCodeInput = document.getElementById("newProductItemCode");
   if (baseItemCodeInput) {
     baseItemCodeInput.addEventListener("input", () => updateGeneratedCodes(0));
   }
 
-  // Setup item code handler for specific product
   window.setupItemCodeHandlerForProduct = function (productIndex) {
     const itemCodeInput = document.getElementById(
       `newProductItemCode_${productIndex}`
@@ -1096,7 +1028,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   };
 
-  // Initialize Select2 only if elements exist (legacy guards)
   if (window.jQuery && $("#courseSelect").length) {
     $("#courseSelect").select2({
       placeholder: "Select course(s)",
@@ -1111,8 +1042,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Only declare categorySelect once
-  // Legacy toggle clean-up: ensure we don't access missing nodes
   const categorySelect = document.getElementById("newCategory");
   if (categorySelect) {
     categorySelect.addEventListener("change", function () {
@@ -1120,7 +1049,6 @@ document.addEventListener("DOMContentLoaded", function () {
       const shirtTypeGroup = document.getElementById("shirtTypeGroup");
       if (courseGroup) courseGroup.style.display = "none";
       if (shirtTypeGroup) shirtTypeGroup.style.display = "none";
-      // Subcategory group visibility is handled above via loadSubcategories
     });
   }
 });
