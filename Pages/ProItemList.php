@@ -2,7 +2,6 @@
 <html lang="en">
 
 <head>
-    <link rel="stylesheet" href="../CSS/header.css">
     <link rel="stylesheet" href="../CSS/ProItemList.css">
     <link rel="stylesheet" href="../CSS/global.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
@@ -279,76 +278,8 @@
                         </div>
                     <?php endforeach; ?>
                 <?php else: ?>
-
-                    <!-- <div class="category-item">
-                        <div class="main-category-header" data-category="tertiary-uniform">
-                            <span>Tertiary Uniform</span>
-                            <i class="fas fa-chevron-down"></i>
-                        </div>
-                        <div class="subcategories">
-                            <?php if (isset($categoriesWithProducts['tertiary-uniform'])): ?>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="course-filter-checkbox" value="BSCM">
-                                        <span>BSCM</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="course-filter-checkbox" value="BSTM">
-                                        <span>BSTM</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="course-filter-checkbox" value="BSIT/BSCS/BSCPE">
-                                        <span>BSIT/BSCS/BSCPE</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="course-filter-checkbox" value="BSBA">
-                                        <span>BSBA</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="course-filter-checkbox" value="BMMA">
-                                        <span>BMMA</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                    </div> 
-                    <div class="category-item">
-                        <div class="main-category-header" data-category="sti-shirt">
-                            <span>STI Shirt</span>
-                            <i class="fas fa-chevron-down"></i>
-                        </div>
-                        <div class="subcategories">
-                            <?php foreach ($shirtTypes as $type): ?>
-                            <div class="course-category">
-                                <div class="course-header">
-                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                        <input type="checkbox" class="shirt-type-filter-checkbox" value="<?= $type['id'] ?>">
-                                        <span><?= htmlspecialchars($type['name']) ?></span>
-                                    </label>
-                                </div>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                <?php endif; ?> -->
+                    <!-- No dynamic categories available, show fallback message or empty state -->
+                <?php endif; ?>
             </div>
         </aside>
         <button class="filter-toggle" id="filterToggle">

@@ -11,10 +11,198 @@ try {
     require_once '../Includes/connection.php'; // PDO $conn
     $conn->beginTransaction();
 
-    // Check if this is a multi-size product request
-    $isMultiSize = isset($_POST['sizes']) && is_array($_POST['sizes']);
+    // Check if this is a multi-product request
+    $isMultiProduct = isset($_POST['products']) && is_array($_POST['products']);
+    
+    if ($isMultiProduct) {
+        // New multi-product flow
+        $delivery_order = (string)($_POST['deliveryOrderNumber'] ?? '');
+        if (empty($delivery_order)) {
+            throw new Exception("Delivery order number is required");
+        }
+        
+        if (empty($_POST['products'])) {
+            throw new Exception("At least one product must be provided");
+        }
+        
+        $total_items_added = 0;
+        $all_inserted_items = [];
+        
+        // Process each product
+        foreach ($_POST['products'] as $productIndex => $productData) {
+            $required_fields = ['baseItemCode', 'category_id', 'newItemName'];
+            foreach ($required_fields as $field) {
+                if (!isset($productData[$field]) || $productData[$field] === '') {
+                    throw new Exception("Missing required field for product " . ($productIndex + 1) . ": $field");
+                }
+            }
+            
+            $base_item_code = (string)$productData['baseItemCode'];
+            $category_id = intval($productData['category_id'] ?? 0);
+            if ($category_id <= 0) {
+                throw new Exception("Category is required for product " . ($productIndex + 1));
+            }
+            
+            // Resolve category name from ID
+            $cat_stmt = $conn->prepare("SELECT name, has_subcategories FROM categories WHERE id = ?");
+            $cat_stmt->execute([$category_id]);
+            [$category_name, $category_has_sub] = $cat_stmt->fetch(PDO::FETCH_NUM) ?: [null, null];
+            if (!$category_name) {
+                throw new Exception("Invalid category for product " . ($productIndex + 1));
+            }
+            $category = $category_name;
+            $item_name = (string)$productData['newItemName'];
+            
+            // Validate that sizes array is not empty
+            if (empty($productData['sizes']) || !is_array($productData['sizes'])) {
+                throw new Exception("At least one size must be selected for product " . ($productIndex + 1));
+            }
+            
+            // Check if base item code prefix already exists
+            $check_stmt = $conn->prepare("SELECT COUNT(*) FROM inventory WHERE item_code LIKE CONCAT(?, '-%')");
+            $check_stmt->execute([$base_item_code]);
+            $prefix_count = (int)$check_stmt->fetchColumn();
+            if ($prefix_count > 0) {
+                throw new Exception('An item with code prefix "' . $base_item_code . '" already exists. Please use a different item code for product ' . ($productIndex + 1));
+            }
+            
+            // Handle image upload for this product
+            $dbFilePath = null;
+            
+            // Check for image in products array structure: products[index][newImage]
+            if (isset($_FILES['products']) && 
+                isset($_FILES['products']['tmp_name'][$productIndex]) && 
+                isset($_FILES['products']['tmp_name'][$productIndex]['newImage']) &&
+                $_FILES['products']['error'][$productIndex]['newImage'] === UPLOAD_ERR_OK) {
+                
+                $imageTmpPath = $_FILES['products']['tmp_name'][$productIndex]['newImage'];
+                $imageName = $_FILES['products']['name'][$productIndex]['newImage'];
+                $imageType = $_FILES['products']['type'][$productIndex]['newImage'];
 
-    if ($isMultiSize) {
+                $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
+                if (!in_array($imageType, $allowed_types)) {
+                    throw new Exception('Invalid image type for product ' . ($productIndex + 1) . '. Allowed types: JPG, PNG, GIF');
+                }
+
+                $uploadDir = '../uploads/itemlist/';
+                if (!is_dir($uploadDir)) {
+                    if (!mkdir($uploadDir, 0755, true)) {
+                        throw new Exception('Failed to create upload directory');
+                    }
+                }
+
+                $imageExtension = pathinfo($imageName, PATHINFO_EXTENSION);
+                $uniqueName = uniqid('img_', true) . '.' . $imageExtension;
+                $imagePath = $uploadDir . $uniqueName;
+                $dbFilePath = 'uploads/itemlist/' . $uniqueName;
+
+                if (!move_uploaded_file($imageTmpPath, $imagePath)) {
+                    throw new Exception('Error moving uploaded file for product ' . ($productIndex + 1));
+                }
+            } else {
+                throw new Exception('Image upload is required for product ' . ($productIndex + 1));
+            }
+            
+            $course_ids = isset($productData['course_id']) ? (is_array($productData['course_id']) ? $productData['course_id'] : [$productData['course_id']]) : [];
+            $RTW = (count($course_ids) > 1) ? 1 : 0;
+
+            include_once '../PAMO PAGES/includes/config_functions.php';
+            $lowStockThreshold = getLowStockThreshold($conn);
+
+            $product_inserted_items = [];
+            $product_items_added = 0;
+
+            // Process each size for this product
+            foreach ($productData['sizes'] as $size => $sizeData) {
+                if (!isset($sizeData['item_code'], $sizeData['price'], $sizeData['quantity'])) {
+                    throw new Exception("Incomplete data for size: $size in product " . ($productIndex + 1));
+                }
+
+                $item_code = (string)$sizeData['item_code'];
+                $price = floatval($sizeData['price']);
+                $quantity = intval($sizeData['quantity']);
+                $damage = intval($sizeData['damage'] ?? 0);
+
+                if ($price <= 0) throw new Exception("Price must be greater than zero for size: $size in product " . ($productIndex + 1));
+                if ($quantity <= 0) throw new Exception("Initial stock must be 1 or more for size: $size in product " . ($productIndex + 1));
+                if ($damage < 0) throw new Exception("Damage count cannot be negative for size: $size in product " . ($productIndex + 1));
+
+                $beginning_quantity = 0;
+                $new_delivery = $quantity;
+                $actual_quantity = $beginning_quantity + $new_delivery - $damage;
+                $sold_quantity = 0;
+                $status = ($actual_quantity <= 0) ? 'Out of Stock' : (($actual_quantity <= $lowStockThreshold) ? 'Low Stock' : 'In Stock');
+
+                // Insert inventory item
+                $stmt = $conn->prepare("INSERT INTO inventory (
+                    item_code, category_id, category, item_name, sizes, price,
+                    actual_quantity, new_delivery, beginning_quantity,
+                    damage, sold_quantity, status, image_path, RTW, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                $stmt->execute([
+                    $item_code,
+                    $category_id,
+                    $category,
+                    $item_name,
+                    $size,
+                    $price,
+                    $actual_quantity,
+                    $new_delivery,
+                    $beginning_quantity,
+                    $damage,
+                    $sold_quantity,
+                    $status,
+                    $dbFilePath,
+                    $RTW
+                ]);
+
+                $new_inventory_id = (int)$conn->lastInsertId();
+                $product_inserted_items[] = $item_code;
+                $all_inserted_items[] = $item_code;
+                $product_items_added++;
+                $total_items_added++;
+
+                // Link subcategories, if provided
+                $subcategory_ids = isset($productData['subcategory_ids']) ? (array)$productData['subcategory_ids'] : [];
+                if (!empty($subcategory_ids)) {
+                    $pivot_stmt = $conn->prepare("INSERT IGNORE INTO inventory_subcategory (inventory_id, subcategory_id) VALUES (?, ?)");
+                    foreach ($subcategory_ids as $sid) {
+                        $sid = intval($sid);
+                        if ($sid > 0) {
+                            $pivot_stmt->execute([$new_inventory_id, $sid]);
+                        }
+                    }
+                }
+            }
+            
+            // Create activity log for this product - use the first generated item code for foreign key reference
+            $first_item_code = !empty($product_inserted_items) ? $product_inserted_items[0] : $base_item_code;
+            $description = "Product added: {$item_name} - Base Code: {$base_item_code}, Sizes: " . implode(', ', array_keys($productData['sizes'])) . 
+                         " - Delivery Order #: {$delivery_order}, Items added: {$product_items_added}";
+            $stmt = $conn->prepare("INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES ('New Item', ?, ?, ?, NOW())");
+            $user_id = $_SESSION['user_id'] ?? null;
+            $stmt->execute([$description, $first_item_code, $user_id]);
+        }
+        
+        // Send notifications to students for all products
+        $students_stmt = $conn->query("SELECT id FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'");
+        $product_count = count($_POST['products']);
+        $notif_message = $product_count > 1 
+            ? "New products have been added to the inventory. Check the Item List page for details!"
+            : "A new product has been added to the inventory. Check the Item List page for details!";
+        $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'New Item', 0, NOW())");
+        while ($student = $students_stmt->fetch(PDO::FETCH_ASSOC)) {
+            $insert_notif->execute([$student['id'], $notif_message]);
+        }
+
+        $conn->commit();
+
+        echo json_encode([
+            'success' => true,
+            'message' => "Successfully added {$total_items_added} product variations across {$product_count} products"
+        ]);
+
+    } elseif (isset($_POST['sizes']) && is_array($_POST['sizes'])) {
         // New multi-size flow
         $required_fields = ['baseItemCode', 'category_id', 'newItemName', 'deliveryOrderNumber'];
         foreach ($required_fields as $field) {

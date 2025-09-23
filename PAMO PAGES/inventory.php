@@ -360,76 +360,99 @@ function page_link($page, $query_string) {
     <div id="addItemModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Add New Product</h2>
+                <h2>Add New Product(s)</h2>
                 <span class="close" onclick="closeModal('addItemModal')">&times;</span>
             </div>
             <div class="modal-body">
                 <form id="addItemForm" onsubmit="submitNewItem(event)" enctype="multipart/form-data">
-                    <div class="product-basic-info">
-                        <h3>Product Information</h3>
+                    <!-- Shared delivery order section -->
+                    <div class="delivery-order-section">
+                        <h3>Delivery Information</h3>
                         <div class="input-group">
                             <label for="deliveryOrderNumber">Delivery Order #:</label>
                             <input type="text" id="deliveryOrderNumber" name="deliveryOrderNumber" required>
                         </div>
-                        <div class="input-group">
-                            <label for="newProductItemCode">Base Item Code (Prefix):</label>
-                            <input type="text" id="newProductItemCode" name="baseItemCode" placeholder="e.g., USHPWV001" required>
-                            <small>This will be used as prefix for generating size-specific item codes</small>
-                        </div>
-                        <div class="input-group">
-                            <label for="newCategory">Category:</label>
-                            <select id="newCategory" name="category_id" required>
-                                <option value="">Select Category</option>
-                                <option value="__add__">+ Add new category…</option>
-                            </select>
-                        </div>
-                        <div class="input-group" id="subcategoryGroup" style="display:none;">
-                            <label for="subcategorySelect">Subcategory:</label>
-                            <select id="subcategorySelect" name="subcategory_ids[]" multiple style="width:100%;">
-                                <option value="__add__">+ Add new subcategory…</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label for="newItemName">Product Name:</label>
-                            <input type="text" id="newItemName" name="newItemName" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="newImage">Product Image:</label>
-                            <input type="file" id="newImage" name="newImage" accept="image/*" required>
-                        </div>
                     </div>
 
-                    <div class="size-selection-section">
-                        <h3>Size Selection</h3>
-                        <div class="input-group">
-                            <label>Select Sizes:</label>
-                            <div class="size-checkboxes">
-                                <label class="checkbox-label"><input type="checkbox" value="XS" onchange="toggleSizeDetails(this)"> XS</label>
-                                <label class="checkbox-label"><input type="checkbox" value="S" onchange="toggleSizeDetails(this)"> S</label>
-                                <label class="checkbox-label"><input type="checkbox" value="M" onchange="toggleSizeDetails(this)"> M</label>
-                                <label class="checkbox-label"><input type="checkbox" value="L" onchange="toggleSizeDetails(this)"> L</label>
-                                <label class="checkbox-label"><input type="checkbox" value="XL" onchange="toggleSizeDetails(this)"> XL</label>
-                                <label class="checkbox-label"><input type="checkbox" value="XXL" onchange="toggleSizeDetails(this)"> XXL</label>
-                                <label class="checkbox-label"><input type="checkbox" value="3XL" onchange="toggleSizeDetails(this)"> 3XL</label>
-                                <label class="checkbox-label"><input type="checkbox" value="4XL" onchange="toggleSizeDetails(this)"> 4XL</label>
-                                <label class="checkbox-label"><input type="checkbox" value="5XL" onchange="toggleSizeDetails(this)"> 5XL</label>
-                                <label class="checkbox-label"><input type="checkbox" value="6XL" onchange="toggleSizeDetails(this)"> 6XL</label>
-                                <label class="checkbox-label"><input type="checkbox" value="7XL" onchange="toggleSizeDetails(this)"> 7XL</label>
-                                <label class="checkbox-label"><input type="checkbox" value="One Size" onchange="toggleSizeDetails(this)"> One Size</label>
+                    <!-- Products container -->
+                    <div id="productsContainer">
+                        <!-- First product form -->
+                        <div class="product-item" data-product-index="0">
+                            <div class="product-header">
+                                <h3>Product #1</h3>
+                                <span class="remove-product-btn" onclick="removeProduct(0)" style="display: none;">&times;</span>
+                            </div>
+                            
+                            <div class="product-basic-info">
+                                <h4>Product Information</h4>
+                                <div class="input-group">
+                                    <label for="newProductItemCode_0">Base Item Code (Prefix):</label>
+                                    <input type="text" id="newProductItemCode_0" name="products[0][baseItemCode]" placeholder="e.g., USHPWV001" required>
+                                </div>
+                                <div class="input-group">
+                                    <label for="newCategory_0">Category:</label>
+                                    <select id="newCategory_0" name="products[0][category_id]" required>
+                                        <option value="">Select Category</option>
+                                        <option value="__add__">+ Add new category…</option>
+                                    </select>
+                                </div>
+                                <div class="input-group" id="subcategoryGroup_0" style="display:none;">
+                                    <label for="subcategorySelect_0">Subcategory:</label>
+                                    <select id="subcategorySelect_0" name="products[0][subcategory_ids][]" multiple style="width:100%;">
+                                        <option value="__add__">+ Add new subcategory…</option>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label for="newItemName_0">Product Name:</label>
+                                    <input type="text" id="newItemName_0" name="products[0][newItemName]" required>
+                                </div>
+                                <div class="input-group">
+                                    <label for="newImage_0">Product Image:</label>
+                                    <input type="file" id="newImage_0" name="products[0][newImage]" accept="image/*" required>
+                                </div>
+                            </div>
+
+                            <div class="size-selection-section">
+                                <h4>Size Selection</h4>
+                                <div class="input-group">
+                                    <label>Select Sizes:</label>
+                                    <div class="size-checkboxes" data-product="0">
+                                        <label class="checkbox-label"><input type="checkbox" value="XS" onchange="toggleSizeDetails(this, 0)"> XS</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="S" onchange="toggleSizeDetails(this, 0)"> S</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="M" onchange="toggleSizeDetails(this, 0)"> M</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="L" onchange="toggleSizeDetails(this, 0)"> L</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="XL" onchange="toggleSizeDetails(this, 0)"> XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="XXL" onchange="toggleSizeDetails(this, 0)"> XXL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="3XL" onchange="toggleSizeDetails(this, 0)"> 3XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="4XL" onchange="toggleSizeDetails(this, 0)"> 4XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="5XL" onchange="toggleSizeDetails(this, 0)"> 5XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="6XL" onchange="toggleSizeDetails(this, 0)"> 6XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="7XL" onchange="toggleSizeDetails(this, 0)"> 7XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="One Size" onchange="toggleSizeDetails(this, 0)"> One Size</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="sizeDetailsContainer_0" class="size-details-container">
+                                <h4>Size Details</h4>
+                                <div id="sizeDetailsList_0">
+                                    <!-- Size-specific forms will be dynamically added here -->
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div id="sizeDetailsContainer" class="size-details-container">
-                        <h3>Size Details</h3>
-                        <div id="sizeDetailsList">
-                            <!-- Size-specific forms will be dynamically added here -->
-                        </div>
+                    <!-- Add another product button -->
+                    <div class="add-product-section">
+                        <button type="button" class="add-product-btn" onclick="addAnotherProduct()">
+                            <i class="material-icons">add_circle</i> Add Another Item
+                        </button>
+                        <small>Add multiple distinct products under the same delivery order</small>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="submit" form="addItemForm" class="save-btn">Add Product</button>
+                <button type="submit" form="addItemForm" class="save-btn">Add All Products</button>
                 <button type="button" onclick="closeModal('addItemModal')" class="cancel-btn">Cancel</button>
             </div>
         </div>
@@ -1079,6 +1102,70 @@ function page_link($page, $query_string) {
     }
 
     /* New styles for multi-size product addition */
+    .delivery-order-section {
+        background: #f0f8ff;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #b3d9ff;
+    }
+
+    .delivery-order-section h3 {
+        margin: 0 0 15px 0;
+        color: #0066cc;
+        font-size: 16px;
+        font-weight: 600;
+    }
+
+    .product-item {
+        background: #fff;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        position: relative;
+    }
+
+    .product-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .product-header h3 {
+        margin: 0;
+        color: #495057;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .remove-product-btn {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        font-size: 24px;
+        cursor: pointer;
+        color: #dc3545;
+        font-weight: bold;
+        background: #fff;
+        border: 2px solid #dc3545;
+        border-radius: 50%;
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .remove-product-btn:hover {
+        background: #dc3545;
+        color: #fff;
+    }
+
     .product-basic-info {
         background: #f8f9fa;
         padding: 20px;
@@ -1087,7 +1174,7 @@ function page_link($page, $query_string) {
         border: 1px solid #e9ecef;
     }
 
-    .product-basic-info h3 {
+    .product-basic-info h4 {
         margin: 0 0 15px 0;
         color: #495057;
         font-size: 16px;
@@ -1102,7 +1189,7 @@ function page_link($page, $query_string) {
         border: 1px solid #ffeaa7;
     }
 
-    .size-selection-section h3 {
+    .size-selection-section h4 {
         margin: 0 0 15px 0;
         color: #856404;
         font-size: 16px;
@@ -1148,7 +1235,7 @@ function page_link($page, $query_string) {
         display: block;
     }
 
-    .size-details-container h3 {
+    .size-details-container h4 {
         margin: 0 0 15px 0;
         color: #495057;
         font-size: 16px;
@@ -1192,6 +1279,41 @@ function page_link($page, $query_string) {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
         gap: 15px;
+    }
+
+    .add-product-section {
+        text-align: center;
+        padding: 20px;
+        border: 2px dashed #28a745;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+
+    .add-product-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .add-product-btn:hover {
+        background: #218838;
+        transform: translateY(-1px);
+    }
+
+    .add-product-section small {
+        display: block;
+        margin-top: 8px;
+        color: #6c757d;
+        font-size: 13px;
     }
 
     .input-group small {

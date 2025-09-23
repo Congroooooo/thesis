@@ -355,6 +355,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const productContainers = document.querySelectorAll(".product-container");
     let visibleCount = 0;
     const normalizedSearchTerm = normalizeText(currentSearchTerm);
+
+    // Debug logging
+    console.log("Active subcategories:", activeSubcategories);
+
     productContainers.forEach((container) => {
       const productCategory = container.dataset.category.toLowerCase();
       const itemName = container.dataset.itemName.toLowerCase();
@@ -366,28 +370,49 @@ document.addEventListener("DOMContentLoaded", function () {
         ? container.dataset.subcategories.split(",")
         : [];
       const productShirtTypeId = container.dataset.shirtTypeId;
+
+      // Debug specific products
+      if (itemName.includes("test") || itemName.includes("new")) {
+        console.log("Product:", itemName);
+        console.log("- Category:", productCategory);
+        console.log("- Subcategories:", productSubcats);
+        console.log("- Courses:", productCourses);
+      }
+
       let matchesCategory = false;
       if (activeMainCategories.size > 0) {
         for (const mainCategory of activeMainCategories) {
           if (productCategory.includes(mainCategory.toLowerCase())) {
-            // All categories: filter by subcategory id or course name
+            // Check if there are active subcategories for this main category
             if (
               activeSubcategories.has(mainCategory) &&
               activeSubcategories.get(mainCategory).length > 0
             ) {
+              // If subcategories are selected, product must match at least one subcategory
               for (const courseValue of activeSubcategories.get(mainCategory)) {
                 const cv = String(courseValue).toLowerCase();
-                if (
-                  productSubcats.includes(cv) ||
-                  productCourses.includes(cv) ||
-                  isProductInCourse(itemName, cv) ||
-                  itemCode.includes(cv)
-                ) {
+
+                // Primary check: does the product have this subcategory ID?
+                if (productSubcats.includes(cv)) {
                   matchesCategory = true;
                   break;
                 }
+
+                // Fallback for legacy products without subcategory IDs
+                // Only check courses and product names if no subcategory data exists
+                if (productSubcats.length === 0) {
+                  if (
+                    productCourses.includes(cv) ||
+                    isProductInCourse(itemName, cv) ||
+                    itemCode.includes(cv)
+                  ) {
+                    matchesCategory = true;
+                    break;
+                  }
+                }
               }
             } else {
+              // No subcategories selected for this main category - show all products in this category
               matchesCategory = true;
             }
           }
