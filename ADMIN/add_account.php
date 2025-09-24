@@ -32,6 +32,12 @@ try {
     }
 
     $birthdayObj = new DateTime($birthday);
+
+    $currentDate = new DateTime();
+    $age = $currentDate->diff($birthdayObj)->y;
+    if ($age < 16) {
+        throw new Exception('User must be at least 16 years old to register');
+    }
     $sanitizedLastName = preg_replace('/\s+/', '', strtolower($lastName));
     $autoPassword = $sanitizedLastName . $birthdayObj->format('mdY');
     $password = password_hash($autoPassword, PASSWORD_DEFAULT);
@@ -71,6 +77,20 @@ try {
     ]);
 } catch (Exception $e) {
     http_response_code(400);
+    // Log error details to the PHP error log for debugging
+    error_log('Add Account Error: ' . $e->getMessage());
+    if (!headers_sent()) {
+        // Avoid logging huge payloads; only log keys and a few values
+        $safePost = [
+            'firstName' => $_POST['firstName'] ?? null,
+            'lastName' => $_POST['lastName'] ?? null,
+            'birthday' => $_POST['birthday'] ?? null,
+            'idNumber' => isset($_POST['idNumber']) ? ('len=' . strlen((string)$_POST['idNumber'])) : null,
+            'role_category' => $_POST['role_category'] ?? null,
+            'program_position' => $_POST['program_position'] ?? null,
+        ];
+        error_log('Add Account POST snapshot: ' . json_encode($safePost));
+    }
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }
 exit;

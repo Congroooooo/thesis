@@ -445,9 +445,16 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 e.preventDefault();
                 const formData = new FormData(addForm);
                 fetch('add_account.php', { method: 'POST', body: formData })
-                    .then(r=>r.json())
+                    .then(async (r) => {
+                        let data = null;
+                        try { data = await r.json(); } catch (e) { /* no body or not JSON */ }
+                        if (!r.ok || !data || data.success === false) {
+                            const msg = (data && data.message) ? data.message : `Request failed (${r.status})`;
+                            throw new Error(msg);
+                        }
+                        return data;
+                    })
                     .then((data)=>{
-                        if (!data || !data.success) throw new Error(data && data.message ? data.message : 'Request failed');
                         closeModal('addAccountModal');
                         addForm.reset();
 
@@ -516,9 +523,9 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                             if (m) m.remove();
                         });
                     })
-                    .catch(()=>{
+                    .catch((err)=>{
                         const toast = document.createElement('div');
-                        toast.textContent = 'Error creating account';
+                        toast.textContent = (err && err.message) ? err.message : 'Error creating account';
                         toast.style.position = 'fixed';
                         toast.style.top = '16px';
                         toast.style.right = '16px';
@@ -586,11 +593,42 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         modal.style.display = 'flex';
     }
 
+    // Helper: set 16+ max date and enforce validity on birthday input
+    function setBirthdayMax() {
+        try {
+            const bday = document.querySelector('#addAccountModal input[name="birthday"]');
+            if (!bday) return;
+            const today = new Date();
+            const maxDate = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
+            const yyyy = maxDate.getFullYear();
+            const mm = String(maxDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(maxDate.getDate()).padStart(2, '0');
+            const maxStr = `${yyyy}-${mm}-${dd}`;
+            bday.max = maxStr;
+
+            const validate = () => {
+                if (bday.value && bday.value > maxStr) {
+                    bday.setCustomValidity('You must be at least 16 years old.');
+                } else {
+                    bday.setCustomValidity('');
+                }
+            };
+            // Bind once per modal open; guard to avoid multiple listeners
+            if (!bday._ageBound) {
+                bday.addEventListener('input', validate);
+                bday.addEventListener('change', validate);
+                bday._ageBound = true;
+            }
+            validate();
+        } catch (e) { /* noop */ }
+    }
+
     function openAddAccountModal(){
         const f = document.getElementById('addAccountFormModal');
         if (f) f.reset();
         const prog = document.getElementById('modalProgramPosition');
         if (prog) prog.innerHTML = '<option value="">Select Program/Position</option>';
+        setBirthdayMax();
         const modal = document.getElementById('addAccountModal');
         modal.style.display = 'flex';
     }

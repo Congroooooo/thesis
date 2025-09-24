@@ -78,7 +78,6 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .modal-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:9999; }
         .success-icon { color:#28a745; font-size:48px; margin-bottom:12px; }
 
-        /* Consistent badges and buttons (mirrors admin page styling) */
         .status-badge {
             padding: 6px 12px;
             border-radius: 20px;
