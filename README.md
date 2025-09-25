@@ -1,4 +1,4 @@
-# Proware Pre-Order Inventory System
+# PAMO: A Web Based Inventory Management and Ordering System for Purchasing Asset and Management Officer of STI College Lucena
 
 This project is a web-based pre-order inventory system with a built-in e-commerce module tailored for STI College Lucena. It includes different user roles such as Admin, PAMO, and Students, each with distinct functionalities.
 
