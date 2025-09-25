@@ -593,7 +593,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         modal.style.display = 'flex';
     }
 
-    // Helper: set 16+ max date and enforce validity on birthday input
     function setBirthdayMax() {
         try {
             const bday = document.querySelector('#addAccountModal input[name="birthday"]');

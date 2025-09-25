@@ -23,7 +23,6 @@ $selected_items = array_filter($cart_items, function($item) use ($included_items
 });
 $selected_items = array_values($selected_items);
 
-// Generate order number in the format SI-<mmdd>-<sequential>, unified across orders + sales
 $order_number = '';
 if (!empty($selected_items)) {
     $prefix = 'SI';

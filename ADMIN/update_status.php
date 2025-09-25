@@ -14,12 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userId = $_POST['userId'];
         $newStatus = $_POST['status'];
 
-        // Validate status
         if (!in_array($newStatus, ['active', 'inactive'])) {
             throw new Exception('Invalid status value');
         }
 
-        // Update the status in the database
         $stmt = $conn->prepare("UPDATE account SET status = ? WHERE id_number = ?");
         $result = $stmt->execute([$newStatus, $userId]);
 

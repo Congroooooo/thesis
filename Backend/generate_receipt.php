@@ -13,18 +13,15 @@ if (!isset($_SESSION['user_id'])) {
 $order_id = isset($_GET['order_id']) ? intval($_GET['order_id']) : 0;
 if (!$order_id) die('No order ID');
 
-// Fetch order and check ownership
 $stmt = $conn->prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?');
 $stmt->execute([$order_id, $_SESSION['user_id']]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$order || !in_array($order['status'], ['approved', 'completed'])) die('Order not found or not approved/completed');
 
-// Fetch user info
 $user_stmt = $conn->prepare('SELECT first_name, last_name, email, program_or_position, id_number FROM account WHERE id = ?');
 $user_stmt->execute([$_SESSION['user_id']]);
 $user = $user_stmt->fetch(PDO::FETCH_ASSOC);
 
-// Prepare items and fetch category for each
 $order_items = json_decode($order['items'], true);
 foreach ($order_items as &$item) {
     $item_code = $item['item_code'] ?? '';
@@ -39,7 +36,6 @@ foreach ($order_items as &$item) {
 }
 unset($item);
 
-// Prepare receipt data
 $studentName = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
 $studentIdNumber = htmlspecialchars($user['id_number']);
 $course = htmlspecialchars($user['program_or_position']);
@@ -52,12 +48,10 @@ foreach ($order_items as $item) {
 }
 $preparedBy = isset($order['approved_by']) ? htmlspecialchars($order['approved_by']) : '';
 
-// Load and encode the logo
 $logo_path = realpath(__DIR__ . '/../Images/STI-LOGO.png');
 $logo_data = $logo_path && file_exists($logo_path) ? base64_encode(file_get_contents($logo_path)) : '';
 $logo_src = $logo_data ? 'data:image/png;base64,' . $logo_data : '';
 
-// Inline the original modal/print CSS for receipt (from preorders.css)
 $css = '<style>
 @page { size: A4; margin: 0; }
 body { font-family: Arial, sans-serif; font-size: 12px; }
