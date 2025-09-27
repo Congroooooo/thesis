@@ -22,17 +22,41 @@ function getLowStockThreshold($conn) {
 
 function updateLowStockThreshold($conn, $newValue) {
     if ($conn instanceof PDO) {
+        // First try to update existing record
         $stmt = $conn->prepare("UPDATE system_config SET config_value = :value WHERE config_key = 'low_stock_threshold'");
         $stmt->bindParam(':value', $newValue, PDO::PARAM_INT);
-        return $stmt->execute();
+        $stmt->execute();
+        
+        // If no rows were affected, insert the record
+        if ($stmt->rowCount() == 0) {
+            $stmt = $conn->prepare("INSERT INTO system_config (config_key, config_value) VALUES ('low_stock_threshold', :value)");
+            $stmt->bindParam(':value', $newValue, PDO::PARAM_INT);
+            return $stmt->execute();
+        }
+        return true;
     } elseif ($conn instanceof mysqli) {
+        // First try to update existing record
         $sql = "UPDATE system_config SET config_value = ? WHERE config_key = 'low_stock_threshold'";
         $stmt = mysqli_prepare($conn, $sql);
         if ($stmt) {
             mysqli_stmt_bind_param($stmt, "i", $newValue);
-            $result = mysqli_stmt_execute($stmt);
+            mysqli_stmt_execute($stmt);
+            $affected_rows = mysqli_stmt_affected_rows($stmt);
             mysqli_stmt_close($stmt);
-            return $result;
+            
+            // If no rows were affected, insert the record
+            if ($affected_rows == 0) {
+                $sql = "INSERT INTO system_config (config_key, config_value) VALUES ('low_stock_threshold', ?)";
+                $stmt = mysqli_prepare($conn, $sql);
+                if ($stmt) {
+                    mysqli_stmt_bind_param($stmt, "i", $newValue);
+                    $result = mysqli_stmt_execute($stmt);
+                    mysqli_stmt_close($stmt);
+                    return $result;
+                }
+                return false;
+            }
+            return true;
         }
         return false;
     }

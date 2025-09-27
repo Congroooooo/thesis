@@ -137,11 +137,13 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             $accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             foreach ($accounts as $account) {
-                echo "<tr data-id='" . htmlspecialchars($account['id_number']) . "' class='account-row'>";
+                // Use email for employees (who have NULL id_number), id_number for students
+                $identifier = $account['id_number'] ? $account['id_number'] : $account['email'];
+                echo "<tr data-id='" . htmlspecialchars($identifier) . "' class='account-row'>";
                 echo "<td>" . htmlspecialchars($account['first_name']) . "</td>";
                 echo "<td>" . htmlspecialchars($account['last_name']) . "</td>";
                                 echo "<td>" . htmlspecialchars($account['birthday'] ? date('M d, Y', strtotime($account['birthday'])) : 'N/A') . "</td>";
-                echo "<td>" . htmlspecialchars($account['id_number']) . "</td>";
+                echo "<td>" . htmlspecialchars($account['id_number'] ?: 'N/A') . "</td>";
                 echo "<td>" . htmlspecialchars($account['role_category']) . "</td>";
                 $programText = htmlspecialchars($account['program_or_position']);
                 $abbreviation = htmlspecialchars($account['program_abbr']);
@@ -202,11 +204,30 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         </form>
     </div>
 </div>
+
+<!-- User Type Selection Modal -->
+<div class="modal" id="userTypeSelectionModal">
+    <div class="modal-content" style="max-width:400px">
+        <h3>Select Account Type</h3>
+        <p>What type of user account do you want to create?</p>
+        <div class="user-type-buttons">
+            <button type="button" class="btn btn-primary user-type-btn" onclick="openStudentAccountModal()">
+                <i class="fas fa-graduation-cap"></i> Student Account
+            </button>
+            <button type="button" class="btn btn-success user-type-btn" onclick="openEmployeeAccountModal()">
+                <i class="fas fa-briefcase"></i> Employee Account
+            </button>
+        </div>
+        <div class="mt-3">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('userTypeSelectionModal')">Cancel</button>
+        </div>
+    </div>
+</div>
             
-<div class="modal" id="addAccountModal">
+<div class="modal" id="addStudentAccountModal">
     <div class="modal-content" style="max-width:700px">
-        <h3>Add New Account</h3>
-        <form id="addAccountFormModal" class="add-account-form">
+        <h3>Add New Student Account</h3>
+        <form id="addStudentAccountFormModal" class="add-account-form">
             <div class="form-group"><label>First Name</label>
                 <input type="text" name="firstName" id="modalFirstName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
             </div>
@@ -227,7 +248,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     <option value="">Select Role Category</option>
                     <option value="SHS">SHS</option>
                     <option value="COLLEGE STUDENT">COLLEGE STUDENT</option>
-                    <option value="EMPLOYEE">EMPLOYEE</option>
                 </select>
             </div>
             <div class="form-group"><label>Program/Position</label>
@@ -236,8 +256,38 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 </select>
             </div>
             <div class="mt-3">
-                <button type="submit" class="btn btn-primary">Create Account</button>
-                <button type="button" class="btn btn-secondary" onclick="closeModal('addAccountModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Student Account</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addStudentAccountModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Employee Account Modal -->
+<div class="modal" id="addEmployeeAccountModal">
+    <div class="modal-content" style="max-width:700px">
+        <h3>Add New Employee Account</h3>
+        <form id="addEmployeeAccountFormModal" class="add-account-form">
+            <div class="form-group"><label>First Name</label>
+                <input type="text" name="firstName" id="employeeModalFirstName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
+            </div>
+            <div class="form-group"><label>Last Name</label>
+                <input type="text" name="lastName" id="employeeModalLastName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
+            </div>
+            <div class="form-group"><label>Extension Name (Optional)</label>
+                <input type="text" name="extensionName" id="employeeModalExtensionName" class="form-control" maxlength="10" pattern="^[A-Za-z. \-]*$" title="Only letters, spaces, hyphen, and period (e.g., Jr., Sr., III) are allowed">
+            </div>
+            <div class="form-group"><label>Birthday</label>
+                <input type="date" name="birthday" class="form-control" required>
+            </div>
+            <div class="form-group"><label>Position</label>
+                <select name="program_position" id="employeeModalPosition" class="form-control" required>
+                    <option value="">Select Position</option>
+                </select>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">Create Employee Account</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addEmployeeAccountModal')">Cancel</button>
             </div>
         </form>
     </div>
@@ -433,17 +483,36 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             const onlyLetters = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^A-Za-z\s]/g,''); });
             const onlySuffixChars = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^A-Za-z.\s-]/g,''); });
             const onlyDigits = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/\D/g,'').slice(0,11); });
+            const capitalizeNames = (el)=> el && el.addEventListener('input', ()=>{ 
+                const words = el.value.split(' ');
+                el.value = words.map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+            });
             onlyLetters(document.getElementById('modalFirstName'));
             onlyLetters(document.getElementById('modalLastName'));
             onlySuffixChars(document.getElementById('modalExtensionName'));
             onlyDigits(document.getElementById('modalIdNumber'));
+            
+            // Apply capitalization to name fields
+            capitalizeNames(document.getElementById('modalFirstName'));
+            capitalizeNames(document.getElementById('modalLastName'));
+            capitalizeNames(document.getElementById('modalExtensionName'));
+            
+            // Employee form validations
+            onlyLetters(document.getElementById('employeeModalFirstName'));
+            onlyLetters(document.getElementById('employeeModalLastName'));
+            onlySuffixChars(document.getElementById('employeeModalExtensionName'));
+            
+            // Apply capitalization to employee name fields
+            capitalizeNames(document.getElementById('employeeModalFirstName'));
+            capitalizeNames(document.getElementById('employeeModalLastName'));
+            capitalizeNames(document.getElementById('employeeModalExtensionName'));
         }
 
-        const addForm = document.getElementById('addAccountFormModal');
-        if (addForm) {
-            addForm.addEventListener('submit', function(e){
+        const addStudentForm = document.getElementById('addStudentAccountFormModal');
+        if (addStudentForm) {
+            addStudentForm.addEventListener('submit', function(e){
                 e.preventDefault();
-                const formData = new FormData(addForm);
+                const formData = new FormData(addStudentForm);
                 fetch('add_account.php', { method: 'POST', body: formData })
                     .then(async (r) => {
                         let data = null;
@@ -455,8 +524,8 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                         return data;
                     })
                     .then((data)=>{
-                        closeModal('addAccountModal');
-                        addForm.reset();
+                        closeModal('addStudentAccountModal');
+                        addStudentForm.reset();
 
                         const modalHtml = `
                         <div class="modal" id="createSuccessModal" style="display:flex; align-items:center; justify-content:center;">
@@ -469,12 +538,12 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                 <div class="credential-item"><label>Email:</label><strong>${data.generated_email}</strong></div>
                                 <div class="credential-item"><label>Password:</label><strong>${data.generated_password}</strong></div>
                               </div>
-                              <button class="btn btn-primary mt-3" id="createSuccessOk">OK</button>
+                              <button class="btn btn-primary mt-3" id="createStudentSuccessOk">OK</button>
                             </div>
                           </div>
                         </div>`;
                         document.body.insertAdjacentHTML('beforeend', modalHtml);
-                        document.getElementById('createSuccessOk').addEventListener('click', ()=>{
+                        document.getElementById('createStudentSuccessOk').addEventListener('click', ()=>{
                             try {
                                 const tbody = document.getElementById('accountsTbody');
                                 const tr = document.createElement('tr');
@@ -521,11 +590,126 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                             } catch(e) { /* ignore */ }
                             const m = document.getElementById('createSuccessModal');
                             if (m) m.remove();
+                            // Close the student modal
+                            closeModal('addStudentAccountModal');
                         });
                     })
                     .catch((err)=>{
                         const toast = document.createElement('div');
                         toast.textContent = (err && err.message) ? err.message : 'Error creating account';
+                        toast.style.position = 'fixed';
+                        toast.style.top = '16px';
+                        toast.style.right = '16px';
+                        toast.style.background = '#dc3545';
+                        toast.style.color = '#fff';
+                        toast.style.padding = '10px 14px';
+                        toast.style.borderRadius = '6px';
+                        toast.style.zIndex = '10000';
+                        document.body.appendChild(toast);
+                        setTimeout(()=>toast.remove(), 2500);
+                    });
+            });
+        }
+
+        // Employee form handler
+        const addEmployeeForm = document.getElementById('addEmployeeAccountFormModal');
+        if (addEmployeeForm) {
+            addEmployeeForm.addEventListener('submit', function(e){
+                e.preventDefault();
+                const formData = new FormData(addEmployeeForm);
+                fetch('add_employee_account.php', { method: 'POST', body: formData })
+                    .then(async (r) => {
+                        let data = null;
+                        try { data = await r.json(); } catch (e) { /* no body or not JSON */ }
+                        if (!r.ok || !data || data.success === false) {
+                            const msg = (data && data.message) ? data.message : `Request failed (${r.status})`;
+                            const toast = document.createElement('div');
+                            toast.textContent = msg;
+                            toast.style.position = 'fixed';
+                            toast.style.top = '16px';
+                            toast.style.right = '16px';
+                            toast.style.background = '#dc3545';
+                            toast.style.color = '#fff';
+                            toast.style.padding = '10px 14px';
+                            toast.style.borderRadius = '6px';
+                            toast.style.zIndex = '10000';
+                            document.body.appendChild(toast);
+                            setTimeout(()=>toast.remove(), 2500);
+                            return;
+                        }
+                        
+                        const modalHtml = `
+                        <div class="modal" id="createSuccessModal" style="display: flex;">
+                          <div class="modal-content" style="max-width: 500px;">
+                            <div class="text-center">
+                              <i class="fas fa-check-circle" style="font-size: 50px; color: #28a745; margin-bottom: 15px;"></i>
+                              <h4>Employee Account Created Successfully!</h4>
+                              <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; text-align: left;">
+                                <strong>Account Details:</strong><br>
+                                <strong>Name:</strong> ${data.first_name || ''} ${data.last_name || ''}<br>
+                                <strong>Email:</strong> ${data.generated_email || ''}<br>
+                                <strong>Password:</strong> ${data.generated_password || ''}<br>
+                                <strong>Position:</strong> ${data.program_or_position || ''}
+                              </div>
+                              <button class="btn btn-primary mt-3" id="createEmployeeSuccessOk">OK</button>
+                            </div>
+                          </div>
+                        </div>`;
+                        document.body.insertAdjacentHTML('beforeend', modalHtml);
+                        document.getElementById('createEmployeeSuccessOk').addEventListener('click', ()=>{
+                            try {
+                                const tbody = document.getElementById('accountsTbody');
+                                const tr = document.createElement('tr');
+                                tr.className = 'account-row';
+                                tr.dataset.id = (data.generated_email || ''); // Use email as identifier for employees
+                                const role = 'EMPLOYEE';
+                                const position = data.program_or_position || '';
+                                const status = 'active';
+                                const fmtBirthday = (iso)=>{
+                                    if (!iso) return 'N/A';
+                                    const parts = String(iso).split('-');
+                                    if (parts.length !== 3) return 'N/A';
+                                    const [y,m,d] = parts.map(p=>parseInt(p,10));
+                                    if (!y || !m || !d) return 'N/A';
+                                    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                                    return `${months[m-1]} ${String(d).padStart(2,'0')}, ${y}`;
+                                };
+                                tr.innerHTML = `
+                                    <td>${data.first_name || ''}</td>
+                                    <td>${data.last_name || ''}</td>
+                                    <td>${fmtBirthday(data.birthday)}</td>
+                                    <td>N/A</td>
+                                    <td>${role}</td>
+                                    <td class="has-tooltip" data-fulltext="${position}">${position}</td>
+                                    <td>${status}</td>
+                                `;
+                                if (tbody) tbody.prepend(tr);
+                                tr.addEventListener('click', function(){
+                                    const isSelected = this.classList.contains('selected');
+                                    document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
+                                    if (isSelected) {
+                                        this.classList.remove('selected');
+                                        selectedUserId = null;
+                                        document.getElementById('changePasswordBtn').disabled = true;
+                                        document.getElementById('updateStatusBtn').disabled = true;
+                                    } else {
+                                        this.classList.add('selected');
+                                        selectedUserId = this.dataset.id;
+                                        document.getElementById('changePasswordBtn').disabled = false;
+                                        document.getElementById('updateStatusBtn').disabled = false;
+                                    }
+                                });
+                                filterUsers();
+                            } catch(e) { /* ignore */ }
+                            const m = document.getElementById('createSuccessModal');
+                            if (m) m.remove();
+                            // Close the employee modal
+                            closeModal('addEmployeeAccountModal');
+                        });
+                    })
+                    .catch((err)=>{
+                        const toast = document.createElement('div');
+                        toast.textContent = (err && err.message) ? err.message : 'Error creating employee account';
                         toast.style.position = 'fixed';
                         toast.style.top = '16px';
                         toast.style.right = '16px';
@@ -595,41 +779,118 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
     function setBirthdayMax() {
         try {
-            const bday = document.querySelector('#addAccountModal input[name="birthday"]');
-            if (!bday) return;
+            // Set max date for both student and employee modals
+            const studentBday = document.querySelector('#addStudentAccountModal input[name="birthday"]');
+            const employeeBday = document.querySelector('#addEmployeeAccountModal input[name="birthday"]');
+            const bdays = [studentBday, employeeBday].filter(Boolean);
             const today = new Date();
             const maxDate = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
             const yyyy = maxDate.getFullYear();
             const mm = String(maxDate.getMonth() + 1).padStart(2, '0');
             const dd = String(maxDate.getDate()).padStart(2, '0');
             const maxStr = `${yyyy}-${mm}-${dd}`;
-            bday.max = maxStr;
+            
+            bdays.forEach(bday => {
+                if (!bday) return;
+                bday.max = maxStr;
 
-            const validate = () => {
-                if (bday.value && bday.value > maxStr) {
-                    bday.setCustomValidity('You must be at least 16 years old.');
-                } else {
-                    bday.setCustomValidity('');
+                const validate = () => {
+                    if (bday.value && bday.value > maxStr) {
+                        bday.setCustomValidity('You must be at least 16 years old.');
+                    } else {
+                        bday.setCustomValidity('');
+                    }
+                };
+                // Bind once per modal open; guard to avoid multiple listeners
+                if (!bday._ageBound) {
+                    bday.addEventListener('input', validate);
+                    bday.addEventListener('change', validate);
+                    bday._ageBound = true;
                 }
-            };
-            // Bind once per modal open; guard to avoid multiple listeners
-            if (!bday._ageBound) {
-                bday.addEventListener('input', validate);
-                bday.addEventListener('change', validate);
-                bday._ageBound = true;
-            }
-            validate();
+                validate();
+            });
         } catch (e) { /* noop */ }
     }
 
     function openAddAccountModal(){
-        const f = document.getElementById('addAccountFormModal');
+        const modal = document.getElementById('userTypeSelectionModal');
+        modal.style.display = 'flex';
+    }
+
+    function openStudentAccountModal(){
+        // Close user type selection modal
+        closeModal('userTypeSelectionModal');
+        
+        // Reset and setup student form
+        const f = document.getElementById('addStudentAccountFormModal');
         if (f) f.reset();
         const prog = document.getElementById('modalProgramPosition');
         if (prog) prog.innerHTML = '<option value="">Select Program/Position</option>';
         setBirthdayMax();
-        const modal = document.getElementById('addAccountModal');
+        
+        // Load student programs only
+        loadProgramsForCategory(['shs', 'college student'], 'modalProgramPosition');
+        
+        const modal = document.getElementById('addStudentAccountModal');
         modal.style.display = 'flex';
+    }
+
+    function openEmployeeAccountModal(){
+        // Close user type selection modal
+        closeModal('userTypeSelectionModal');
+        
+        // Reset and setup employee form
+        const f = document.getElementById('addEmployeeAccountFormModal');
+        if (f) f.reset();
+        const pos = document.getElementById('employeeModalPosition');
+        if (pos) pos.innerHTML = '<option value="">Select Position</option>';
+        setBirthdayMax();
+        
+        // Load employee positions only
+        loadProgramsForCategory(['employee'], 'employeeModalPosition');
+        
+        const modal = document.getElementById('addEmployeeAccountModal');
+        modal.style.display = 'flex';
+    }
+
+    async function loadProgramsForCategory(categories, selectElementId) {
+        const selectElement = document.getElementById(selectElementId);
+        if (!selectElement) return;
+        
+        selectElement.innerHTML = '<option value="">Loading...</option>';
+        
+        try {
+            // Load all programs and filter by category
+            const responses = await Promise.all(
+                categories.map(cat => fetch(`get_programs.php?category=${encodeURIComponent(cat)}`))
+            );
+            
+            let allPrograms = [];
+            for (const resp of responses) {
+                if (resp.ok) {
+                    const programs = await resp.json();
+                    if (Array.isArray(programs)) {
+                        allPrograms = allPrograms.concat(programs);
+                    }
+                }
+            }
+            
+            // Clear and populate select
+            selectElement.innerHTML = selectElementId.includes('employee') ? 
+                '<option value="">Select Position</option>' : 
+                '<option value="">Select Program/Position</option>';
+                
+            allPrograms.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.abbreviation || p.name;
+                opt.textContent = p.name;
+                selectElement.appendChild(opt);
+            });
+        } catch(e) {
+            selectElement.innerHTML = selectElementId.includes('employee') ? 
+                '<option value="">Select Position</option>' : 
+                '<option value="">Select Program/Position</option>';
+        }
     }
 
     function closeModal(modalId) {
@@ -1351,7 +1612,37 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 .logout-btn {
                     align-self: center;
                 }
-    }
+            }
+            
+            .user-type-buttons {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+                margin: 20px 0;
+            }
+            
+            .user-type-btn {
+                padding: 20px 30px !important;
+                font-size: 18px !important;
+                font-weight: 600 !important;
+                border-radius: 12px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 12px !important;
+                transition: all 0.3s ease !important;
+                min-width: 100% !important;
+                text-align: center !important;
+            }
+            
+            .user-type-btn i {
+                font-size: 24px;
+            }
+            
+            .user-type-btn:hover {
+                transform: translateY(-2px) !important;
+                box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+            }
 </style>
     `);
 </script>

@@ -26,12 +26,24 @@ if ($newPassword !== $confirmPassword) {
 
 if (empty($response['messages'])) {
     $hashedNewPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-    $updateStmt = $conn->prepare('UPDATE account SET password = ? WHERE id_number = ?');
+    
+    // Check if userId is an email (for employees) or id_number (for students)
+    if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
+        // Employee - use email
+        $updateStmt = $conn->prepare('UPDATE account SET password = ? WHERE email = ?');
+    } else {
+        // Student - use id_number
+        $updateStmt = $conn->prepare('UPDATE account SET password = ? WHERE id_number = ?');
+    }
 
     try {
         $updateStmt->execute([$hashedNewPassword, $userId]);
-        $response['success'] = true;
-        $response['messages']['success'] = 'Password successfully updated';
+        if ($updateStmt->rowCount() > 0) {
+            $response['success'] = true;
+            $response['messages']['success'] = 'Password successfully updated';
+        } else {
+            $response['messages']['error'] = 'User not found or password unchanged.';
+        }
     } catch (PDOException $e) {
         $response['messages']['error'] = 'Error updating password. Please try again.';
     }
