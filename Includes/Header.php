@@ -757,16 +757,17 @@ document.addEventListener('DOMContentLoaded', function() {
                             var div = document.createElement('div');
                             div.className = 'mailbox-message-card';
                             div.innerHTML =
-                                '<div class="mailbox-reply-label">Admin Reply:</div>' +
+                                '<div class="mailbox-reply-label">PAMO Reply:</div>' +
                                 '<div class="mailbox-reply-text">' + msg.reply + '</div>' +
                                 '<div class="mailbox-meta">' +
-                                    '<span class="mailbox-date"><i class="fas fa-calendar-alt"></i> ' + msg.replied_at + '</span>' +
+                                    '<span class="mailbox-date"><i class="fas fa-paper-plane"></i> Question sent: ' + msg.submitted_at + '</span>' +
+                                    '<span class="mailbox-date"><i class="fas fa-reply"></i> PAMO replied: ' + msg.replied_at + '</span>' +
                                     '<span class="mailbox-question"><i class="fas fa-question-circle"></i> ' + msg.question + '</span>' +
                                 '</div>';
                             box.appendChild(div);
                         });
                     }
-                    // Mark all as read after displaying
+
                     if (data.unread_ids && data.unread_ids.length > 0) {
                         fetch('../Includes/mark_mailbox_read.php', { method: 'POST' })
                             .then(() => {

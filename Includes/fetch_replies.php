@@ -18,6 +18,7 @@ $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $unread_ids = [];
 foreach ($rows as &$row) {
     $row['replied_at'] = $row['replied_at'] ? date('M d, Y H:i', strtotime($row['replied_at'])) : '';
+    $row['submitted_at'] = $row['submitted_at'] ? date('M d, Y H:i', strtotime($row['submitted_at'])) : '';
     if ($row['student_read'] == 0) $unread_ids[] = $row['id'];
 }
 echo json_encode(['messages' => $rows, 'unread_ids' => $unread_ids]); 
