@@ -18,12 +18,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('Invalid status value');
         }
 
-        // Check if userId is an email (for employees) or id_number (for students)
         if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
-            // Employee - use email
             $stmt = $conn->prepare("UPDATE account SET status = ? WHERE email = ?");
         } else {
-            // Student - use id_number
             $stmt = $conn->prepare("UPDATE account SET status = ? WHERE id_number = ?");
         }
         

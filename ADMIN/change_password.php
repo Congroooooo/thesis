@@ -26,13 +26,10 @@ if ($newPassword !== $confirmPassword) {
 
 if (empty($response['messages'])) {
     $hashedNewPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-    
-    // Check if userId is an email (for employees) or id_number (for students)
+
     if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
-        // Employee - use email
         $updateStmt = $conn->prepare('UPDATE account SET password = ? WHERE email = ?');
     } else {
-        // Student - use id_number
         $updateStmt = $conn->prepare('UPDATE account SET password = ? WHERE id_number = ?');
     }
 

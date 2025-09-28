@@ -32,17 +32,14 @@ try {
     if ($age < 16) {
         throw new Exception('User must be at least 16 years old to register');
     }
-    
-    // Generate password using lastname + birthday format
+
     $sanitizedLastName = preg_replace('/\s+/', '', strtolower($lastName));
     $autoPassword = $sanitizedLastName . $birthdayObj->format('mdY');
     $password = password_hash($autoPassword, PASSWORD_DEFAULT);
 
-    // Generate email using lastname + firstname format
     $sanitizedFirstName = preg_replace('/\s+/', '', strtolower($firstName));
     $email = strtolower(str_replace(' ', '', $lastName . '.' . $firstName . '@lucena.sti.edu.ph'));
 
-    // Check if email already exists
     $checkEmailSql = "SELECT COUNT(*) FROM account WHERE email = ?";
     $checkStmt = $conn->prepare($checkEmailSql);
     $checkStmt->execute([$email]);
@@ -50,7 +47,6 @@ try {
         throw new Exception('An account with this email already exists');
     }
 
-    // Insert employee account (no ID number needed, set to NULL)
     $sql = "INSERT INTO account (first_name, last_name, extension_name, birthday, id_number, email, password, role_category, program_or_position, status, date_created)
             VALUES (?, ?, ?, ?, NULL, ?, ?, 'EMPLOYEE', ?, 'active', CURRENT_TIMESTAMP)";
     $stmt = $conn->prepare($sql);

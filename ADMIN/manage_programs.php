@@ -18,13 +18,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $abbreviation = trim($_POST['abbreviation']);
 
     try {
-        // Check for case-insensitive duplicates across ALL categories
         $checkStmt = $conn->prepare("SELECT id, category FROM programs_positions WHERE LOWER(name) = LOWER(?) OR (abbreviation != '' AND LOWER(abbreviation) = LOWER(?))");
         $checkStmt->execute([$name, $abbreviation]);
         $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
         
         if ($existing) {
-            // Check which field is duplicate for more specific error message
             $duplicateCheckName = $conn->prepare("SELECT id, category FROM programs_positions WHERE LOWER(name) = LOWER(?)");
             $duplicateCheckName->execute([$name]);
             $nameExists = $duplicateCheckName->fetch(PDO::FETCH_ASSOC);
@@ -45,7 +43,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $_SESSION['error_message'] = "A program/position with this abbreviation already exists in the '{$existingCategory}' category.";
             }
         } else {
-            // No duplicates found, proceed with insertion
             $stmt = $conn->prepare("INSERT INTO programs_positions (name, category, abbreviation) VALUES (?, ?, ?)");
             $result = $stmt->execute([$name, $category, $abbreviation]);
             
@@ -288,14 +285,12 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // Client-side duplicate validation
         document.addEventListener('DOMContentLoaded', function() {
             const nameInput = document.getElementById('program_name');
             const categorySelect = document.getElementById('category');
             const abbreviationInput = document.getElementById('abbreviation');
             const form = document.querySelector('form');
-            
-            // Get existing programs for validation
+
             const existingPrograms = <?= json_encode($programs) ?>;
             
             function checkDuplicates() {
@@ -304,15 +299,11 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 const enteredAbbr = abbreviationInput.value.trim().toLowerCase();
                 
                 if (!enteredName) return;
-                
-                // Check across ALL categories, not just the selected one
-                
-                // Clear previous validation messages
+
                 nameInput.classList.remove('is-invalid');
                 abbreviationInput.classList.remove('is-invalid');
                 document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
-                
-                // Check for name duplicate across all categories
+
                 const nameExistsInProgram = existingPrograms.find(p => p.name.toLowerCase() === enteredName);
                 if (nameExistsInProgram) {
                     nameInput.classList.add('is-invalid');
@@ -321,8 +312,7 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     feedback.textContent = `A program/position with this name already exists in the '${nameExistsInProgram.category}' category.`;
                     nameInput.parentNode.appendChild(feedback);
                 }
-                
-                // Check for abbreviation duplicate across all categories (only if abbreviation is not empty)
+
                 if (enteredAbbr) {
                     const abbrExistsInProgram = existingPrograms.find(p => p.abbreviation && p.abbreviation.toLowerCase() === enteredAbbr);
                     if (abbrExistsInProgram) {
@@ -334,13 +324,11 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     }
                 }
             }
-            
-            // Add event listeners for real-time validation
+
             nameInput.addEventListener('input', checkDuplicates);
             abbreviationInput.addEventListener('input', checkDuplicates);
             categorySelect.addEventListener('change', checkDuplicates);
-            
-            // Prevent form submission if duplicates exist
+
             form.addEventListener('submit', function(e) {
                 checkDuplicates();
                 if (document.querySelectorAll('.is-invalid').length > 0) {

@@ -101,7 +101,24 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             <button class="btn btn-warning action-btn" onclick="updateStatus()" id="updateStatusBtn" disabled>
         <i class="fas fa-sync"></i> Update Status
     </button>
+            <button class="btn btn-info action-btn" onclick="bulkUpdateStatus()" id="bulkUpdateStatusBtn" disabled>
+        <i class="fas fa-users-cog"></i> Bulk Update Status
+    </button>
 </div>
+        
+        <div class="selection-status mt-2" id="selectionStatus" style="display: none;">
+            <small class="text-muted">
+                <i class="fas fa-info-circle"></i>
+                <span id="selectionStatusText">Single row selection active</span>
+            </small>
+        </div>
+        
+        <div class="status-restriction-info mt-2" id="statusRestrictionInfo" style="display: none;">
+            <small class="text-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Only users with matching status can be selected together</span>
+            </small>
+        </div>
 </div>
     </aside>
 
@@ -115,13 +132,14 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     <table class="table table-hover mb-0">
         <thead>
             <tr>
-                <th onclick="sortTable(0)">First Name</th>
-                <th onclick="sortTable(1)">Last Name</th>
-                <th onclick="sortTable(2)">Birthday</th>
-                <th onclick="sortTable(3)">ID Number</th>
-                <th onclick="sortTable(4)">Role</th>
-                <th onclick="sortTable(5)">Position/Program</th>
-                <th onclick="sortTable(6)">Status</th>
+                <th><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()"> Select All</th>
+                <th onclick="sortTable(1)">First Name</th>
+                <th onclick="sortTable(2)">Last Name</th>
+                <th onclick="sortTable(3)">Birthday</th>
+                <th onclick="sortTable(4)">ID Number</th>
+                <th onclick="sortTable(5)">Role</th>
+                <th onclick="sortTable(6)">Position/Program</th>
+                <th onclick="sortTable(7)">Status</th>
             </tr>
         </thead>
         <tbody id="accountsTbody">
@@ -139,9 +157,10 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             foreach ($accounts as $account) {
                 $identifier = $account['id_number'] ? $account['id_number'] : $account['email'];
                 echo "<tr data-id='" . htmlspecialchars($identifier) . "' class='account-row'>";
+                echo "<td><input type='checkbox' class='user-checkbox' value='" . htmlspecialchars($identifier) . "' onchange='handleCheckboxChange(this)'></td>";
                 echo "<td>" . htmlspecialchars($account['first_name']) . "</td>";
                 echo "<td>" . htmlspecialchars($account['last_name']) . "</td>";
-                                echo "<td>" . htmlspecialchars($account['birthday'] ? date('M d, Y', strtotime($account['birthday'])) : 'N/A') . "</td>";
+                echo "<td>" . htmlspecialchars($account['birthday'] ? date('M d, Y', strtotime($account['birthday'])) : 'N/A') . "</td>";
                 echo "<td>" . htmlspecialchars($account['id_number'] ?: 'N/A') . "</td>";
                 echo "<td>" . htmlspecialchars($account['role_category']) . "</td>";
                 $programText = htmlspecialchars($account['program_or_position']);
@@ -176,6 +195,30 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 <button type="submit" class="btn btn-primary">Update Status</button>
                 <button type="button" class="btn btn-secondary"
                     onclick="closeModal('updateStatusModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="bulkUpdateStatusModal">
+    <div class="modal-content">
+        <h3>Bulk Update Status</h3>
+        <form id="bulkUpdateStatusForm">
+            <div class="form-group">
+                <label>Selected Users:</label>
+                <div id="selectedUsersList" class="selected-users-list"></div>
+            </div>
+            <div class="form-group">
+                <label for="bulkStatusSelect">Select New Status:</label>
+                <select name="status" id="bulkStatusSelect" class="form-control" required>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">Update All Selected</button>
+                <button type="button" class="btn btn-secondary"
+                    onclick="closeModal('bulkUpdateStatusModal')">Cancel</button>
             </div>
         </form>
     </div>
@@ -329,35 +372,31 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
         dataRows.forEach(row => {
             const getText = (idx) => (row.cells[idx] ? row.cells[idx].textContent.toLowerCase() : '');
-            const firstName = getText(0);
-            const lastName = getText(1);
-            const role = getText(4);
-            const program = getText(5);
-            const status = getText(6);
+            const firstName = getText(1);
+            const lastName = getText(2);
+            const role = getText(5);
+            const program = getText(6);
+            const status = getText(7);
 
             const matchesProgram = programFilter === 'all' || program === programFilter;
             const matchesRole = roleFilter === 'all' || role === roleFilter;
             const matchesStatus = statusFilter === 'all' || status === statusFilter;
-            // Enhanced search logic for combined queries
+
             const matchesSearch = (() => {
-                if (!searchTerm.trim()) return true; // Empty search matches all
+                if (!searchTerm.trim()) return true;
                 
-                const searchWords = searchTerm.trim().split(/\s+/); // Split by any whitespace
+                const searchWords = searchTerm.trim().split(/\s+/); 
                 
                 if (searchWords.length === 1) {
-                    // Single word: check if it matches first name, last name, or both partially
                     const singleWord = searchWords[0];
                     return firstName.includes(singleWord) || lastName.includes(singleWord);
                 } else if (searchWords.length >= 2) {
-                    // Multiple words: check various combinations
                     const fullName = `${firstName} ${lastName}`.toLowerCase();
                     const reverseName = `${lastName} ${firstName}`.toLowerCase();
-                    
-                    // Check if all search words are found in either order
+
                     const allWordsInFullName = searchWords.every(word => fullName.includes(word));
                     const allWordsInReverseName = searchWords.every(word => reverseName.includes(word));
-                    
-                    // Check exact phrase match in either order
+
                     const phraseMatch = fullName.includes(searchTerm) || reverseName.includes(searchTerm);
                     
                     return allWordsInFullName || allWordsInReverseName || phraseMatch;
@@ -387,17 +426,33 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         } else if (emptyRow) {
             emptyRow.remove();
         }
+
+        if (selectedUserIds.length > 0) {
+            updateBulkButtons();
+        } else {
+            firstSelectedStatus = null;
+            setCheckboxesEnabledByStatus(null);
+            updateBulkButtons();
+        }
+
+        if (selectedUserId) {
+            const selectedRow = document.querySelector(`tr[data-id="${selectedUserId}"]`);
+            if (selectedRow && selectedRow.style.display !== 'none') {
+                selectedRow.classList.add('selected');
+                setBulkCheckboxesEnabled(false);
+            }
+        }
     }
 
     function sortTable(columnIndex) {
         const table = document.querySelector('.table');
         const tbody = table.querySelector('tbody');
-        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => r.id !== 'emptyStateRow');
         const currentOrder = tbody.dataset.order || 'asc';
 
         rows.sort((a, b) => {
-            const aValue = a.cells[columnIndex].textContent.toLowerCase();
-            const bValue = b.cells[columnIndex].textContent.toLowerCase();
+            const aValue = a.cells[columnIndex] ? a.cells[columnIndex].textContent.toLowerCase() : '';
+            const bValue = b.cells[columnIndex] ? b.cells[columnIndex].textContent.toLowerCase() : '';
 
             if (currentOrder === 'asc') {
                 return aValue.localeCompare(bValue);
@@ -408,12 +463,29 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
         tbody.dataset.order = currentOrder === 'asc' ? 'desc' : 'asc';
 
+        const emptyRow = document.getElementById('emptyStateRow');
         tbody.innerHTML = '';
         rows.forEach(row => tbody.appendChild(row));
+        if (emptyRow) tbody.appendChild(emptyRow);
+
+        if (selectedUserIds.length > 0 && firstSelectedStatus) {
+            setCheckboxesEnabledByStatus(firstSelectedStatus);
+        }
+
+        updateBulkButtons();
+
+        if (selectedUserId) {
+            const selectedRow = document.querySelector(`tr[data-id="${selectedUserId}"]`);
+            if (selectedRow) {
+                selectedRow.classList.add('selected');
+                setBulkCheckboxesEnabled(false);
+            }
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         filterUsers();
+        updateBulkButtons();
 
         document.getElementById('searchInput').addEventListener('input', filterUsers);
             document.getElementById('searchInput').addEventListener('input', function(){
@@ -519,7 +591,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             const onlyDigits = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/\D/g,'').slice(0,11); });
             const onlyDigitsSuffix = (el, maxLength)=> el && el.addEventListener('input', ()=>{ 
                 el.value = el.value.replace(/\D/g,'').slice(0, maxLength);
-                // Auto-update the full ID number
+                
                 const fullIdInput = document.getElementById('modalIdNumber');
                 if (fullIdInput) {
                     fullIdInput.value = '02000' + el.value;
@@ -533,18 +605,15 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             onlyLetters(document.getElementById('modalLastName'));
             onlySuffixChars(document.getElementById('modalExtensionName'));
             onlyDigitsSuffix(document.getElementById('modalIdNumberSuffix'), 6);
-            
-            // Apply capitalization to name fields
+
             capitalizeNames(document.getElementById('modalFirstName'));
             capitalizeNames(document.getElementById('modalLastName'));
             capitalizeNames(document.getElementById('modalExtensionName'));
-            
-            // Employee form validations
+
             onlyLetters(document.getElementById('employeeModalFirstName'));
             onlyLetters(document.getElementById('employeeModalLastName'));
             onlySuffixChars(document.getElementById('employeeModalExtensionName'));
-            
-            // Apply capitalization to employee name fields
+
             capitalizeNames(document.getElementById('employeeModalFirstName'));
             capitalizeNames(document.getElementById('employeeModalLastName'));
             capitalizeNames(document.getElementById('employeeModalExtensionName'));
@@ -554,8 +623,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         if (addStudentForm) {
             addStudentForm.addEventListener('submit', function(e){
                 e.preventDefault();
-                
-                // Ensure the full ID number is properly set before submission
+
                 const suffixInput = document.getElementById('modalIdNumberSuffix');
                 const fullIdInput = document.getElementById('modalIdNumber');
                 if (suffixInput && fullIdInput) {
@@ -582,8 +650,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     .then((data)=>{
                         closeModal('addStudentAccountModal');
                         addStudentForm.reset();
-                        
-                        // Reset ID number fields properly
+
                         const suffixInput = document.getElementById('modalIdNumberSuffix');
                         const fullIdInput = document.getElementById('modalIdNumber');
                         if (suffixInput && fullIdInput) {
@@ -626,6 +693,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                     return `${months[m-1]} ${String(d).padStart(2,'0')}, ${y}`;
                                 };
                                 tr.innerHTML = `
+                                    <td><input type="checkbox" class="user-checkbox" value="${data.id_number || ''}" onchange="handleCheckboxChange(this)"></td>
                                     <td>${data.first_name || ''}</td>
                                     <td>${data.last_name || ''}</td>
                                     <td>${fmtBirthday(data.birthday)}</td>
@@ -635,7 +703,15 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                     <td>${status}</td>
                                 `;
                                 if (tbody) tbody.prepend(tr);
-                                tr.addEventListener('click', function(){
+                                tr.addEventListener('click', function(e){
+                                    if (e.target.type === 'checkbox') {
+                                        return;
+                                    }
+
+                                    if (this.classList.contains('row-selection-disabled')) {
+                                        return;
+                                    }
+                                    
                                     const isSelected = this.classList.contains('selected');
                                     document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
                                     if (isSelected) {
@@ -643,18 +719,23 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                         selectedUserId = null;
                                         document.getElementById('changePasswordBtn').disabled = true;
                                         document.getElementById('updateStatusBtn').disabled = true;
+
+                                        setBulkCheckboxesEnabled(true);
+                                        updateSelectionStatus('row', 0);
                                     } else {
                                         this.classList.add('selected');
                                         selectedUserId = this.dataset.id;
                                         document.getElementById('changePasswordBtn').disabled = false;
                                         document.getElementById('updateStatusBtn').disabled = false;
+
+                                        setBulkCheckboxesEnabled(false);
+                                        updateSelectionStatus('row', 1);
                                     }
                                 });
                                 filterUsers();
                             } catch(e) { /* ignore */ }
                             const m = document.getElementById('createSuccessModal');
                             if (m) m.remove();
-                            // Close the student modal
                             closeModal('addStudentAccountModal');
                         });
                     })
@@ -675,7 +756,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             });
         }
 
-        // Employee form handler
         const addEmployeeForm = document.getElementById('addEmployeeAccountFormModal');
         if (addEmployeeForm) {
             addEmployeeForm.addEventListener('submit', function(e){
@@ -725,7 +805,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                 const tbody = document.getElementById('accountsTbody');
                                 const tr = document.createElement('tr');
                                 tr.className = 'account-row';
-                                tr.dataset.id = (data.generated_email || ''); // Use email as identifier for employees
+                                tr.dataset.id = (data.generated_email || '');
                                 const role = 'EMPLOYEE';
                                 const position = data.program_or_position || '';
                                 const status = 'active';
@@ -739,6 +819,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                     return `${months[m-1]} ${String(d).padStart(2,'0')}, ${y}`;
                                 };
                                 tr.innerHTML = `
+                                    <td><input type="checkbox" class="user-checkbox" value="${data.generated_email || ''}" onchange="handleCheckboxChange(this)"></td>
                                     <td>${data.first_name || ''}</td>
                                     <td>${data.last_name || ''}</td>
                                     <td>${fmtBirthday(data.birthday)}</td>
@@ -748,7 +829,15 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                     <td>${status}</td>
                                 `;
                                 if (tbody) tbody.prepend(tr);
-                                tr.addEventListener('click', function(){
+                                tr.addEventListener('click', function(e){
+                                    if (e.target.type === 'checkbox') {
+                                        return;
+                                    }
+
+                                    if (this.classList.contains('row-selection-disabled')) {
+                                        return;
+                                    }
+                                    
                                     const isSelected = this.classList.contains('selected');
                                     document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
                                     if (isSelected) {
@@ -756,18 +845,21 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                         selectedUserId = null;
                                         document.getElementById('changePasswordBtn').disabled = true;
                                         document.getElementById('updateStatusBtn').disabled = true;
+                                        setBulkCheckboxesEnabled(true);
+                                        updateSelectionStatus('row', 0);
                                     } else {
                                         this.classList.add('selected');
                                         selectedUserId = this.dataset.id;
                                         document.getElementById('changePasswordBtn').disabled = false;
                                         document.getElementById('updateStatusBtn').disabled = false;
+                                        setBulkCheckboxesEnabled(false);
+                                        updateSelectionStatus('row', 1);
                                     }
                                 });
                                 filterUsers();
                             } catch(e) { /* ignore */ }
                             const m = document.getElementById('createSuccessModal');
                             if (m) m.remove();
-                            // Close the employee modal
                             closeModal('addEmployeeAccountModal');
                         });
                     })
@@ -790,9 +882,253 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     });
 
     let selectedUserId = null;
+    let selectedUserIds = [];
+    let firstSelectedStatus = null;
+
+    function getUserStatus(row) {
+        const statusCell = row.querySelector('td:last-child');
+        return statusCell ? statusCell.textContent.trim().toLowerCase() : null;
+    }
+
+    function handleCheckboxChange(checkbox) {
+        updateBulkButtons();
+    }
+
+    function setCheckboxesEnabledByStatus(targetStatus) {
+        const rows = document.querySelectorAll('.account-row');
+        const restrictionInfo = document.getElementById('statusRestrictionInfo');
+        
+        rows.forEach(row => {
+            if (row.style.display === 'none' || row.id === 'emptyStateRow') return;
+            
+            const checkbox = row.querySelector('.user-checkbox');
+            if (!checkbox) return;
+            
+            const rowStatus = getUserStatus(row);
+            
+            if (targetStatus === null) {
+                checkbox.disabled = false;
+                row.classList.remove('status-disabled');
+                checkbox.title = '';
+            } else if (rowStatus === targetStatus) {
+                checkbox.disabled = false;
+                row.classList.remove('status-disabled');
+                checkbox.title = '';
+            } else {
+                checkbox.disabled = true;
+                checkbox.checked = false;
+                row.classList.add('status-disabled');
+                checkbox.title = `Cannot select - different status (${rowStatus} vs ${targetStatus})`;
+            }
+        });
+
+        if (restrictionInfo) {
+            restrictionInfo.style.display = targetStatus ? 'block' : 'none';
+        }
+    }
+
+    function setBulkCheckboxesEnabled(enabled) {
+        const checkboxes = document.querySelectorAll('.user-checkbox');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        
+        if (enabled) {
+            firstSelectedStatus = null;
+            setCheckboxesEnabledByStatus(null);
+        } else {
+            checkboxes.forEach(checkbox => {
+                checkbox.disabled = true;
+            });
+        }
+        
+        if (selectAllCheckbox) {
+            selectAllCheckbox.disabled = !enabled;
+        }
+
+        if (!enabled) {
+            checkboxes.forEach(checkbox => checkbox.checked = false);
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.indeterminate = false;
+            }
+            selectedUserIds = [];
+            firstSelectedStatus = null;
+            const bulkUpdateBtn = document.getElementById('bulkUpdateStatusBtn');
+            if (bulkUpdateBtn) bulkUpdateBtn.disabled = true;
+        }
+    }
+
+    function setRowSelectionEnabled(enabled) {
+        const rows = document.querySelectorAll('.account-row');
+        
+        rows.forEach(row => {
+            if (enabled) {
+                row.classList.remove('row-selection-disabled');
+                row.style.cursor = '';
+            } else {
+                row.classList.add('row-selection-disabled');
+                row.style.cursor = 'default';
+                row.classList.remove('selected');
+            }
+        });
+
+        if (!enabled) {
+            selectedUserId = null;
+            document.getElementById('changePasswordBtn').disabled = true;
+            document.getElementById('updateStatusBtn').disabled = true;
+        }
+    }
+
+    function updateSelectionStatus(mode, count, status = null) {
+        const statusDiv = document.getElementById('selectionStatus');
+        const statusText = document.getElementById('selectionStatusText');
+        
+        if (!statusDiv || !statusText) return;
+        
+        if (mode === 'bulk' && count > 0) {
+            statusDiv.style.display = 'block';
+            const statusInfo = status ? ` (${status.charAt(0).toUpperCase() + status.slice(1)} users only)` : '';
+            statusText.innerHTML = `<i class="fas fa-check-square"></i> Bulk selection active (${count} user${count !== 1 ? 's' : ''} selected)${statusInfo}`;
+            statusDiv.className = 'selection-status mt-2 text-info';
+        } else if (mode === 'row' && count > 0) {
+            statusDiv.style.display = 'block';
+            statusText.innerHTML = `<i class="fas fa-mouse-pointer"></i> Single row selection active`;
+            statusDiv.className = 'selection-status mt-2 text-success';
+        } else {
+            statusDiv.style.display = 'none';
+        }
+    }
+
+    function hasMixedStatuses() {
+        const visibleRows = Array.from(document.querySelectorAll('.account-row')).filter(row => 
+            row.style.display !== 'none' && row.id !== 'emptyStateRow'
+        );
+        
+        const statuses = new Set();
+        visibleRows.forEach(row => {
+            const status = getUserStatus(row);
+            if (status) statuses.add(status);
+        });
+        
+        return statuses.size > 1;
+    }
+
+    function toggleSelectAll() {
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+        if (selectAllCheckbox.checked && hasMixedStatuses()) {
+            selectAllCheckbox.checked = false;
+            
+            const toast = document.createElement('div');
+            toast.textContent = 'Cannot select all users with different statuses. Please filter by status first.';
+            toast.style.position = 'fixed';
+            toast.style.top = '16px';
+            toast.style.right = '16px';
+            toast.style.background = '#ffc107';
+            toast.style.color = '#000';
+            toast.style.padding = '12px 16px';
+            toast.style.borderRadius = '6px';
+            toast.style.zIndex = '10000';
+            toast.style.maxWidth = '300px';
+            toast.style.fontSize = '14px';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+            return;
+        }
+        
+        const visibleRows = Array.from(document.querySelectorAll('.account-row')).filter(row => 
+            row.style.display !== 'none' && row.id !== 'emptyStateRow'
+        );
+        
+        visibleRows.forEach(row => {
+            const checkbox = row.querySelector('.user-checkbox');
+            if (checkbox && !checkbox.disabled) {
+                checkbox.checked = selectAllCheckbox.checked;
+            }
+        });
+        
+        updateBulkButtons();
+    }
+
+    function updateBulkButtons() {
+        const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
+        selectedUserIds = Array.from(checkedBoxes).map(cb => cb.value);
+        
+        const bulkUpdateBtn = document.getElementById('bulkUpdateStatusBtn');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+        if (selectedUserIds.length > 0) {
+            if (firstSelectedStatus === null && checkedBoxes.length > 0) {
+                const firstCheckedBox = checkedBoxes[0];
+                const firstRow = firstCheckedBox.closest('.account-row');
+                firstSelectedStatus = getUserStatus(firstRow);
+                setCheckboxesEnabledByStatus(firstSelectedStatus);
+                setRowSelectionEnabled(false);
+            }
+        } else {
+            firstSelectedStatus = null;
+            setCheckboxesEnabledByStatus(null);
+            setRowSelectionEnabled(true);
+        }
+        const visibleCheckboxes = Array.from(document.querySelectorAll('.account-row')).filter(row => 
+            row.style.display !== 'none' && row.id !== 'emptyStateRow'
+        ).map(row => row.querySelector('.user-checkbox')).filter(cb => cb && !cb.disabled);
+        
+        const visibleCheckedBoxes = visibleCheckboxes.filter(cb => cb.checked);
+
+        bulkUpdateBtn.disabled = selectedUserIds.length === 0;
+
+        if (selectedUserIds.length > 0) {
+            updateSelectionStatus('bulk', selectedUserIds.length, firstSelectedStatus);
+        } else {
+            updateSelectionStatus('row', selectedUserId ? 1 : 0);
+        }
+
+        if (visibleCheckedBoxes.length === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (visibleCheckedBoxes.length === visibleCheckboxes.length && visibleCheckboxes.length > 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+
+    function bulkUpdateStatus() {
+        if (selectedUserIds.length === 0) {
+            alert('Please select at least one user.');
+            return;
+        }
+
+        const selectedUsersList = document.getElementById('selectedUsersList');
+        selectedUsersList.innerHTML = '';
+        
+        selectedUserIds.forEach(userId => {
+            const row = document.querySelector(`tr[data-id="${userId}"]`);
+            if (row) {
+                const firstName = row.children[1].textContent;
+                const lastName = row.children[2].textContent;
+                const userDiv = document.createElement('div');
+                userDiv.className = 'selected-user-item';
+                userDiv.textContent = `${firstName} ${lastName} (${userId})`;
+                selectedUsersList.appendChild(userDiv);
+            }
+        });
+
+        const modal = document.getElementById('bulkUpdateStatusModal');
+        modal.style.display = 'flex';
+    }
 
     document.querySelectorAll('.account-row').forEach(row => {
-        row.addEventListener('click', function () {
+        row.addEventListener('click', function (e) {
+            if (e.target.type === 'checkbox') {
+                return;
+            }
+
+            if (this.classList.contains('row-selection-disabled')) {
+                return;
+            }
+            
             const isSelected = this.classList.contains('selected');
 
             document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
@@ -802,11 +1138,15 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 selectedUserId = null;
                 document.getElementById('changePasswordBtn').disabled = true;
                 document.getElementById('updateStatusBtn').disabled = true;
+                setBulkCheckboxesEnabled(true);
+                updateSelectionStatus('row', 0);
             } else {
                 this.classList.add('selected');
                 selectedUserId = this.dataset.id;
                 document.getElementById('changePasswordBtn').disabled = false;
                 document.getElementById('updateStatusBtn').disabled = false;
+                setBulkCheckboxesEnabled(false);
+                updateSelectionStatus('row', 1);
             }
         });
     });
@@ -843,7 +1183,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
     function setBirthdayMax() {
         try {
-            // Set max date for both student and employee modals
             const studentBday = document.querySelector('#addStudentAccountModal input[name="birthday"]');
             const employeeBday = document.querySelector('#addEmployeeAccountModal input[name="birthday"]');
             const bdays = [studentBday, employeeBday].filter(Boolean);
@@ -865,7 +1204,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                         bday.setCustomValidity('');
                     }
                 };
-                // Bind once per modal open; guard to avoid multiple listeners
                 if (!bday._ageBound) {
                     bday.addEventListener('input', validate);
                     bday.addEventListener('change', validate);
@@ -882,26 +1220,22 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     }
 
     function openStudentAccountModal(){
-        // Close user type selection modal
         closeModal('userTypeSelectionModal');
-        
-        // Reset and setup student form
+
         const f = document.getElementById('addStudentAccountFormModal');
         if (f) f.reset();
         const prog = document.getElementById('modalProgramPosition');
         if (prog) prog.innerHTML = '<option value="">Select Program/Position</option>';
         setBirthdayMax();
-        
-        // Initialize ID number fields
+
         const suffixInput = document.getElementById('modalIdNumberSuffix');
         const fullIdInput = document.getElementById('modalIdNumber');
         if (suffixInput && fullIdInput) {
             suffixInput.value = '';
             fullIdInput.value = '02000';
-            suffixInput.focus(); // Focus on the suffix input for user convenience
+            suffixInput.focus();
         }
-        
-        // Load student programs only
+
         loadProgramsForCategory(['shs', 'college student'], 'modalProgramPosition');
         
         const modal = document.getElementById('addStudentAccountModal');
@@ -909,17 +1243,14 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     }
 
     function openEmployeeAccountModal(){
-        // Close user type selection modal
         closeModal('userTypeSelectionModal');
-        
-        // Reset and setup employee form
+
         const f = document.getElementById('addEmployeeAccountFormModal');
         if (f) f.reset();
         const pos = document.getElementById('employeeModalPosition');
         if (pos) pos.innerHTML = '<option value="">Select Position</option>';
         setBirthdayMax();
-        
-        // Load employee positions only
+
         loadProgramsForCategory(['employee'], 'employeeModalPosition');
         
         const modal = document.getElementById('addEmployeeAccountModal');
@@ -933,7 +1264,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         selectElement.innerHTML = '<option value="">Loading...</option>';
         
         try {
-            // Load all programs and filter by category
             const responses = await Promise.all(
                 categories.map(cat => fetch(`get_programs.php?category=${encodeURIComponent(cat)}`))
             );
@@ -947,8 +1277,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     }
                 }
             }
-            
-            // Clear and populate select
+
             selectElement.innerHTML = selectElementId.includes('employee') ? 
                 '<option value="">Select Position</option>' : 
                 '<option value="">Select Program/Position</option>';
@@ -1039,6 +1368,97 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
            document.body.appendChild(toast);
            setTimeout(() => toast.remove(), 2500);
        }
+    });
+
+    document.getElementById('bulkUpdateStatusForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        
+        if (selectedUserIds.length === 0) {
+            alert('No users selected.');
+            return;
+        }
+        
+        const status = document.getElementById('bulkStatusSelect').value;
+        
+        try {
+            const response = await fetch('bulk_update_status.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userIds: selectedUserIds,
+                    status: status
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data || data.success === false) {
+                const msg = (data && data.message) ? data.message : 'Error updating status. Please try again.';
+                const toast = document.createElement('div');
+                toast.textContent = msg;
+                toast.style.position = 'fixed';
+                toast.style.top = '16px';
+                toast.style.right = '16px';
+                toast.style.background = '#dc3545';
+                toast.style.color = '#fff';
+                toast.style.padding = '10px 14px';
+                toast.style.borderRadius = '6px';
+                toast.style.zIndex = '10000';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2500);
+                return;
+            }
+
+            selectedUserIds.forEach(userId => {
+                const row = document.querySelector(`tr[data-id="${userId}"]`);
+                if (row) {
+                    const statusCell = row.querySelector('td:last-child');
+                    if (statusCell) {
+                        statusCell.textContent = status;
+                    }
+                }
+            });
+
+            document.querySelectorAll('.user-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('selectAllCheckbox').checked = false;
+            selectedUserIds = [];
+            firstSelectedStatus = null;
+            setCheckboxesEnabledByStatus(null);
+            updateBulkButtons();
+
+            setRowSelectionEnabled(true);
+            
+            filterUsers();
+            
+            closeModal('bulkUpdateStatusModal');
+            
+            const successMsg = data.updated_count ? 
+                `Successfully updated ${data.updated_count} user(s) status to ${status}` :
+                'Status updated successfully';
+                
+            const modal = document.getElementById('successModal');
+            if (modal) {
+                modal.querySelector('p').textContent = successMsg;
+                modal.style.display = 'flex';
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            const toast = document.createElement('div');
+            toast.textContent = 'Error updating status. Please try again.';
+            toast.style.position = 'fixed';
+            toast.style.top = '16px';
+            toast.style.right = '16px';
+            toast.style.background = '#dc3545';
+            toast.style.color = '#fff';
+            toast.style.padding = '10px 14px';
+            toast.style.borderRadius = '6px';
+            toast.style.zIndex = '10000';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
+        }
     });
 
     document.head.insertAdjacentHTML('beforeend', `
@@ -1797,6 +2217,103 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             .user-type-btn:hover {
                 transform: translateY(-2px) !important;
                 box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+            }
+            
+            /* Bulk update styles */
+            .selected-users-list {
+                max-height: 200px;
+                overflow-y: auto;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 8px;
+                background: #f9f9f9;
+            }
+            
+            .selected-user-item {
+                padding: 4px 8px;
+                margin: 2px 0;
+                background: #e3f2fd;
+                border-radius: 3px;
+                font-size: 0.9em;
+            }
+            
+            .user-checkbox {
+                margin-right: 8px;
+            }
+            
+            #bulkUpdateStatusBtn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            
+            th:first-child {
+                width: 80px;
+                text-align: center;
+            }
+            
+            td:first-child {
+                text-align: center;
+            }
+            
+            /* Disabled checkbox styling */
+            .user-checkbox:disabled {
+                opacity: 0.3;
+                cursor: not-allowed;
+            }
+            
+            /* Row styling when checkbox is disabled due to status mismatch */
+            .account-row.status-disabled {
+                opacity: 0.5;
+                background-color: #f8f9fa;
+            }
+            
+            .account-row.status-disabled .user-checkbox {
+                opacity: 0.3;
+            }
+            
+            /* Disabled row styling */
+            .account-row.row-selection-disabled {
+                cursor: default !important;
+            }
+            
+            .account-row.row-selection-disabled:hover {
+                background-color: inherit !important;
+            }
+            
+            /* Visual indicator for disabled select all */
+            #selectAllCheckbox:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            
+            /* Selection status indicator */
+            .selection-status {
+                padding: 8px 12px;
+                border-radius: 4px;
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+            }
+            
+            .selection-status.text-info {
+                background-color: #d1ecf1;
+                border-color: #bee5eb;
+                color: #0c5460;
+            }
+            
+            .selection-status.text-success {
+                background-color: #d4edda;
+                border-color: #c3e6cb;
+                color: #155724;
+            }
+            
+            /* Status restriction info */
+            .status-restriction-info {
+                padding: 6px 10px;
+                border-radius: 4px;
+                background-color: #fff3cd;
+                border: 1px solid #ffeaa7;
+                color: #856404;
+                font-size: 0.85em;
             }
 </style>
     `);

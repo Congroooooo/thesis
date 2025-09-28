@@ -1,6 +1,6 @@
 <?php
 function getLowStockThreshold($conn) {
-    // If it's a PDO connection
+
     if ($conn instanceof PDO) {
         $stmt = $conn->prepare("SELECT config_value FROM system_config WHERE config_key = 'low_stock_threshold'");
         $stmt->execute();
@@ -35,7 +35,7 @@ function updateLowStockThreshold($conn, $newValue) {
         }
         return true;
     } elseif ($conn instanceof mysqli) {
-        // First try to update existing record
+        // First try to update existing record 
         $sql = "UPDATE system_config SET config_value = ? WHERE config_key = 'low_stock_threshold'";
         $stmt = mysqli_prepare($conn, $sql);
         if ($stmt) {
