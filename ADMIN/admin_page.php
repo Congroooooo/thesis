@@ -1202,7 +1202,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             const employeeBday = document.querySelector('#addEmployeeAccountModal input[name="birthday"]');
             const bdays = [studentBday, employeeBday].filter(Boolean);
             const today = new Date();
-            const maxDate = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
+            const maxDate = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate());
             const maxYear = maxDate.getFullYear();
             
             // Add age validation to year fields
@@ -1216,7 +1216,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 const validateAge = () => {
                     const year = parseInt(yearField.value);
                     if (yearField.value.length === 4 && year > maxYear) {
-                        yearField.setCustomValidity('You must be at least 16 years old.');
+                        yearField.setCustomValidity('You must be at least 15 years old.');
                     } else if (yearField.value.length === 4 && year < 1900) {
                         yearField.setCustomValidity('Please enter a valid year (1900 or later).');
                     } else {
@@ -1242,8 +1242,8 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                         
                         const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
                         
-                        if (actualAge < 16) {
-                            bday.setCustomValidity('You must be at least 16 years old.');
+                        if (actualAge < 15) {
+                            bday.setCustomValidity('You must be at least 15 years old.');
                         } else {
                             bday.setCustomValidity('');
                         }

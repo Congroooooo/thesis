@@ -29,8 +29,8 @@ try {
 
     $currentDate = new DateTime();
     $age = $currentDate->diff($birthdayObj)->y;
-    if ($age < 16) {
-        throw new Exception('User must be at least 16 years old to register');
+    if ($age < 15) {
+        throw new Exception('User must be at least 15 years old to register');
     }
 
     $sanitizedLastName = preg_replace('/\s+/', '', strtolower($lastName));
