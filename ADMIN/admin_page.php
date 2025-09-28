@@ -279,7 +279,14 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 <input type="text" name="extensionName" id="modalExtensionName" class="form-control" maxlength="10" pattern="^[A-Za-z. \-]*$" title="Only letters, spaces, hyphen, and period (e.g., Jr., Sr., III) are allowed">
             </div>
             <div class="form-group"><label>Birthday<span class="text-danger" style="color: red;"> *</span></label>
-                <input type="date" name="birthday" class="form-control" required>
+                <div class="birthday-inputs">
+                    <input type="text" name="birthday_month" class="form-control birthday-field" placeholder="MM" maxlength="2" pattern="[0-9]{2}" required>
+                    <span class="separator">/</span>
+                    <input type="text" name="birthday_day" class="form-control birthday-field" placeholder="DD" maxlength="2" pattern="[0-9]{2}" required>
+                    <span class="separator">/</span>
+                    <input type="text" name="birthday_year" class="form-control birthday-field" placeholder="YYYY" maxlength="4" pattern="[0-9]{4}" required>
+                    <input type="hidden" name="birthday" id="hiddenBirthdayStudent">
+                </div>
             </div>
             <div class="form-group id-number-group">
                 <label>ID Number<span class="text-danger" style="color: red;"> *</span></label>
@@ -329,7 +336,14 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 <input type="text" name="extensionName" id="employeeModalExtensionName" class="form-control" maxlength="10" pattern="^[A-Za-z. \-]*$" title="Only letters, spaces, hyphen, and period (e.g., Jr., Sr., III) are allowed">
             </div>
             <div class="form-group"><label>Birthday<span class="text-danger" style="color: red;"> *</span></label>
-                <input type="date" name="birthday" class="form-control" required>
+                <div class="birthday-inputs">
+                    <input type="text" name="birthday_month" class="form-control birthday-field" placeholder="MM" maxlength="2" pattern="[0-9]{2}" required>
+                    <span class="separator">/</span>
+                    <input type="text" name="birthday_day" class="form-control birthday-field" placeholder="DD" maxlength="2" pattern="[0-9]{2}" required>
+                    <span class="separator">/</span>
+                    <input type="text" name="birthday_year" class="form-control birthday-field" placeholder="YYYY" maxlength="4" pattern="[0-9]{4}" required>
+                    <input type="hidden" name="birthday" id="hiddenBirthdayEmployee">
+                </div>
             </div>
             <div class="form-group"><label>Position<span class="text-danger" style="color: red;"> *</span></label>
                 <select name="program_position" id="employeeModalPosition" class="form-control" required>
@@ -1183,33 +1197,61 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
     function setBirthdayMax() {
         try {
+            // Get hidden birthday fields that store the combined date
             const studentBday = document.querySelector('#addStudentAccountModal input[name="birthday"]');
             const employeeBday = document.querySelector('#addEmployeeAccountModal input[name="birthday"]');
             const bdays = [studentBday, employeeBday].filter(Boolean);
             const today = new Date();
             const maxDate = new Date(today.getFullYear() - 16, today.getMonth(), today.getDate());
-            const yyyy = maxDate.getFullYear();
-            const mm = String(maxDate.getMonth() + 1).padStart(2, '0');
-            const dd = String(maxDate.getDate()).padStart(2, '0');
-            const maxStr = `${yyyy}-${mm}-${dd}`;
+            const maxYear = maxDate.getFullYear();
             
-            bdays.forEach(bday => {
-                if (!bday) return;
-                bday.max = maxStr;
-
-                const validate = () => {
-                    if (bday.value && bday.value > maxStr) {
-                        bday.setCustomValidity('You must be at least 16 years old.');
+            // Add age validation to year fields
+            const studentYearField = document.querySelector('#addStudentAccountModal input[name="birthday_year"]');
+            const employeeYearField = document.querySelector('#addEmployeeAccountModal input[name="birthday_year"]');
+            const yearFields = [studentYearField, employeeYearField].filter(Boolean);
+            
+            yearFields.forEach(yearField => {
+                if (!yearField || yearField._ageBound) return;
+                
+                const validateAge = () => {
+                    const year = parseInt(yearField.value);
+                    if (yearField.value.length === 4 && year > maxYear) {
+                        yearField.setCustomValidity('You must be at least 16 years old.');
+                    } else if (yearField.value.length === 4 && year < 1900) {
+                        yearField.setCustomValidity('Please enter a valid year (1900 or later).');
                     } else {
-                        bday.setCustomValidity('');
+                        yearField.setCustomValidity('');
                     }
                 };
-                if (!bday._ageBound) {
-                    bday.addEventListener('input', validate);
-                    bday.addEventListener('change', validate);
-                    bday._ageBound = true;
-                }
-                validate();
+                
+                yearField.addEventListener('input', validateAge);
+                yearField.addEventListener('blur', validateAge);
+                yearField._ageBound = true;
+            });
+            
+            // Validate combined date for minimum age
+            bdays.forEach(bday => {
+                if (!bday || bday._ageBound) return;
+                
+                const validate = () => {
+                    if (bday.value) {
+                        const birthDate = new Date(bday.value);
+                        const age = today.getFullYear() - birthDate.getFullYear();
+                        const monthDiff = today.getMonth() - birthDate.getMonth();
+                        const dayDiff = today.getDate() - birthDate.getDate();
+                        
+                        const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+                        
+                        if (actualAge < 16) {
+                            bday.setCustomValidity('You must be at least 16 years old.');
+                        } else {
+                            bday.setCustomValidity('');
+                        }
+                    }
+                };
+                
+                bday.addEventListener('change', validate);
+                bday._ageBound = true;
             });
         } catch (e) { /* noop */ }
     }
@@ -1224,6 +1266,18 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
         const f = document.getElementById('addStudentAccountFormModal');
         if (f) f.reset();
+        
+        // Reset birthday fields specifically
+        const birthdayMonth = document.querySelector('#addStudentAccountModal input[name="birthday_month"]');
+        const birthdayDay = document.querySelector('#addStudentAccountModal input[name="birthday_day"]');
+        const birthdayYear = document.querySelector('#addStudentAccountModal input[name="birthday_year"]');
+        const hiddenBirthday = document.querySelector('#addStudentAccountModal input[name="birthday"]');
+        
+        if (birthdayMonth) birthdayMonth.value = '';
+        if (birthdayDay) birthdayDay.value = '';
+        if (birthdayYear) birthdayYear.value = '';
+        if (hiddenBirthday) hiddenBirthday.value = '';
+        
         const prog = document.getElementById('modalProgramPosition');
         if (prog) prog.innerHTML = '<option value="">Select Program/Position</option>';
         setBirthdayMax();
@@ -1247,6 +1301,18 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
         const f = document.getElementById('addEmployeeAccountFormModal');
         if (f) f.reset();
+        
+        // Reset birthday fields specifically
+        const birthdayMonth = document.querySelector('#addEmployeeAccountModal input[name="birthday_month"]');
+        const birthdayDay = document.querySelector('#addEmployeeAccountModal input[name="birthday_day"]');
+        const birthdayYear = document.querySelector('#addEmployeeAccountModal input[name="birthday_year"]');
+        const hiddenBirthday = document.querySelector('#addEmployeeAccountModal input[name="birthday"]');
+        
+        if (birthdayMonth) birthdayMonth.value = '';
+        if (birthdayDay) birthdayDay.value = '';
+        if (birthdayYear) birthdayYear.value = '';
+        if (hiddenBirthday) hiddenBirthday.value = '';
+        
         const pos = document.getElementById('employeeModalPosition');
         if (pos) pos.innerHTML = '<option value="">Select Position</option>';
         setBirthdayMax();
@@ -2078,6 +2144,60 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 box-shadow: 0 0 0 0.2rem rgba(0, 114, 188, 0.25);
             }
             
+            /* Birthday input fields styling */
+            .birthday-inputs {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                width: 100%;
+            }
+            
+            .birthday-field {
+                text-align: center;
+                font-weight: 600;
+                letter-spacing: 0.5px;
+                border: 2px solid #e8f2ff;
+                border-radius: 10px;
+                padding: 12px 8px;
+                font-size: 0.95em;
+                background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+                transition: all 0.3s ease;
+            }
+            
+            .birthday-field[name="birthday_month"] {
+                width: 60px;
+                flex: 0 0 60px;
+            }
+            
+            .birthday-field[name="birthday_day"] {
+                width: 60px;
+                flex: 0 0 60px;
+            }
+            
+            .birthday-field[name="birthday_year"] {
+                width: 80px;
+                flex: 0 0 80px;
+            }
+            
+            .birthday-inputs .separator {
+                font-weight: bold;
+                color: #495057;
+                font-size: 1.1em;
+                flex: 0 0 auto;
+                margin: 0 2px;
+            }
+            
+            .birthday-field:focus {
+                border-color: #0072bc;
+                box-shadow: 0 0 0 0.2rem rgba(0, 114, 188, 0.25);
+                background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
+            }
+            
+            .birthday-field::placeholder {
+                color: #9ca3af;
+                font-weight: 400;
+            }
+            
             .status-badge {
                 padding: 6px 12px;
                 border-radius: 20px;
@@ -2317,5 +2437,177 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             }
 </style>
     `);
+
+    // Birthday field handling
+    function initBirthdayFields() {
+        const birthdayContainers = document.querySelectorAll('.birthday-inputs');
+        
+        birthdayContainers.forEach(container => {
+            const monthField = container.querySelector('input[name="birthday_month"]');
+            const dayField = container.querySelector('input[name="birthday_day"]');
+            const yearField = container.querySelector('input[name="birthday_year"]');
+            const hiddenField = container.querySelector('input[name="birthday"]');
+            
+            if (!monthField || !dayField || !yearField || !hiddenField) return;
+            
+            // Auto-advance and validation functions
+            function autoAdvanceAndValidate(currentField, nextField, length, min, max) {
+                currentField.addEventListener('input', function(e) {
+                    let value = this.value.replace(/\D/g, ''); // Remove non-digits
+                    
+                    if (value.length > length) {
+                        value = value.slice(0, length);
+                    }
+                    
+                    this.value = value;
+                    
+                    // Auto-advance when complete
+                    if (value.length === length) {
+                        const numValue = parseInt(value);
+                        if (numValue >= min && numValue <= max) {
+                            if (nextField) {
+                                nextField.focus();
+                            }
+                        }
+                    }
+                    
+                    updateHiddenBirthdayField();
+                });
+                
+                // Format with leading zeros on blur
+                currentField.addEventListener('blur', function() {
+                    if (this.value.length > 0 && this.value.length < length) {
+                        this.value = this.value.padStart(length, '0');
+                    }
+                    updateHiddenBirthdayField();
+                });
+            }
+            
+            // Year field special handling for reset on focus
+            function setupYearField(yearField) {
+                let yearFieldClicked = false;
+                
+                yearField.addEventListener('focus', function() {
+                    if (this.value.length === 4 && !yearFieldClicked) {
+                        // If year is complete and user clicks again, reset it
+                        this.value = '';
+                        yearFieldClicked = true;
+                        setTimeout(() => { yearFieldClicked = false; }, 100);
+                    }
+                });
+                
+                yearField.addEventListener('input', function(e) {
+                    let value = this.value.replace(/\D/g, ''); // Remove non-digits
+                    
+                    if (value.length > 4) {
+                        value = value.slice(0, 4);
+                    }
+                    
+                    this.value = value;
+                    
+                    // Validate year range
+                    if (value.length === 4) {
+                        const year = parseInt(value);
+                        const currentYear = new Date().getFullYear();
+                        if (year < 1900 || year > currentYear) {
+                            this.setCustomValidity(`Year must be between 1900 and ${currentYear}`);
+                        } else {
+                            this.setCustomValidity('');
+                        }
+                    }
+                    
+                    updateHiddenBirthdayField();
+                });
+                
+                yearField.addEventListener('blur', function() {
+                    updateHiddenBirthdayField();
+                });
+            }
+            
+            // Update hidden field with combined date
+            function updateHiddenBirthdayField() {
+                const month = monthField.value.padStart(2, '0');
+                const day = dayField.value.padStart(2, '0');
+                const year = yearField.value;
+                
+                if (month && day && year && year.length === 4) {
+                    // Validate the date
+                    const dateStr = `${year}-${month}-${day}`;
+                    const date = new Date(dateStr);
+                    
+                    if (date.getFullYear() == year && 
+                        (date.getMonth() + 1) == month && 
+                        date.getDate() == day) {
+                        hiddenField.value = dateStr;
+                    } else {
+                        hiddenField.value = '';
+                    }
+                } else {
+                    hiddenField.value = '';
+                }
+            }
+            
+            // Setup auto-advance for month (01-12)
+            autoAdvanceAndValidate(monthField, dayField, 2, 1, 12);
+            
+            // Setup auto-advance for day (01-31, will be validated by date construction)
+            autoAdvanceAndValidate(dayField, yearField, 2, 1, 31);
+            
+            // Setup year field with special reset behavior
+            setupYearField(yearField);
+            
+            // Additional validation for month
+            monthField.addEventListener('blur', function() {
+                const month = parseInt(this.value);
+                if (this.value && (month < 1 || month > 12)) {
+                    this.setCustomValidity('Month must be between 01 and 12');
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+            
+            // Additional validation for day based on month/year
+            dayField.addEventListener('blur', function() {
+                const month = parseInt(monthField.value);
+                const year = parseInt(yearField.value);
+                const day = parseInt(this.value);
+                
+                if (this.value && month && year) {
+                    const daysInMonth = new Date(year, month, 0).getDate();
+                    if (day < 1 || day > daysInMonth) {
+                        this.setCustomValidity(`Day must be between 01 and ${daysInMonth.toString().padStart(2, '0')} for this month`);
+                    } else {
+                        this.setCustomValidity('');
+                    }
+                } else if (this.value && (day < 1 || day > 31)) {
+                    this.setCustomValidity('Day must be between 01 and 31');
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+        });
+    }
+    
+    // Initialize birthday fields when DOM is ready
+    document.addEventListener('DOMContentLoaded', initBirthdayFields);
+    
+    // Re-initialize when modals are opened
+    const originalOpenStudentModal = openStudentAccountModal;
+    const originalOpenEmployeeModal = openEmployeeAccountModal;
+    
+    if (typeof openStudentAccountModal !== 'undefined') {
+        openStudentAccountModal = function() {
+            originalOpenStudentModal();
+            setTimeout(initBirthdayFields, 100);
+        };
+    }
+    
+    if (typeof openEmployeeAccountModal !== 'undefined') {
+        openEmployeeAccountModal = function() {
+            originalOpenEmployeeModal();
+            setTimeout(initBirthdayFields, 100);
+        };
+    }
+
 </script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
