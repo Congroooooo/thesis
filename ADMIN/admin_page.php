@@ -117,14 +117,14 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             <tr>
                 <th onclick="sortTable(0)">First Name</th>
                 <th onclick="sortTable(1)">Last Name</th>
-                                <th onclick="sortTable(2)">Birthday</th>
-                                <th onclick="sortTable(3)">ID Number</th>
-                                <th onclick="sortTable(4)">Role</th>
-                                <th onclick="sortTable(5)">Position/Program</th>
-                                <th onclick="sortTable(6)">Status</th>
+                <th onclick="sortTable(2)">Birthday</th>
+                <th onclick="sortTable(3)">ID Number</th>
+                <th onclick="sortTable(4)">Role</th>
+                <th onclick="sortTable(5)">Position/Program</th>
+                <th onclick="sortTable(6)">Status</th>
             </tr>
         </thead>
-                        <tbody id="accountsTbody">
+        <tbody id="accountsTbody">
             <?php
             require_once '../Includes/connection.php';
 
@@ -137,7 +137,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             $accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             foreach ($accounts as $account) {
-                // Use email for employees (who have NULL id_number), id_number for students
                 $identifier = $account['id_number'] ? $account['id_number'] : $account['email'];
                 echo "<tr data-id='" . htmlspecialchars($identifier) . "' class='account-row'>";
                 echo "<td>" . htmlspecialchars($account['first_name']) . "</td>";
@@ -205,7 +204,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     </div>
 </div>
 
-<!-- User Type Selection Modal -->
 <div class="modal" id="userTypeSelectionModal">
     <div class="modal-content" style="max-width:400px">
         <h3>Select Account Type</h3>
@@ -228,29 +226,40 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     <div class="modal-content" style="max-width:700px">
         <h3>Add New Student Account</h3>
         <form id="addStudentAccountFormModal" class="add-account-form">
-            <div class="form-group"><label>First Name</label>
+            <div class="form-group"><label>First Name<span class="text-danger" style="color: red;"> *</span></label>
                 <input type="text" name="firstName" id="modalFirstName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
             </div>
-            <div class="form-group"><label>Last Name</label>
+            <div class="form-group"><label>Last Name<span class="text-danger" style="color: red;"> *</span></label>
                 <input type="text" name="lastName" id="modalLastName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
             </div>
-            <div class="form-group"><label>Extension Name (Optional)</label>
+            <div class="form-group"><label>Extension Name</label>
                 <input type="text" name="extensionName" id="modalExtensionName" class="form-control" maxlength="10" pattern="^[A-Za-z. \-]*$" title="Only letters, spaces, hyphen, and period (e.g., Jr., Sr., III) are allowed">
             </div>
-            <div class="form-group"><label>Birthday</label>
+            <div class="form-group"><label>Birthday<span class="text-danger" style="color: red;"> *</span></label>
                 <input type="date" name="birthday" class="form-control" required>
             </div>
-            <div class="form-group"><label>ID Number (11 digits)</label>
-                <input type="text" name="idNumber" id="modalIdNumber" class="form-control" pattern="\d{11}" maxlength="11" required>
+            <div class="form-group id-number-group">
+                <label>ID Number<span class="text-danger" style="color: red;"> *</span></label>
+                <div class="input-wrapper">
+                    <div class="input-group">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" style="background: #f8f9fa; border-right: 0; font-weight: 600; color: #495057;">02000</span>
+                        </div>
+                        <input type="text" name="idNumberSuffix" id="modalIdNumberSuffix" class="form-control" 
+                               pattern="\d{6}" maxlength="6" placeholder="Enter last 6 digits" required
+                               style="border-left: 0; padding-left: 0;">
+                        <input type="hidden" name="idNumber" id="modalIdNumber">
+                    </div>
+                </div>
             </div>
-            <div class="form-group"><label>Role Category</label>
+            <div class="form-group"><label>Role Category<span class="text-danger" style="color: red;"> *</span></label>
                 <select name="role_category" id="modalRoleCategory" class="form-control" required>
                     <option value="">Select Role Category</option>
                     <option value="SHS">SHS</option>
                     <option value="COLLEGE STUDENT">COLLEGE STUDENT</option>
                 </select>
             </div>
-            <div class="form-group"><label>Program/Position</label>
+            <div class="form-group"><label>Program/Position<span class="text-danger" style="color: red;"> *</span></label>
                 <select name="program_position" id="modalProgramPosition" class="form-control" required>
                     <option value="">Select Program/Position</option>
                 </select>
@@ -263,24 +272,23 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     </div>
 </div>
 
-<!-- Employee Account Modal -->
 <div class="modal" id="addEmployeeAccountModal">
     <div class="modal-content" style="max-width:700px">
         <h3>Add New Employee Account</h3>
         <form id="addEmployeeAccountFormModal" class="add-account-form">
-            <div class="form-group"><label>First Name</label>
+            <div class="form-group"><label>First Name<span class="text-danger" style="color: red;"> *</span></label>
                 <input type="text" name="firstName" id="employeeModalFirstName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
             </div>
-            <div class="form-group"><label>Last Name</label>
+            <div class="form-group"><label>Last Name<span class="text-danger" style="color: red;"> *</span></label>
                 <input type="text" name="lastName" id="employeeModalLastName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
             </div>
-            <div class="form-group"><label>Extension Name (Optional)</label>
+            <div class="form-group"><label>Extension Name</label>
                 <input type="text" name="extensionName" id="employeeModalExtensionName" class="form-control" maxlength="10" pattern="^[A-Za-z. \-]*$" title="Only letters, spaces, hyphen, and period (e.g., Jr., Sr., III) are allowed">
             </div>
-            <div class="form-group"><label>Birthday</label>
+            <div class="form-group"><label>Birthday<span class="text-danger" style="color: red;"> *</span></label>
                 <input type="date" name="birthday" class="form-control" required>
             </div>
-            <div class="form-group"><label>Position</label>
+            <div class="form-group"><label>Position<span class="text-danger" style="color: red;"> *</span></label>
                 <select name="program_position" id="employeeModalPosition" class="form-control" required>
                     <option value="">Select Position</option>
                 </select>
@@ -330,7 +338,33 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             const matchesProgram = programFilter === 'all' || program === programFilter;
             const matchesRole = roleFilter === 'all' || role === roleFilter;
             const matchesStatus = statusFilter === 'all' || status === statusFilter;
-            const matchesSearch = firstName.includes(searchTerm) || lastName.includes(searchTerm);
+            // Enhanced search logic for combined queries
+            const matchesSearch = (() => {
+                if (!searchTerm.trim()) return true; // Empty search matches all
+                
+                const searchWords = searchTerm.trim().split(/\s+/); // Split by any whitespace
+                
+                if (searchWords.length === 1) {
+                    // Single word: check if it matches first name, last name, or both partially
+                    const singleWord = searchWords[0];
+                    return firstName.includes(singleWord) || lastName.includes(singleWord);
+                } else if (searchWords.length >= 2) {
+                    // Multiple words: check various combinations
+                    const fullName = `${firstName} ${lastName}`.toLowerCase();
+                    const reverseName = `${lastName} ${firstName}`.toLowerCase();
+                    
+                    // Check if all search words are found in either order
+                    const allWordsInFullName = searchWords.every(word => fullName.includes(word));
+                    const allWordsInReverseName = searchWords.every(word => reverseName.includes(word));
+                    
+                    // Check exact phrase match in either order
+                    const phraseMatch = fullName.includes(searchTerm) || reverseName.includes(searchTerm);
+                    
+                    return allWordsInFullName || allWordsInReverseName || phraseMatch;
+                }
+                
+                return false;
+            })();
 
             row.style.display = (matchesRole && matchesProgram && matchesStatus && matchesSearch) ? '' : 'none';
         });
@@ -483,6 +517,14 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             const onlyLetters = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^A-Za-z\s]/g,''); });
             const onlySuffixChars = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^A-Za-z.\s-]/g,''); });
             const onlyDigits = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/\D/g,'').slice(0,11); });
+            const onlyDigitsSuffix = (el, maxLength)=> el && el.addEventListener('input', ()=>{ 
+                el.value = el.value.replace(/\D/g,'').slice(0, maxLength);
+                // Auto-update the full ID number
+                const fullIdInput = document.getElementById('modalIdNumber');
+                if (fullIdInput) {
+                    fullIdInput.value = '02000' + el.value;
+                }
+            });
             const capitalizeNames = (el)=> el && el.addEventListener('input', ()=>{ 
                 const words = el.value.split(' ');
                 el.value = words.map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
@@ -490,7 +532,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             onlyLetters(document.getElementById('modalFirstName'));
             onlyLetters(document.getElementById('modalLastName'));
             onlySuffixChars(document.getElementById('modalExtensionName'));
-            onlyDigits(document.getElementById('modalIdNumber'));
+            onlyDigitsSuffix(document.getElementById('modalIdNumberSuffix'), 6);
             
             // Apply capitalization to name fields
             capitalizeNames(document.getElementById('modalFirstName'));
@@ -512,6 +554,20 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         if (addStudentForm) {
             addStudentForm.addEventListener('submit', function(e){
                 e.preventDefault();
+                
+                // Ensure the full ID number is properly set before submission
+                const suffixInput = document.getElementById('modalIdNumberSuffix');
+                const fullIdInput = document.getElementById('modalIdNumber');
+                if (suffixInput && fullIdInput) {
+                    const suffix = suffixInput.value.trim();
+                    if (suffix.length !== 6) {
+                        alert('Please enter exactly 6 digits for the ID number suffix.');
+                        suffixInput.focus();
+                        return;
+                    }
+                    fullIdInput.value = '02000' + suffix;
+                }
+                
                 const formData = new FormData(addStudentForm);
                 fetch('add_account.php', { method: 'POST', body: formData })
                     .then(async (r) => {
@@ -526,6 +582,14 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     .then((data)=>{
                         closeModal('addStudentAccountModal');
                         addStudentForm.reset();
+                        
+                        // Reset ID number fields properly
+                        const suffixInput = document.getElementById('modalIdNumberSuffix');
+                        const fullIdInput = document.getElementById('modalIdNumber');
+                        if (suffixInput && fullIdInput) {
+                            suffixInput.value = '';
+                            fullIdInput.value = '02000';
+                        }
 
                         const modalHtml = `
                         <div class="modal" id="createSuccessModal" style="display:flex; align-items:center; justify-content:center;">
@@ -827,6 +891,15 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         const prog = document.getElementById('modalProgramPosition');
         if (prog) prog.innerHTML = '<option value="">Select Program/Position</option>';
         setBirthdayMax();
+        
+        // Initialize ID number fields
+        const suffixInput = document.getElementById('modalIdNumberSuffix');
+        const fullIdInput = document.getElementById('modalIdNumber');
+        if (suffixInput && fullIdInput) {
+            suffixInput.value = '';
+            fullIdInput.value = '02000';
+            suffixInput.focus(); // Focus on the suffix input for user convenience
+        }
         
         // Load student programs only
         loadProgramsForCategory(['shs', 'college student'], 'modalProgramPosition');
@@ -1362,7 +1435,37 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 margin-bottom: 14px;
                 display: flex;
                 align-items: center;
-                
+            }
+            
+            /* Special handling for ID number form group containing input-group */
+            .modal-content .form-group.id-number-group {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+            }
+            
+            .modal-content .form-group.id-number-group label {
+                margin-bottom: 0;
+                margin-right: 35px;
+                min-width: 150px;
+                flex-shrink: 0;
+            }
+            
+            .modal-content .form-group.id-number-group .input-wrapper {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .modal-content .form-group.id-number-group .input-group {
+                width: 100%;
+            }
+            
+            .modal-content .form-group.id-number-group .form-text {
+                margin-top: 3px;
+                font-size: 0.75em;
+                color: #6c757d;
+                align-self: flex-start;
             }
             
             #changePasswordModal .form-group { flex-direction: column; align-items: stretch; }
@@ -1484,9 +1587,36 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             
             .input-group {
                 position: relative;
+                display: flex;
+                flex-wrap: wrap;
+                align-items: stretch;
+                width: 100%;
+            }
+            
+            .input-group-prepend {
+                display: flex;
+            }
+            
+            .input-group-prepend .input-group-text {
+                display: flex;
+                align-items: center;
+                padding: 0.375rem 0.75rem;
+                margin-bottom: 0;
+                font-size: 1rem;
+                font-weight: 400;
+                line-height: 1.5;
+                color: #495057;
+                text-align: center;
+                white-space: nowrap;
+                border: 1px solid #ced4da;
             }
             
             .input-group .form-control {
+                position: relative;
+                flex: 1 1 auto;
+                width: 1%;
+                min-width: 0;
+                margin-bottom: 0;
                 border-top-right-radius: 0;
                 border-bottom-right-radius: 0;
                 border-right: none;
@@ -1501,6 +1631,31 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 border-top-right-radius: 10px;
                 border-bottom-right-radius: 10px;
                 color: #0072bc;
+            }
+            
+            /* Specific styling for ID Number input group */
+            .input-group .input-group-prepend .input-group-text {
+                background: linear-gradient(135deg, #0072bc 0%, #005a94 100%);
+                color: white;
+                border: 2px solid #0072bc;
+                border-right: none;
+                border-top-left-radius: 10px;
+                border-bottom-left-radius: 10px;
+                border-top-right-radius: 0;
+                border-bottom-right-radius: 0;
+                font-weight: 700;
+                letter-spacing: 0.5px;
+            }
+            
+            .input-group .input-group-prepend + .form-control {
+                border-left: none;
+                border-top-left-radius: 0;
+                border-bottom-left-radius: 0;
+            }
+            
+            .input-group .input-group-prepend + .form-control:focus {
+                border-color: #0072bc;
+                box-shadow: 0 0 0 0.2rem rgba(0, 114, 188, 0.25);
             }
             
             .status-badge {

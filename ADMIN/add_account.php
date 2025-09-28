@@ -30,6 +30,18 @@ try {
     if (strlen($idNumber) !== 11) {
         throw new Exception('ID Number must be exactly 11 digits');
     }
+    
+    // Validate that ID starts with 02000
+    if (!str_starts_with($idNumber, '02000')) {
+        throw new Exception('ID Number must start with 02000 followed by 6 digits');
+    }
+    
+    // Check for duplicate ID number
+    $checkIdStmt = $conn->prepare("SELECT id FROM account WHERE id_number = ?");
+    $checkIdStmt->execute([$idNumber]);
+    if ($checkIdStmt->fetch()) {
+        throw new Exception('This ID number already exists in the system');
+    }
 
     $birthdayObj = new DateTime($birthday);
 
