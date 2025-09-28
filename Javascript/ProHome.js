@@ -20,8 +20,10 @@ function showHeroSlides() {
   heroSlideIndex = (heroSlideIndex + 1) % heroSlides.length;
 }
 
-heroSlides[0].classList.add("active");
-setInterval(showHeroSlides, 5000);
+if (heroSlides.length > 0) {
+  heroSlides[0].classList.add("active");
+  setInterval(showHeroSlides, 6000);
+}
 
 const hamburger = document.querySelector(".hamburger");
 const navLinks = document.querySelector(".nav-links");

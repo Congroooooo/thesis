@@ -1,25 +1,29 @@
 Array
 (
-    [deliveryOrderNumber] => 123123
+    [deliveryOrderNumber] => 0000000000
     [existingItem] => USHPWV001
     [newSize] => Array
         (
-            [0] => XS
+            [0] => 3XL
+            [1] => 5XL
         )
 
     [newItemCode] => Array
         (
-            [0] => USHPWV001-001
+            [0] => USHPWV001-007
+            [1] => USHPWV001-009
         )
 
     [newQuantity] => Array
         (
-            [0] => 12
+            [0] => 2
+            [1] => 66
         )
 
     [newDamage] => Array
         (
             [0] => 0
+            [1] => 0
         )
 
 )

@@ -290,17 +290,13 @@ This project is part of an academic thesis. For suggestions or improvements:
 **Development Team - STI College Lucena**
 
 - **Balmes, Nicko** - Lead Developer && Full Stack Developer
-- **De Vera, Arron** - UI / UX Desginer && Frontend Developer
-- **Garcia Reyn Alduz** - UI / UX Desginer && Frontend Developer
+- **De Vera, Arron** - Database Management && Backend Developer
+- **Garcia Reyn Alduz** - Project Manager && Frontend Developer
 - **Ibarra, Lander** - UI / UX Desginer && Frontend Developer
 
 ## 🙏 Acknowledgments
 
-- **STI College Lucena** - For providing the project opportunity and requirements
 - **Thesis Advisors** - For guidance and technical supervision
-- **PHP Community** - For excellent documentation and resources
-- **Open Source Libraries** - DomPDF, PhpSpreadsheet, and other dependencies
-- **Font Awesome & Google Fonts** - For UI enhancement resources
 
 ---
 
