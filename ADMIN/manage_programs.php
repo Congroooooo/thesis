@@ -18,20 +18,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $abbreviation = trim($_POST['abbreviation']);
 
     try {
-        $stmt = $conn->prepare("INSERT INTO programs_positions (name, category, abbreviation) VALUES (?, ?, ?)");
-        $result = $stmt->execute([$name, $category, $abbreviation]);
+        // Check for case-insensitive duplicates across ALL categories
+        $checkStmt = $conn->prepare("SELECT id, category FROM programs_positions WHERE LOWER(name) = LOWER(?) OR (abbreviation != '' AND LOWER(abbreviation) = LOWER(?))");
+        $checkStmt->execute([$name, $abbreviation]);
+        $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
         
-        if ($result) {
-            $_SESSION['success_message'] = "Program/Position added successfully!";
+        if ($existing) {
+            // Check which field is duplicate for more specific error message
+            $duplicateCheckName = $conn->prepare("SELECT id, category FROM programs_positions WHERE LOWER(name) = LOWER(?)");
+            $duplicateCheckName->execute([$name]);
+            $nameExists = $duplicateCheckName->fetch(PDO::FETCH_ASSOC);
+            
+            $duplicateCheckAbbr = $conn->prepare("SELECT id, category FROM programs_positions WHERE abbreviation != '' AND LOWER(abbreviation) = LOWER(?)");
+            $duplicateCheckAbbr->execute([$abbreviation]);
+            $abbrExists = $duplicateCheckAbbr->fetch(PDO::FETCH_ASSOC);
+            
+            if ($nameExists && $abbrExists) {
+                $nameCategory = $nameExists['category'];
+                $abbrCategory = $abbrExists['category'];
+                $_SESSION['error_message'] = "Both the program/position name and abbreviation already exist in the system (Name in: {$nameCategory}, Abbreviation in: {$abbrCategory}).";
+            } elseif ($nameExists) {
+                $existingCategory = $nameExists['category'];
+                $_SESSION['error_message'] = "A program/position with this name already exists in the '{$existingCategory}' category.";
+            } elseif ($abbrExists) {
+                $existingCategory = $abbrExists['category'];
+                $_SESSION['error_message'] = "A program/position with this abbreviation already exists in the '{$existingCategory}' category.";
+            }
         } else {
-            $_SESSION['error_message'] = "Error adding program/position.";
+            // No duplicates found, proceed with insertion
+            $stmt = $conn->prepare("INSERT INTO programs_positions (name, category, abbreviation) VALUES (?, ?, ?)");
+            $result = $stmt->execute([$name, $category, $abbreviation]);
+            
+            if ($result) {
+                $_SESSION['success_message'] = "Program/Position added successfully!";
+            } else {
+                $_SESSION['error_message'] = "Error adding program/position.";
+            }
         }
     } catch (PDOException $e) {
-        if ($e->getCode() == 23000) {
-            $_SESSION['error_message'] = "This program/position already exists for the selected category.";
-        } else {
-            $_SESSION['error_message'] = "Database error: " . $e->getMessage();
-        }
+        $_SESSION['error_message'] = "Database error: " . $e->getMessage();
     }
     
     header("Location: manage_programs.php");
@@ -109,6 +134,18 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
         .btn-warning { background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); color:#333; box-shadow:0 4px 15px rgba(255,193,7,.3); }
         .btn-warning:hover { background: linear-gradient(135deg, #e0a800 0%, #d39e00 100%); transform: translateY(-2px); color:#333; }
         .btn-sm { padding: 6px 12px; border-radius:8px; }
+        
+        .form-control.is-invalid {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+        }
+        .invalid-feedback {
+            display: block;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #dc3545;
+        }
     </style>
 </head>
 
@@ -249,6 +286,70 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Client-side duplicate validation
+        document.addEventListener('DOMContentLoaded', function() {
+            const nameInput = document.getElementById('program_name');
+            const categorySelect = document.getElementById('category');
+            const abbreviationInput = document.getElementById('abbreviation');
+            const form = document.querySelector('form');
+            
+            // Get existing programs for validation
+            const existingPrograms = <?= json_encode($programs) ?>;
+            
+            function checkDuplicates() {
+                const selectedCategory = categorySelect.value;
+                const enteredName = nameInput.value.trim().toLowerCase();
+                const enteredAbbr = abbreviationInput.value.trim().toLowerCase();
+                
+                if (!enteredName) return;
+                
+                // Check across ALL categories, not just the selected one
+                
+                // Clear previous validation messages
+                nameInput.classList.remove('is-invalid');
+                abbreviationInput.classList.remove('is-invalid');
+                document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+                
+                // Check for name duplicate across all categories
+                const nameExistsInProgram = existingPrograms.find(p => p.name.toLowerCase() === enteredName);
+                if (nameExistsInProgram) {
+                    nameInput.classList.add('is-invalid');
+                    const feedback = document.createElement('div');
+                    feedback.className = 'invalid-feedback';
+                    feedback.textContent = `A program/position with this name already exists in the '${nameExistsInProgram.category}' category.`;
+                    nameInput.parentNode.appendChild(feedback);
+                }
+                
+                // Check for abbreviation duplicate across all categories (only if abbreviation is not empty)
+                if (enteredAbbr) {
+                    const abbrExistsInProgram = existingPrograms.find(p => p.abbreviation && p.abbreviation.toLowerCase() === enteredAbbr);
+                    if (abbrExistsInProgram) {
+                        abbreviationInput.classList.add('is-invalid');
+                        const feedback = document.createElement('div');
+                        feedback.className = 'invalid-feedback';
+                        feedback.textContent = `A program/position with this abbreviation already exists in the '${abbrExistsInProgram.category}' category.`;
+                        abbreviationInput.parentNode.appendChild(feedback);
+                    }
+                }
+            }
+            
+            // Add event listeners for real-time validation
+            nameInput.addEventListener('input', checkDuplicates);
+            abbreviationInput.addEventListener('input', checkDuplicates);
+            categorySelect.addEventListener('change', checkDuplicates);
+            
+            // Prevent form submission if duplicates exist
+            form.addEventListener('submit', function(e) {
+                checkDuplicates();
+                if (document.querySelectorAll('.is-invalid').length > 0) {
+                    e.preventDefault();
+                    alert('Please resolve duplicate validation errors before submitting.');
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>
