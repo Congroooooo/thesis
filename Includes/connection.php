@@ -12,4 +12,3 @@ try {
     echo "Could not connect! Error: " . $e->getMessage();
     die();
 }
-
