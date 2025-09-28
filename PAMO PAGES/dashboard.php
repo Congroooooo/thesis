@@ -139,7 +139,7 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
                         // Modified query with pagination
                         $activities_query = "SELECT * FROM activities 
                         WHERE DATE(timestamp) = CURDATE()
-                        ORDER BY timestamp DESC
+                        ORDER BY id DESC, timestamp DESC
                         LIMIT :offset, :items_per_page";
                         
                         $stmt = $conn->prepare($activities_query);

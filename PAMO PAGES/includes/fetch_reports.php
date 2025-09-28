@@ -194,7 +194,7 @@ if ($type === 'inventory') {
     $total_row = mysqli_fetch_assoc($total_result);
     $total_items = $total_row['total'];
     $total_pages = ceil($total_items / $limit);
-    $sql = "SELECT * FROM activities $where_clause ORDER BY timestamp DESC LIMIT $limit OFFSET $offset";
+    $sql = "SELECT * FROM activities $where_clause ORDER BY id DESC, timestamp DESC LIMIT $limit OFFSET $offset";
     $result = mysqli_query($conn, $sql);
     $tableHtml .= '<h3>Audit Trail</h3>';
     $tableHtml .= '<table><thead><tr>';

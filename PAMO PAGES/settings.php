@@ -12,17 +12,16 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
     header("Location: ../Pages/home.php");
     exit();
 }
-// Handle form submission
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_threshold'])) {
     $newThreshold = intval($_POST['low_stock_threshold']);
     $oldThreshold = getLowStockThreshold($conn);
     if ($newThreshold > 0) {
         if (updateLowStockThreshold($conn, $newThreshold)) {
             $success_message = "Low stock threshold updated successfully!";
-            // Log to audit trail
             $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             $desc = "Low stock threshold changed from $oldThreshold to $newThreshold.";
-            logActivity($conn, 'config_update', $desc, $user_id);
+            logActivity($conn, 'Low Stock Update', $desc, $user_id);
         } else {
             $error_message = "Failed to update low stock threshold.";
         }

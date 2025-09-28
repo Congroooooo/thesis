@@ -188,8 +188,8 @@ try {
         $students_stmt = $conn->query("SELECT id FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'");
         $product_count = count($_POST['products']);
         $notif_message = $product_count > 1 
-            ? "New products have been added to the inventory. Check the Products page for details!"
-            : "A new product has been added to the inventory. Check the Products page for details!";
+            ? "New products have been added to the inventory. Check the Products Page for details!"
+            : "A new product has been added to the inventory. Check the Products Page for details!";
         $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'New Item', 0, NOW())");
         while ($student = $students_stmt->fetch(PDO::FETCH_ASSOC)) {
             $insert_notif->execute([$student['id'], $notif_message]);
@@ -353,7 +353,7 @@ try {
 
         // Send notifications to students
         $students_stmt = $conn->query("SELECT id FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'");
-        $notif_message = "A new product has been added: $item_name with multiple sizes. Check the Products page for details!";
+        $notif_message = "A new product has been added: $item_name with multiple sizes. Check the Products Page for details!";
         $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'New Item', 0, NOW())");
         while ($student = $students_stmt->fetch(PDO::FETCH_ASSOC)) {
             $insert_notif->execute([$student['id'], $notif_message]);
@@ -490,7 +490,7 @@ try {
         }
 
         $students_stmt = $conn->query("SELECT id FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'");
-        $notif_message = "A new product has been added: $item_name. Check the Products page for details!";
+        $notif_message = "A new product has been added: $item_name. Check the Products Page for details!";
         $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'New Item', 0, NOW())");
         while ($student = $students_stmt->fetch(PDO::FETCH_ASSOC)) {
             $insert_notif->execute([$student['id'], $notif_message]);

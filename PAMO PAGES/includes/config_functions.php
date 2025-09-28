@@ -64,17 +64,15 @@ function updateLowStockThreshold($conn, $newValue) {
 }
 
 function logActivity($conn, $action_type, $description, $user_id = null) {
-    $timestamp = date('Y-m-d H:i:s');
     if ($conn instanceof PDO) {
-        $stmt = $conn->prepare("INSERT INTO activities (action_type, description, user_id, timestamp) VALUES (:action_type, :description, :user_id, :timestamp)");
+        $stmt = $conn->prepare("INSERT INTO activities (action_type, description, user_id, timestamp) VALUES (:action_type, :description, :user_id, NOW())");
         $stmt->bindParam(':action_type', $action_type);
         $stmt->bindParam(':description', $description);
         $stmt->bindParam(':user_id', $user_id);
-        $stmt->bindParam(':timestamp', $timestamp);
         return $stmt->execute();
     } elseif ($conn instanceof mysqli) {
-        $stmt = mysqli_prepare($conn, "INSERT INTO activities (action_type, description, user_id, timestamp) VALUES (?, ?, ?, ?)");
-        mysqli_stmt_bind_param($stmt, "ssis", $action_type, $description, $user_id, $timestamp);
+        $stmt = mysqli_prepare($conn, "INSERT INTO activities (action_type, description, user_id, timestamp) VALUES (?, ?, ?, NOW())");
+        mysqli_stmt_bind_param($stmt, "ssi", $action_type, $description, $user_id);
         $result = mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
         return $result;
