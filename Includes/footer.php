@@ -13,10 +13,11 @@
         <div class="footer-section">
             <h4 style="font-family: 'Anton', serif; letter-spacing: 2px;">QUICK LINKS</h4>
             <ul class="footer-links">
-                <li><a href="index.php">Home</a></li>
-                <li><a href="about.php">About Us</a></li>
-                <li><a href="ProItemList.php">Products</a></li>
-                <li><a href="contact.php">Contact</a></li>
+                <li><a href="../Pages/home.php">Home</a></li>
+                <li><a href="../Pages/ProItemList.php">Products</a></li>
+                <li><a href="../Pages/preorder.php">PreOrder</a></li>
+                <li><a href="../Pages/about.php">About Us</a></li>
+                <li><a href="../Pages/faq.php">FAQ</a></li>
             </ul>
         </div>
 
@@ -68,7 +69,6 @@
         </div>
     </div>
 </footer>
-
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 

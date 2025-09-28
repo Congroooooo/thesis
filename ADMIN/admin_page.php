@@ -231,12 +231,22 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             <input type="hidden" id="changePasswordUserId" name="id">
             <div class="form-group">
                 <label for="newPassword">New Password</label>
-                <input type="password" class="form-control" id="newPassword" name="newPassword" required>
+                <div class="password-input-wrapper">
+                    <input type="password" class="form-control" id="newPassword" name="newPassword" required>
+                    <button type="button" class="password-toggle-btn" onclick="togglePassword('newPassword')" title="Show password">
+                        <i class="fas fa-eye" id="newPasswordToggleIcon"></i>
+                    </button>
+                </div>
                 <div class="error-feedback" id="newPasswordError"></div>
             </div>
             <div class="form-group">
                 <label for="confirmPassword">Confirm New Password</label>
-                <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                <div class="password-input-wrapper">
+                    <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                    <button type="button" class="password-toggle-btn" onclick="togglePassword('confirmPassword')" title="Show password">
+                        <i class="fas fa-eye" id="confirmPasswordToggleIcon"></i>
+                    </button>
+                </div>
                 <div class="error-feedback" id="confirmPasswordError"></div>
             </div>
             <div class="mt-3">
@@ -1165,6 +1175,27 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         });
     });
 
+    // Add global modal event listeners for better UX
+    document.addEventListener('DOMContentLoaded', function() {
+        // Close modal when clicking outside of it
+        document.addEventListener('click', function(event) {
+            const changePasswordModal = document.getElementById('changePasswordModal');
+            if (changePasswordModal && event.target === changePasswordModal) {
+                closeModal('changePasswordModal');
+            }
+        });
+
+        // Close modal when pressing Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const changePasswordModal = document.getElementById('changePasswordModal');
+                if (changePasswordModal && changePasswordModal.style.display === 'flex') {
+                    closeModal('changePasswordModal');
+                }
+            }
+        });
+    });
+
     function changePassword() {
         if (!selectedUserId) {
             alert('Please select an account first.');
@@ -1197,15 +1228,13 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
     function setBirthdayMax() {
         try {
-            // Get hidden birthday fields that store the combined date
             const studentBday = document.querySelector('#addStudentAccountModal input[name="birthday"]');
             const employeeBday = document.querySelector('#addEmployeeAccountModal input[name="birthday"]');
             const bdays = [studentBday, employeeBday].filter(Boolean);
             const today = new Date();
             const maxDate = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate());
             const maxYear = maxDate.getFullYear();
-            
-            // Add age validation to year fields
+
             const studentYearField = document.querySelector('#addStudentAccountModal input[name="birthday_year"]');
             const employeeYearField = document.querySelector('#addEmployeeAccountModal input[name="birthday_year"]');
             const yearFields = [studentYearField, employeeYearField].filter(Boolean);
@@ -1228,8 +1257,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 yearField.addEventListener('blur', validateAge);
                 yearField._ageBound = true;
             });
-            
-            // Validate combined date for minimum age
+
             bdays.forEach(bday => {
                 if (!bday || bday._ageBound) return;
                 
@@ -1266,8 +1294,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
         const f = document.getElementById('addStudentAccountFormModal');
         if (f) f.reset();
-        
-        // Reset birthday fields specifically
+
         const birthdayMonth = document.querySelector('#addStudentAccountModal input[name="birthday_month"]');
         const birthdayDay = document.querySelector('#addStudentAccountModal input[name="birthday_day"]');
         const birthdayYear = document.querySelector('#addStudentAccountModal input[name="birthday_year"]');
@@ -1301,8 +1328,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
         const f = document.getElementById('addEmployeeAccountFormModal');
         if (f) f.reset();
-        
-        // Reset birthday fields specifically
+
         const birthdayMonth = document.querySelector('#addEmployeeAccountModal input[name="birthday_month"]');
         const birthdayDay = document.querySelector('#addEmployeeAccountModal input[name="birthday_day"]');
         const birthdayYear = document.querySelector('#addEmployeeAccountModal input[name="birthday_year"]');
@@ -1363,6 +1389,69 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
     function closeModal(modalId) {
         document.getElementById(modalId).style.display = 'none';
+
+        if (modalId === 'changePasswordModal') {
+            clearChangePasswordModal();
+        }
+    }
+
+    function clearChangePasswordModal() {
+        try {
+            const newPasswordInput = document.getElementById('newPassword');
+            const confirmPasswordInput = document.getElementById('confirmPassword');
+            const userIdInput = document.getElementById('changePasswordUserId');
+            
+            if (newPasswordInput) {
+                newPasswordInput.value = '';
+                newPasswordInput.type = 'password';
+            }
+            
+            if (confirmPasswordInput) {
+                confirmPasswordInput.value = '';
+                confirmPasswordInput.type = 'password';
+            }
+            
+            if (userIdInput) {
+                userIdInput.value = '';
+            }
+
+            const newPasswordIcon = document.getElementById('newPasswordToggleIcon');
+            const confirmPasswordIcon = document.getElementById('confirmPasswordToggleIcon');
+            
+            if (newPasswordIcon) {
+                newPasswordIcon.className = 'fas fa-eye';
+                newPasswordIcon.setAttribute('title', 'Show password');
+            }
+            
+            if (confirmPasswordIcon) {
+                confirmPasswordIcon.className = 'fas fa-eye';
+                confirmPasswordIcon.setAttribute('title', 'Show password');
+            }
+
+            const newPasswordError = document.getElementById('newPasswordError');
+            const confirmPasswordError = document.getElementById('confirmPasswordError');
+            
+            if (newPasswordError) {
+                newPasswordError.textContent = '';
+                newPasswordError.style.display = 'none';
+            }
+            
+            if (confirmPasswordError) {
+                confirmPasswordError.textContent = '';
+                confirmPasswordError.style.display = 'none';
+            }
+
+            if (newPasswordInput) {
+                newPasswordInput.setCustomValidity('');
+            }
+            
+            if (confirmPasswordInput) {
+                confirmPasswordInput.setCustomValidity('');
+            }
+            
+        } catch (error) {
+            console.error('Error clearing Change Password modal:', error);
+        }
     }
 
     function closeSuccessModal() {
@@ -2198,6 +2287,69 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 font-weight: 400;
             }
             
+            /* Password input wrapper styling */
+            .password-input-wrapper {
+                position: relative;
+                display: flex;
+                align-items: center;
+            }
+            
+            .password-input-wrapper .form-control {
+                padding-right: 50px !important;
+            }
+            
+            .password-toggle-btn {
+                position: absolute;
+                right: 15px;
+                background: none !important;
+                border: none !important;
+                cursor: pointer;
+                color: #6c757d !important;
+                font-size: 18px;
+                padding: 8px !important;
+                width: 32px;
+                height: 32px;
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s ease;
+                z-index: 10 !important;
+                border-radius: 4px;
+            }
+            
+            .password-toggle-btn:hover {
+                color: #0072bc !important;
+                background-color: rgba(0, 114, 188, 0.1) !important;
+            }
+            
+            .password-toggle-btn:focus {
+                outline: none !important;
+                color: #0072bc !important;
+                background-color: rgba(0, 114, 188, 0.1) !important;
+                box-shadow: 0 0 0 2px rgba(0, 114, 188, 0.25) !important;
+            }
+            
+            .password-toggle-btn:active {
+                transform: scale(0.95);
+            }
+            
+            .password-toggle-btn i {
+                font-size: 16px !important;
+                line-height: 1 !important;
+                display: block !important;
+                font-weight: 400 !important;
+                font-family: "Font Awesome 6 Free" !important;
+            }
+            
+            /* Ensure FontAwesome icons are loaded */
+            .password-toggle-btn .fas,
+            .password-toggle-btn .fa-eye,
+            .password-toggle-btn .fa-eye-slash {
+                font-family: "Font Awesome 6 Free" !important;
+                font-weight: 900 !important;
+                display: inline-block !important;
+            }
+            
             .status-badge {
                 padding: 6px 12px;
                 border-radius: 20px;
@@ -2438,7 +2590,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 </style>
     `);
 
-    // Birthday field handling
     function initBirthdayFields() {
         const birthdayContainers = document.querySelectorAll('.birthday-inputs');
         
@@ -2449,19 +2600,17 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             const hiddenField = container.querySelector('input[name="birthday"]');
             
             if (!monthField || !dayField || !yearField || !hiddenField) return;
-            
-            // Auto-advance and validation functions
+
             function autoAdvanceAndValidate(currentField, nextField, length, min, max) {
                 currentField.addEventListener('input', function(e) {
-                    let value = this.value.replace(/\D/g, ''); // Remove non-digits
+                    let value = this.value.replace(/\D/g, '');
                     
                     if (value.length > length) {
                         value = value.slice(0, length);
                     }
                     
                     this.value = value;
-                    
-                    // Auto-advance when complete
+
                     if (value.length === length) {
                         const numValue = parseInt(value);
                         if (numValue >= min && numValue <= max) {
@@ -2473,8 +2622,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     
                     updateHiddenBirthdayField();
                 });
-                
-                // Format with leading zeros on blur
+
                 currentField.addEventListener('blur', function() {
                     if (this.value.length > 0 && this.value.length < length) {
                         this.value = this.value.padStart(length, '0');
@@ -2482,14 +2630,12 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     updateHiddenBirthdayField();
                 });
             }
-            
-            // Year field special handling for reset on focus
+
             function setupYearField(yearField) {
                 let yearFieldClicked = false;
                 
                 yearField.addEventListener('focus', function() {
                     if (this.value.length === 4 && !yearFieldClicked) {
-                        // If year is complete and user clicks again, reset it
                         this.value = '';
                         yearFieldClicked = true;
                         setTimeout(() => { yearFieldClicked = false; }, 100);
@@ -2497,15 +2643,14 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 });
                 
                 yearField.addEventListener('input', function(e) {
-                    let value = this.value.replace(/\D/g, ''); // Remove non-digits
+                    let value = this.value.replace(/\D/g, '');
                     
                     if (value.length > 4) {
                         value = value.slice(0, 4);
                     }
                     
                     this.value = value;
-                    
-                    // Validate year range
+
                     if (value.length === 4) {
                         const year = parseInt(value);
                         const currentYear = new Date().getFullYear();
@@ -2523,15 +2668,13 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     updateHiddenBirthdayField();
                 });
             }
-            
-            // Update hidden field with combined date
+
             function updateHiddenBirthdayField() {
                 const month = monthField.value.padStart(2, '0');
                 const day = dayField.value.padStart(2, '0');
                 const year = yearField.value;
                 
                 if (month && day && year && year.length === 4) {
-                    // Validate the date
                     const dateStr = `${year}-${month}-${day}`;
                     const date = new Date(dateStr);
                     
@@ -2547,16 +2690,12 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 }
             }
             
-            // Setup auto-advance for month (01-12)
             autoAdvanceAndValidate(monthField, dayField, 2, 1, 12);
-            
-            // Setup auto-advance for day (01-31, will be validated by date construction)
+
             autoAdvanceAndValidate(dayField, yearField, 2, 1, 31);
-            
-            // Setup year field with special reset behavior
+
             setupYearField(yearField);
-            
-            // Additional validation for month
+
             monthField.addEventListener('blur', function() {
                 const month = parseInt(this.value);
                 if (this.value && (month < 1 || month > 12)) {
@@ -2565,8 +2704,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     this.setCustomValidity('');
                 }
             });
-            
-            // Additional validation for day based on month/year
+
             dayField.addEventListener('blur', function() {
                 const month = parseInt(monthField.value);
                 const year = parseInt(yearField.value);
@@ -2587,11 +2725,35 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             });
         });
     }
-    
-    // Initialize birthday fields when DOM is ready
+
+    function togglePassword(inputId) {
+        try {
+            const passwordInput = document.getElementById(inputId);
+            const toggleIcon = document.getElementById(inputId + 'ToggleIcon');
+            
+            if (!passwordInput || !toggleIcon) {
+                console.error('Password toggle elements not found:', inputId);
+                return;
+            }
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.className = 'fas fa-eye-slash';
+                toggleIcon.setAttribute('title', 'Hide password');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.className = 'fas fa-eye';
+                toggleIcon.setAttribute('title', 'Show password');
+            }
+        } catch (error) {
+            console.error('Error toggling password visibility:', error);
+        }
+    }
+
+    window.togglePassword = togglePassword;
+
     document.addEventListener('DOMContentLoaded', initBirthdayFields);
-    
-    // Re-initialize when modals are opened
+
     const originalOpenStudentModal = openStudentAccountModal;
     const originalOpenEmployeeModal = openEmployeeAccountModal;
     
@@ -2611,3 +2773,4 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
 </script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
