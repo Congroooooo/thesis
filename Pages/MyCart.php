@@ -898,6 +898,65 @@ $cart_total = 0;
             }
         }
 
+        // Quantity decrease modal functionality
+        let currentItemToDecreaseQuantity = null;
+
+        function showQuantityDecreaseModal(itemId, input) {
+            currentItemToDecreaseQuantity = { itemId, input };
+            const modal = document.getElementById('quantityDecreaseModal');
+            if (!modal) {
+                console.error('Quantity decrease modal not found');
+                return;
+            }
+            
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            
+            // Focus management for accessibility
+            const confirmBtn = modal.querySelector('.qty-btn-confirm');
+            if (confirmBtn) {
+                confirmBtn.focus();
+            }
+        }
+
+        function hideQuantityDecreaseModal() {
+            const modal = document.getElementById('quantityDecreaseModal');
+            if (modal) {
+                modal.classList.remove('show');
+            }
+            document.body.style.overflow = '';
+            currentItemToDecreaseQuantity = null;
+        }
+
+        function confirmDecreaseQuantity() {
+            if (currentItemToDecreaseQuantity) {
+                const { itemId, input } = currentItemToDecreaseQuantity;
+                
+                // Remove the item from cart (quantity becomes 0)
+                fetch('remove_from_cart.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `item_id=${itemId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    hideQuantityDecreaseModal();
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error removing item from cart');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    hideQuantityDecreaseModal();
+                    alert('Error removing item from cart');
+                });
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", function () {
             const removeModal = document.getElementById('removeItemModal');
             if (removeModal) {
@@ -923,6 +982,31 @@ $cart_total = 0;
                 });
             }
 
+            // Initialize quantity decrease modal
+            const qtyModal = document.getElementById('quantityDecreaseModal');
+            if (qtyModal) {
+                const qtyCloseBtn = qtyModal.querySelector('.qty-modal-close');
+                const qtyCancelBtn = qtyModal.querySelector('.qty-btn-cancel');
+                const qtyConfirmBtn = qtyModal.querySelector('.qty-btn-confirm');
+
+                qtyCloseBtn?.addEventListener('click', hideQuantityDecreaseModal);
+                qtyCancelBtn?.addEventListener('click', hideQuantityDecreaseModal);
+                qtyConfirmBtn?.addEventListener('click', confirmDecreaseQuantity);
+
+                qtyModal.addEventListener('click', (e) => {
+                    if (e.target === qtyModal) {
+                        hideQuantityDecreaseModal();
+                    }
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    const modal = document.getElementById('quantityDecreaseModal');
+                    if (e.key === 'Escape' && modal && modal.classList.contains('show')) {
+                        hideQuantityDecreaseModal();
+                    }
+                });
+            }
+
             document.querySelectorAll(".qty-btn").forEach((btn) => {
                 btn.addEventListener("click", function () {
                     const input = this.parentElement.querySelector(".qty-input");
@@ -932,15 +1016,23 @@ $cart_total = 0;
                     if (this.classList.contains("plus")) {
                         if (currentValue < maxStock) {
                             input.value = currentValue + 1;
+                            const itemId = input.dataset.itemId;
+                            updateCartItem(itemId, input.value);
                         } else {
                             alert(`Maximum available stock is ${maxStock}.`);
                         }
-                    } else if (this.classList.contains("minus") && currentValue > 1) {
-                        input.value = currentValue - 1;
+                    } else if (this.classList.contains("minus")) {
+                        if (currentValue > 1) {
+                            input.value = currentValue - 1;
+                            const itemId = input.dataset.itemId;
+                            updateCartItem(itemId, input.value);
+                        } else if (currentValue === 1) {
+                            // Show confirmation modal when trying to decrease from 1
+                            const itemId = input.dataset.itemId;
+                            showQuantityDecreaseModal(itemId, input);
+                            return; // Don't update cart yet, wait for confirmation
+                        }
                     }
-
-                    const itemId = input.dataset.itemId;
-                    updateCartItem(itemId, input.value);
                 });
             });
 
@@ -1005,7 +1097,39 @@ $cart_total = 0;
         </div>
     </div>
 
+    <!-- Quantity Decrease Confirmation Modal -->
+    <div id="quantityDecreaseModal" class="remove-modal">
+        <div class="remove-modal-content">
+            <button class="qty-modal-close" type="button" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="remove-modal-header">
+                <div class="remove-modal-icon warning-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h3 class="remove-modal-title">Confirm Action</h3>
+                <p class="remove-modal-message">Decreasing the quantity will remove this item from your cart. Do you want to continue?</p>
+            </div>
+            <div class="remove-modal-buttons">
+                <button type="button" class="qty-btn-cancel">Cancel</button>
+                <button type="button" class="qty-btn-confirm">Yes, Continue</button>
+            </div>
+        </div>
+    </div>
+
     <style>
+    /* Modal Variables - Using System Theme Colors */
+    :root {
+        --modal-primary-color: #0072bc;
+        --modal-secondary-color: #fdf005;
+        --modal-background-color: #f4ebb6;
+        --modal-danger-color: #dc3545;
+        --modal-warning-color: #f39c12;
+        --modal-text-color: #333;
+        --modal-primary-font: "Anton", serif;
+        --modal-secondary-font: "Smooch Sans", serif;
+    }
+
     .remove-modal {
         display: none;
         position: fixed;
@@ -1014,9 +1138,9 @@ $cart_total = 0;
         top: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(5px);
-        animation: fadeIn 0.3s ease-out;
+        background: linear-gradient(135deg, rgba(0, 114, 188, 0.15) 0%, rgba(0, 0, 0, 0.7) 100%);
+        backdrop-filter: blur(8px);
+        animation: fadeIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     }
 
     .remove-modal.show {
@@ -1026,131 +1150,227 @@ $cart_total = 0;
     }
 
     .remove-modal-content {
-        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-        border-radius: 20px;
-        padding: 30px;
+        background: linear-gradient(145deg, var(--modal-background-color) 0%, #ffffff 100%);
+        border-radius: 24px;
+        padding: 40px 35px;
         width: 90%;
-        max-width: 420px;
+        max-width: 450px;
         box-shadow: 
-            0 20px 60px rgba(0, 0, 0, 0.2),
-            0 8px 24px rgba(0, 0, 0, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        transform: scale(0.7);
-        animation: modalSlideIn 0.3s ease-out forwards;
+            0 25px 80px rgba(0, 114, 188, 0.25),
+            0 15px 35px rgba(0, 0, 0, 0.1),
+            0 5px 15px rgba(0, 0, 0, 0.05);
+        border: 2px solid rgba(253, 240, 5, 0.3);
+        transform: scale(0.8) translateY(-20px);
+        animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         text-align: center;
         position: relative;
+        overflow: hidden;
+    }
+
+    /* Decorative border effect */
+    .remove-modal-content::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--modal-primary-color) 0%, var(--modal-secondary-color) 50%, var(--modal-primary-color) 100%);
     }
 
     .remove-modal-header {
-        margin-bottom: 20px;
+        margin-bottom: 25px;
+        position: relative;
     }
 
     .remove-modal-icon {
-        width: 60px;
-        height: 60px;
-        background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--modal-danger-color) 0%, #b02a37 100%);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 15px;
-        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+        margin: 0 auto 20px;
+        box-shadow: 
+            0 12px 30px rgba(220, 53, 69, 0.4),
+            0 6px 15px rgba(220, 53, 69, 0.2);
+        border: 3px solid rgba(255, 255, 255, 0.9);
+        position: relative;
+        animation: iconPulse 2s ease-in-out infinite;
+    }
+
+    /* Warning icon for quantity decrease modal */
+    .remove-modal-icon.warning-icon {
+        background: linear-gradient(135deg, var(--modal-warning-color) 0%, #d68910 100%);
+        box-shadow: 
+            0 12px 30px rgba(243, 156, 18, 0.4),
+            0 6px 15px rgba(243, 156, 18, 0.2);
     }
 
     .remove-modal-icon i {
         color: white;
-        font-size: 24px;
+        font-size: 32px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
 
     .remove-modal-title {
-        font-family: var(--primary-font-family, 'Anton', serif);
-        font-size: 24px;
-        color: #333;
-        margin: 0 0 8px 0;
-        font-weight: 600;
+        font-family: var(--modal-primary-font);
+        font-size: 28px;
+        color: var(--modal-text-color);
+        margin: 0 0 12px 0;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
 
     .remove-modal-message {
-        font-family: var(--secondary-font-family, 'Smooch Sans', serif);
-        font-size: 16px;
-        color: #666;
+        font-family: var(--modal-secondary-font);
+        font-size: 18px;
+        color: #555;
         margin: 0;
-        line-height: 1.5;
+        line-height: 1.6;
+        font-weight: 500;
+        max-width: 350px;
+        margin: 0 auto;
     }
 
     .remove-modal-buttons {
         display: flex;
-        gap: 12px;
-        margin-top: 30px;
+        gap: 15px;
+        margin-top: 35px;
         justify-content: center;
+        flex-wrap: wrap;
     }
 
     .remove-btn-confirm,
-    .remove-btn-cancel {
-        padding: 12px 24px;
+    .remove-btn-cancel,
+    .qty-btn-confirm,
+    .qty-btn-cancel {
+        padding: 14px 28px;
         border: none;
         border-radius: 50px;
         font-weight: 600;
-        font-size: 14px;
+        font-size: 16px;
         cursor: pointer;
-        transition: all 0.3s ease;
-        min-width: 100px;
-        font-family: var(--secondary-font-family, 'Smooch Sans', serif);
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        min-width: 120px;
+        font-family: var(--modal-secondary-font);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: relative;
+        overflow: hidden;
     }
 
-    .remove-btn-confirm {
-        background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+    /* Confirm button styling */
+    .remove-btn-confirm,
+    .qty-btn-confirm {
+        background: linear-gradient(135deg, var(--modal-danger-color) 0%, #b02a37 100%);
         color: white;
-        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+        box-shadow: 
+            0 6px 20px rgba(220, 53, 69, 0.4),
+            0 3px 8px rgba(220, 53, 69, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.2);
     }
 
-    .remove-btn-confirm:hover {
+    .remove-btn-confirm:hover,
+    .qty-btn-confirm:hover {
         background: linear-gradient(135deg, #b02a37 0%, #8c1f2a 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 
+            0 10px 25px rgba(220, 53, 69, 0.5),
+            0 5px 12px rgba(220, 53, 69, 0.3);
     }
 
-    .remove-btn-cancel {
-        background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
+    /* Cancel button styling */
+    .remove-btn-cancel,
+    .qty-btn-cancel {
+        background: linear-gradient(135deg, var(--modal-primary-color) 0%, #005a9e 100%);
         color: white;
-        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+        box-shadow: 
+            0 6px 20px rgba(0, 114, 188, 0.4),
+            0 3px 8px rgba(0, 114, 188, 0.2);
+        border: 2px solid rgba(255, 255, 255, 0.2);
     }
 
-    .remove-btn-cancel:hover {
-        background: linear-gradient(135deg, #545b62 0%, #3d4146 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(108, 117, 125, 0.4);
+    .remove-btn-cancel:hover,
+    .qty-btn-cancel:hover {
+        background: linear-gradient(135deg, #005a9e 0%, #004080 100%);
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 
+            0 10px 25px rgba(0, 114, 188, 0.5),
+            0 5px 12px rgba(0, 114, 188, 0.3);
     }
 
-    .remove-modal-close {
+    /* Button ripple effect */
+    .remove-btn-confirm::before,
+    .remove-btn-cancel::before,
+    .qty-btn-confirm::before,
+    .qty-btn-cancel::before {
+        content: '';
         position: absolute;
-        top: 15px;
-        right: 20px;
-        background: none;
-        border: none;
-        font-size: 24px;
-        color: #999;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: width 0.3s, height 0.3s;
+    }
+
+    .remove-btn-confirm:active::before,
+    .remove-btn-cancel:active::before,
+    .qty-btn-confirm:active::before,
+    .qty-btn-cancel:active::before {
+        width: 300px;
+        height: 300px;
+    }
+
+    .remove-modal-close,
+    .qty-modal-close {
+        position: absolute;
+        top: 18px;
+        right: 22px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 240, 240, 0.9) 100%);
+        border: 2px solid rgba(0, 114, 188, 0.3);
+        border-radius: 50%;
+        font-size: 18px;
+        color: var(--modal-text-color);
         cursor: pointer;
-        transition: color 0.3s ease;
-        width: 30px;
-        height: 30px;
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        width: 40px;
+        height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
     }
 
-    .remove-modal-close:hover {
-        color: #333;
+    .remove-modal-close:hover,
+    .qty-modal-close:hover {
+        background: linear-gradient(135deg, var(--modal-danger-color) 0%, #b02a37 100%);
+        color: white;
+        transform: rotate(90deg) scale(1.1);
+        box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+        border-color: rgba(220, 53, 69, 0.5);
     }
 
+    /* Animations */
     @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+        from { 
+            opacity: 0; 
+            backdrop-filter: blur(0px);
+        }
+        to { 
+            opacity: 1;
+            backdrop-filter: blur(8px);
+        }
     }
 
     @keyframes modalSlideIn {
         from { 
-            transform: scale(0.7) translateY(-50px);
+            transform: scale(0.8) translateY(-40px);
             opacity: 0;
         }
         to { 
@@ -1159,29 +1379,87 @@ $cart_total = 0;
         }
     }
 
+    @keyframes iconPulse {
+        0%, 100% { 
+            transform: scale(1);
+            box-shadow: 
+                0 12px 30px rgba(220, 53, 69, 0.4),
+                0 6px 15px rgba(220, 53, 69, 0.2);
+        }
+        50% { 
+            transform: scale(1.05);
+            box-shadow: 
+                0 15px 35px rgba(220, 53, 69, 0.5),
+                0 8px 18px rgba(220, 53, 69, 0.3);
+        }
+    }
+
+    /* Mobile Responsive Styles */
     @media (max-width: 768px) {
         .remove-modal-content {
-            margin: 20px;
-            padding: 25px;
+            margin: 15px;
+            padding: 30px 25px;
             max-width: none;
+            border-radius: 20px;
+        }
+        
+        .remove-modal-icon {
+            width: 70px;
+            height: 70px;
+            margin-bottom: 18px;
+        }
+        
+        .remove-modal-icon i {
+            font-size: 28px;
         }
         
         .remove-modal-title {
-            font-size: 20px;
+            font-size: 24px;
+            margin-bottom: 10px;
         }
         
         .remove-modal-message {
-            font-size: 14px;
+            font-size: 16px;
+            line-height: 1.5;
         }
         
         .remove-modal-buttons {
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+            margin-top: 25px;
         }
         
         .remove-btn-confirm,
-        .remove-btn-cancel {
+        .remove-btn-cancel,
+        .qty-btn-confirm,
+        .qty-btn-cancel {
             width: 100%;
+            padding: 16px 20px;
+            font-size: 16px;
+        }
+        
+        .remove-modal-close,
+        .qty-modal-close {
+            top: 15px;
+            right: 18px;
+            width: 36px;
+            height: 36px;
+            font-size: 16px;
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .remove-modal-content {
+            margin: 10px;
+            padding: 25px 20px;
+        }
+        
+        .remove-modal-title {
+            font-size: 22px;
+        }
+        
+        .remove-modal-message {
+            font-size: 15px;
         }
     }
     </style>
