@@ -1,106 +1,152 @@
 .preorder-container {
-    max-width: 1200px;
-    margin: 2rem auto;
-    padding: 80px 0 1rem 0;
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 80px 0 1rem 0;
 }
 
 .process-steps {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 2rem;
-    padding: 1rem;
-    background: white;
-    border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
 }
 
 .step {
-    font-family: var(--primary-font-family);
-    color: var(--text-color);
-    padding: 0.5rem 1rem;
+  font-family: var(--primary-font-family);
+  color: var(--text-color);
+  padding: 0.5rem 1rem;
 }
 
 .step.active {
-    color: var(--primary-color);
+  color: var(--primary-color);
 }
 
 .step.completed {
-    color: green;
+  color: green;
 }
 
 .checkout-content {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 2rem;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
 }
 
 .checkout-form,
 .order-summary {
-    background: white;
-    padding: 2rem;
-    border-radius: 8px;
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
 }
 
 .form-group {
-    margin-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: var(--text-color);
-    font-family: var(--secondary-font-family);
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-color);
+  font-family: var(--secondary-font-family);
 }
 
 .form-group input,
 .form-group select {
-    width: 100%;
-    padding: 0.8rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-family: var(--secondary-font-family);
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: var(--secondary-font-family);
 }
 
 .place-order-btn {
-    background: var(--primary-color);
-    color: white;
-    border: none;
-    padding: 1rem 2rem;
-    font-size: 1.1rem;
-    cursor: pointer;
-    border-radius: 4px;
-    width: 100%;
-    margin-top: 1rem;
-    font-family: var(--secondary-font-family);
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  cursor: pointer;
+  border-radius: 4px;
+  width: 100%;
+  margin-top: 1rem;
+  font-family: var(--secondary-font-family);
 }
 
 .place-order-btn:hover {
-    opacity: 0.9;
+  opacity: 0.9;
 }
 
 .order-summary {
-    align-self: start;
+  align-self: start;
 }
 
 .summary-items {
-    margin: 1.5rem 0;
+  margin: 1.5rem 0;
 }
 
 .summary-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
 }
 
 .summary-total {
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 2px solid #eee;
-    display: flex;
-    justify-content: space-between;
-    font-weight: bold;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
 }
 
 .total-amount {
-    color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* No Items Available Message */
+.no-items-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  width: 100%;
+}
+
+.no-items-content {
+  text-align: center;
+  background: white;
+  padding: 3rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+}
+
+.no-items-content i {
+  font-size: 4rem;
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
+  opacity: 0.7;
+}
+
+.no-items-content h2 {
+  font-family: var(--primary-font-family);
+  color: var(--text-color);
+  margin-bottom: 1rem;
+  font-size: 2rem;
+}
+
+.no-items-content p {
+  font-family: var(--secondary-font-family);
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+.no-items-content .sub-text {
+  font-size: 1rem;
+  color: #666;
+  margin-top: 1rem;
 }

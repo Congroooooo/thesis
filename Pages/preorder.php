@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="../CSS/header.css">
     <link rel="stylesheet" href="../CSS/global.css">
     <link rel="stylesheet" href="../CSS/ProItemList.css">
     <link rel="stylesheet" href="../CSS/PreOrder.css">
@@ -43,16 +42,26 @@
                 $total_items = (int)$conn->query($countSql)->fetchColumn();
                 $total_pages = max(1, (int)ceil($total_items / $limit));
 
-                $sql = "
-                    SELECT pi.*, 
-                           COALESCE((SELECT SUM(quantity) FROM preorder_requests r WHERE r.preorder_item_id = pi.id AND r.status='active'),0) AS total_requests
-                    FROM preorder_items pi
-                    WHERE pi.status='pending'
-                    ORDER BY pi.created_at DESC
-                    LIMIT $limit OFFSET $offset
-                ";
-                $result = $conn->query($sql);
-                while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+                if ($total_items == 0) {
+                    echo '<div class="no-items-message">';
+                    echo '  <div class="no-items-content">';
+                    echo '      <i class="fas fa-calendar-times"></i>';
+                    echo '      <h2>No Items Available</h2>';
+                    echo '      <p>Currently, there are no items available for pre-order.</p>';
+                    echo '      <p class="sub-text">Please check back later for new pre-order opportunities.</p>';
+                    echo '  </div>';
+                    echo '</div>';
+                } else {
+                    $sql = "
+                        SELECT pi.*, 
+                               COALESCE((SELECT SUM(quantity) FROM preorder_requests r WHERE r.preorder_item_id = pi.id AND r.status='active'),0) AS total_requests
+                        FROM preorder_items pi
+                        WHERE pi.status='pending'
+                        ORDER BY pi.created_at DESC
+                        LIMIT $limit OFFSET $offset
+                    ";
+                    $result = $conn->query($sql);
+                    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                     $imgPath = !empty($row['image_path']) ? '../' . $row['image_path'] : '../uploads/itemlist/default.png';
                     $title = htmlspecialchars($row['item_name']);
                     $price = number_format((float)$row['price'], 2);
@@ -80,6 +89,7 @@
                     echo '      </div>';
                     echo '  </div>';
                     echo '</div>';
+                    }
                 }
                 ?>
             </div>

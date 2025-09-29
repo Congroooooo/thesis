@@ -315,18 +315,18 @@
                         data-courses="<?php echo htmlspecialchars(implode(',', $courses)); ?>"
                         data-subcategories="<?php echo htmlspecialchars(implode(',', ($product['subcategories'] ?? []))); ?>">
                         <?php
-$productImage = '';
-foreach ($product['variants'] as $variant) {
-    if (!empty($variant['image'])) {
-        $productImage = $variant['image'];
-        break;
-    }
-}
-if (empty($productImage)) {
-    $productImage = '../uploads/itemlist/default.png';
-}
-?>
-<img src="<?php echo $productImage; ?>" alt="<?php echo $product['name']; ?>">
+                            $productImage = '';
+                            foreach ($product['variants'] as $variant) {
+                                if (!empty($variant['image'])) {
+                                    $productImage = $variant['image'];
+                                    break;
+                                }
+                            }
+                            if (empty($productImage)) {
+                                $productImage = '../uploads/itemlist/default.png';
+                            }
+                            ?>
+                            <img src="<?php echo $productImage; ?>" alt="<?php echo $product['name']; ?>">
                         <div class="product-overlay">
                             <div class="items"></div>
                             <div class="items head">
@@ -349,10 +349,10 @@ if (empty($productImage)) {
                     </div>
                 <?php endforeach; ?>
                 
-                <div id="no-results-message" class="no-results-message" style="display: none;">
+                <div id="no-results-message" class="no-results-message enhanced" style="display: none;">
                     <i class="fas fa-search"></i>
                     <h3>No products found</h3>
-                    <p>Try adjusting your search terms or filters</p>
+                    <p>Try adjusting your search terms or filters to find what you're looking for.</p>
                 </div>
             </div>
         </main>
