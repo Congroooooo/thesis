@@ -1,3 +1,7 @@
+<?php
+include("../Includes/Header.php");
+include("../Includes/connection.php");
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -16,10 +20,6 @@
 </head>
 
 <body>
-    <?php
-    include("../Includes/Header.php");
-    include("../Includes/connection.php");
-    ?>
 
     <section class="Hero">
         <div class="hero-slideshow">

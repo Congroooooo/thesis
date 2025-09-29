@@ -34,25 +34,25 @@ if (isset($_SESSION['user_id'])) {
             <li><a href="ProItemList.php"
                     class="<?php echo ($current_page == 'ProItemList.php') ? 'active' : ''; ?>">Products</a></li>
             <?php if (isset($_SESSION['user_id'])): ?>
-                <li><a href="PreOrder.php"
-                        class="<?php echo ($current_page == 'PreOrder.php') ? 'active' : ''; ?>">Pre Order</a></li>
+            <li><a href="preorder.php"
+                    class="<?php echo ($current_page == 'preorder.php') ? 'active' : ''; ?>">Pre Order</a></li>
             <?php else: ?>
-                <li><a href="javascript:void(0)" onclick="redirectToLogin('PreOrder.php')"
-                        class="<?php echo ($current_page == 'PreOrder.php') ? 'active' : ''; ?>">Pre Order</a></li>
+            <li><a href="javascript:void(0)" onclick="redirectToLogin('preorder.php')"
+                    class="<?php echo ($current_page == 'preorder.php') ? 'active' : ''; ?>">Pre Order</a></li>
             <?php endif; ?>
             <?php if (isset($_SESSION['user_id'])): ?>
-                <li><a href="ProPreOrder.php"
-                        class="<?php echo ($current_page == 'ProPreOrder.php') ? 'active' : ''; ?>">Place Order</a></li>
+            <li><a href="ProPreOrder.php"
+                    class="<?php echo ($current_page == 'ProPreOrder.php') ? 'active' : ''; ?>">Place Order</a></li>
             <?php else: ?>
-                <li><a href="javascript:void(0)" onclick="redirectToLogin('ProPreOrder.php')"
-                        class="<?php echo ($current_page == 'ProPreOrder.php') ? 'active' : ''; ?>">Place Order</a></li>
+            <li><a href="javascript:void(0)" onclick="redirectToLogin('ProPreOrder.php')"
+                    class="<?php echo ($current_page == 'ProPreOrder.php') ? 'active' : ''; ?>">Place Order</a></li>
             <?php endif; ?>
             <?php if (isset($_SESSION['user_id'])): ?>
-                <li><a href="MyOrders.php"
-                        class="<?php echo ($current_page == 'MyOrders.php') ? 'active' : ''; ?>">My Orders</a></li>
+            <li><a href="MyOrders.php"
+                    class="<?php echo ($current_page == 'MyOrders.php') ? 'active' : ''; ?>">My Orders</a></li>
             <?php else: ?>
-                <li><a href="javascript:void(0)" onclick="redirectToLogin('MyOrders.php')"
-                        class="<?php echo ($current_page == 'MyOrders.php') ? 'active' : ''; ?>">My Orders</a></li>
+            <li><a href="javascript:void(0)" onclick="redirectToLogin('MyOrders.php')"
+                    class="<?php echo ($current_page == 'MyOrders.php') ? 'active' : ''; ?>">My Orders</a></li>
             <?php endif; ?>
             <li><a href="about.php" class="<?php echo ($current_page == 'about.php') ? 'active' : ''; ?>">About</a></li>
             <li><a href="faq.php" class="<?php echo ($current_page == 'faq.php') ? 'active' : ''; ?>">FAQ</a></li>
@@ -265,7 +265,7 @@ if (isset($_SESSION['user_id'])) {
 
         async function updateNotificationContent() {
             try {
-                const response = await fetch('../Includes /notification_operations.php', {
+                const response = await fetch('../Includes/notification_operations.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',

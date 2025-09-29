@@ -1,9 +1,12 @@
+<?php
+include("../Includes/Header.php");
+require_once '../Includes/connection.php';
+?>
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <title>Pre Order Page</title>
-    <link rel="stylesheet" href="../CSS/header.css">
     <link rel="stylesheet" href="../CSS/ProPreOrder.css">
     <link rel="stylesheet" href="../CSS/global.css">
     <meta charset="UTF-8">
@@ -18,8 +21,11 @@
 
 <body>
     <?php
-    include("../Includes/Header.php");
-    require_once '../Includes/connection.php';
+    // Check if user is logged in
+    if (!isset($_SESSION['user_id'])) {
+        header('Location: login.php');
+        exit();
+    }
 
     // Fetch cart items for the current user
     $stmt = $conn->prepare("SELECT * FROM cart WHERE user_id = ?");

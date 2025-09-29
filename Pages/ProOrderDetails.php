@@ -6,7 +6,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Pre Order Details</title>
-    <link rel="stylesheet" href="../CSS/header.css">
     <link rel="stylesheet" href="../CSS/global.css">
     <link rel="stylesheet" href="../CSS/ProOrderDetails.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -91,7 +90,6 @@
         </div>
     </div>
 
-    <script src="../Javascript/ProOrderDetails.js"></script>
 </body>
 
 </html>

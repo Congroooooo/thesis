@@ -14,14 +14,8 @@ $status = isset($_GET['status']) ? trim($_GET['status']) : '';
 $startDate = isset($_GET['startDate']) ? trim($_GET['startDate']) : '';
 $endDate = isset($_GET['endDate']) ? trim($_GET['endDate']) : '';
 
-$conn = mysqli_connect("localhost", "root", "", "proware");
-if (!$conn) {
-    echo json_encode([
-        'table' => '<div class="error">Database connection failed.</div>',
-        'pagination' => ''
-    ]);
-    exit;
-}
+// Include the main connection file
+require_once __DIR__ . '/../../Includes/connection.php';
 
 include_once __DIR__ . '/config_functions.php';
 $lowStockThreshold = getLowStockThreshold($conn);
@@ -56,37 +50,55 @@ $paginationHtml = '';
 
 if ($type === 'inventory') {
     $where = [];
-    if ($category) $where[] = "category = '" . mysqli_real_escape_string($conn, $category) . "'";
-    if ($size) $where[] = "sizes = '" . mysqli_real_escape_string($conn, $size) . "'";
+    $params = [];
+    
+    if ($category) {
+        $where[] = "category = ?";
+        $params[] = $category;
+    }
+    if ($size) {
+        $where[] = "sizes = ?";
+        $params[] = $size;
+    }
     if ($status) {
         if ($status == 'In Stock') $where[] = "actual_quantity > 10";
         else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= $lowStockThreshold";
         else if ($status == 'Out of Stock') $where[] = "actual_quantity <= 0";
     }
     if ($search) {
-        $s = mysqli_real_escape_string($conn, $search);
-        $where[] = "(item_name LIKE '%$s%' OR item_code LIKE '%$s%')";
+        $where[] = "(item_name LIKE ? OR item_code LIKE ?)";
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
     }
     if ($startDate) {
-        $where[] = "DATE(created_at) >= '" . mysqli_real_escape_string($conn, $startDate) . "'";
+        $where[] = "DATE(created_at) >= ?";
+        $params[] = $startDate;
     }
     if ($endDate) {
-        $where[] = "DATE(created_at) <= '" . mysqli_real_escape_string($conn, $endDate) . "'";
+        $where[] = "DATE(created_at) <= ?";
+        $params[] = $endDate;
     }
+    
     $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+    
+    // Count total items
     $total_sql = "SELECT COUNT(*) as total FROM inventory $where_clause";
-    $total_result = mysqli_query($conn, $total_sql);
-    $total_row = mysqli_fetch_assoc($total_result);
+    $stmt = $conn->prepare($total_sql);
+    $stmt->execute($params);
+    $total_row = $stmt->fetch(PDO::FETCH_ASSOC);
     $total_items = $total_row['total'];
     $total_pages = ceil($total_items / $limit);
+    
+    // Get paginated results
     $sql = "SELECT *, IFNULL(date_delivered, created_at) AS display_date FROM inventory $where_clause ORDER BY display_date DESC LIMIT $limit OFFSET $offset";
-    $result = mysqli_query($conn, $sql);
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($params);
     $tableHtml .= '<h3>Inventory Report</h3>';
     $tableHtml .= '<table><thead><tr>';
     $tableHtml .= '<th>Item Code</th><th>Item Name</th><th>Category</th><th>Beginning Quantity</th><th>New Delivery</th><th>Actual Quantity</th><th>Damage</th><th>Sold Quantity</th><th>Status</th><th>Date Delivered</th>';
     $tableHtml .= '</tr></thead><tbody>';
     $rowCount = 0;
-    while ($row = mysqli_fetch_assoc($result)) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $rowCount++;
         // Calculate status based on actual_quantity and threshold
         if ($row['actual_quantity'] <= 0) {
@@ -119,31 +131,45 @@ if ($type === 'inventory') {
     if ($size) $params['size'] = $size;
     if ($status) $params['status'] = $status;
     $paginationHtml = render_pagination('inventory', $page, $total_pages, $params);
-    mysqli_free_result($result);
 } elseif ($type === 'sales') {
     $where = [];
+    $params = [];
+    
     if ($search) {
-        $s = mysqli_real_escape_string($conn, $search);
-        $where[] = "(s.transaction_number LIKE '%$s%' OR s.item_code LIKE '%$s%' OR i.item_name LIKE '%$s%')";
+        $where[] = "(s.transaction_number LIKE ? OR s.item_code LIKE ? OR i.item_name LIKE ?)";
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
     }
     if ($startDate) {
-        $where[] = "DATE(s.sale_date) >= '" . mysqli_real_escape_string($conn, $startDate) . "'";
+        $where[] = "DATE(s.sale_date) >= ?";
+        $params[] = $startDate;
     }
     if ($endDate) {
-        $where[] = "DATE(s.sale_date) <= '" . mysqli_real_escape_string($conn, $endDate) . "'";
+        $where[] = "DATE(s.sale_date) <= ?";
+        $params[] = $endDate;
     }
+    
     $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+    
+    // Count total items
     $total_sql = "SELECT COUNT(*) as total FROM sales s LEFT JOIN inventory i ON s.item_code = i.item_code $where_clause";
-    $total_result = mysqli_query($conn, $total_sql);
-    $total_row = mysqli_fetch_assoc($total_result);
+    $stmt = $conn->prepare($total_sql);
+    $stmt->execute($params);
+    $total_row = $stmt->fetch(PDO::FETCH_ASSOC);
     $total_items = $total_row['total'];
     $total_pages = ceil($total_items / $limit);
+    
+    // Get paginated results
     $sql = "SELECT s.*, i.item_name FROM sales s LEFT JOIN inventory i ON s.item_code = i.item_code $where_clause ORDER BY s.sale_date DESC LIMIT $limit OFFSET $offset";
-    $result = mysqli_query($conn, $sql);
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($params);
+    
     // Calculate grand total for all filtered data
     $grand_total_sql = "SELECT SUM(s.total_amount) as grand_total FROM sales s LEFT JOIN inventory i ON s.item_code = i.item_code $where_clause";
-    $grand_total_result = mysqli_query($conn, $grand_total_sql);
-    $grand_total_row = mysqli_fetch_assoc($grand_total_result);
+    $grand_stmt = $conn->prepare($grand_total_sql);
+    $grand_stmt->execute($params);
+    $grand_total_row = $grand_stmt->fetch(PDO::FETCH_ASSOC);
     $grand_total = $grand_total_row['grand_total'] ? $grand_total_row['grand_total'] : 0;
     $tableHtml .= '<h3>Sales Report</h3>';
     if ($startDate || $endDate || $search) {
@@ -153,7 +179,7 @@ if ($type === 'inventory') {
     $tableHtml .= '<th>Order Number</th><th>Item Code</th><th>Item Name</th><th>Size</th><th>Quantity</th><th>Price Per Item</th><th>Total Amount</th><th>Sale Date</th>';
     $tableHtml .= '</tr></thead><tbody>';
     $rowCount = 0;
-    while ($row = mysqli_fetch_assoc($result)) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $rowCount++;
         $tableHtml .= '<tr>';
         $tableHtml .= '<td>' . $row['transaction_number'] . '</td>';
@@ -175,33 +201,45 @@ if ($type === 'inventory') {
     if ($startDate) $params['startDate'] = $startDate;
     if ($endDate) $params['endDate'] = $endDate;
     $paginationHtml = render_pagination('sales', $page, $total_pages, $params);
-    mysqli_free_result($result);
 } elseif ($type === 'audit') {
     $where = [];
+    $params = [];
+    
     if ($search) {
-        $s = mysqli_real_escape_string($conn, $search);
-        $where[] = "(action_type LIKE '%$s%' OR item_code LIKE '%$s%' OR description LIKE '%$s%')";
+        $where[] = "(action_type LIKE ? OR item_code LIKE ? OR description LIKE ?)";
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
+        $params[] = '%' . $search . '%';
     }
     if ($startDate) {
-        $where[] = "DATE(timestamp) >= '" . mysqli_real_escape_string($conn, $startDate) . "'";
+        $where[] = "DATE(timestamp) >= ?";
+        $params[] = $startDate;
     }
     if ($endDate) {
-        $where[] = "DATE(timestamp) <= '" . mysqli_real_escape_string($conn, $endDate) . "'";
+        $where[] = "DATE(timestamp) <= ?";
+        $params[] = $endDate;
     }
+    
     $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+    
+    // Count total items
     $total_sql = "SELECT COUNT(*) as total FROM activities $where_clause";
-    $total_result = mysqli_query($conn, $total_sql);
-    $total_row = mysqli_fetch_assoc($total_result);
+    $stmt = $conn->prepare($total_sql);
+    $stmt->execute($params);
+    $total_row = $stmt->fetch(PDO::FETCH_ASSOC);
     $total_items = $total_row['total'];
     $total_pages = ceil($total_items / $limit);
+    
+    // Get paginated results
     $sql = "SELECT * FROM activities $where_clause ORDER BY id DESC, timestamp DESC LIMIT $limit OFFSET $offset";
-    $result = mysqli_query($conn, $sql);
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($params);
     $tableHtml .= '<h3>Audit Trail</h3>';
     $tableHtml .= '<table><thead><tr>';
     $tableHtml .= '<th>Date/Time</th><th>Action Type</th><th>Description</th>';
     $tableHtml .= '</tr></thead><tbody>';
     $rowCount = 0;
-    while ($row = mysqli_fetch_assoc($result)) {
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $rowCount++;
         $tableHtml .= '<tr>';
         $tableHtml .= '<td>' . $row['timestamp'] . '</td>';
@@ -218,10 +256,9 @@ if ($type === 'inventory') {
     if ($startDate) $params['startDate'] = $startDate;
     if ($endDate) $params['endDate'] = $endDate;
     $paginationHtml = render_pagination('audit', $page, $total_pages, $params);
-    mysqli_free_result($result);
 }
 
-mysqli_close($conn);
+// PDO connections close automatically
 echo json_encode([
     'table' => $tableHtml,
     'pagination' => $paginationHtml,

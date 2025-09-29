@@ -1,4 +1,9 @@
 <?php
+// Prevent any HTML output
+ob_start();
+error_reporting(0);
+ini_set('display_errors', 0);
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -6,6 +11,8 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once 'connection.php';
 require_once 'notifications.php';
 
+// Clean any previous output
+ob_clean();
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -69,7 +76,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $response['message'] = 'Action is required';
     }
 
+    // Clean output buffer and send JSON
+    ob_clean();
     echo json_encode($response);
+    ob_end_flush();
     exit;
 }
 

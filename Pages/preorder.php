@@ -1,3 +1,8 @@
+<?php 
+include '../Includes/Header.php'; 
+if (session_status() === PHP_SESSION_NONE) session_start();
+$is_logged_in = isset($_SESSION['user_id']);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,11 +20,6 @@
 </head>
 
 <body>
-    <?php 
-    include '../Includes/Header.php'; 
-    if (session_status() === PHP_SESSION_NONE) session_start();
-    $is_logged_in = isset($_SESSION['user_id']);
-    ?>
     <script>window.isLoggedIn = <?php echo $is_logged_in ? 'true' : 'false'; ?>;</script>
 
     <section class="header">

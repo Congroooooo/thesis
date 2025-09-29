@@ -1,8 +1,8 @@
 <?php
-$host = 'localhost';
-$db = 'proware';
-$user = 'root';
-$password = '';
+$host = 'mysql-nicko.alwaysdata.net';
+$db = 'nicko_proware';
+$user = 'nicko';
+$password = 'nicko_proware';
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $password);

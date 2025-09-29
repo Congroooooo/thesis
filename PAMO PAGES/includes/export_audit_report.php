@@ -4,30 +4,38 @@ require __DIR__ . '/../../vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-$conn = mysqli_connect("localhost", "root", "", "proware");
+// Include the main connection file
+require_once __DIR__ . '/../../Includes/connection.php';
 
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $startDate = isset($_GET['startDate']) ? trim($_GET['startDate']) : '';
 $endDate = isset($_GET['endDate']) ? trim($_GET['endDate']) : '';
 
 $where = [];
+$params = [];
+
 if ($search) {
-    $s = mysqli_real_escape_string($conn, $search);
-    $where[] = "(action_type LIKE '%$s%' OR description LIKE '%$s%')";
+    $where[] = "(action_type LIKE ? OR description LIKE ?)";
+    $params[] = '%' . $search . '%';
+    $params[] = '%' . $search . '%';
 }
 if ($startDate) {
-    $where[] = "DATE(timestamp) >= '" . mysqli_real_escape_string($conn, $startDate) . "'";
+    $where[] = "DATE(timestamp) >= ?";
+    $params[] = $startDate;
 }
 if ($endDate) {
-    $where[] = "DATE(timestamp) <= '" . mysqli_real_escape_string($conn, $endDate) . "'";
+    $where[] = "DATE(timestamp) <= ?";
+    $params[] = $endDate;
 }
+
 $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
 $sql = "SELECT timestamp, action_type, description
         FROM activities $where_clause
         ORDER BY timestamp DESC";
 
-$result = mysqli_query($conn, $sql);
+$stmt = $conn->prepare($sql);
+$stmt->execute($params);
 
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
@@ -40,7 +48,7 @@ $sheet->fromArray($headers, NULL, 'A1');
 $sheet->getStyle('A1:C1')->getFont()->setBold(true);
 
 $rowNum = 2;
-while ($row = mysqli_fetch_assoc($result)) {
+while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $sheet->fromArray([
         $row['timestamp'],
         $row['action_type'],

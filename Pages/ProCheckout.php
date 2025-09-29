@@ -50,7 +50,6 @@ $_SESSION['checkout_total'] = $total_amount;
 
 <head>
     <title>Pre Order Checkout</title>
-    <link rel="stylesheet" href="../CSS/header.css">
     <link rel="stylesheet" href="../CSS/ProCheckout.css">
     <link rel="stylesheet" href="../CSS/global.css">
     <meta charset="UTF-8">
