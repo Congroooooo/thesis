@@ -80,7 +80,6 @@ $cart_total = 0;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Cart</title>
-    <link rel="stylesheet" href="../CSS/header.css">
     <link rel="stylesheet" href="../CSS/global.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -727,11 +726,9 @@ $cart_total = 0;
             margin: 0;
         }
 
-        /* Hide mobile card layout by default */
         .cart-items-mobile {
             display: none;
         }
-        /* Show table, hide cards on desktop */
         @media (min-width: 769px) {
             .cart-items-mobile {
                 display: none !important;
@@ -740,7 +737,6 @@ $cart_total = 0;
                 display: block;
             }
         }
-        /* Show cards, hide table on mobile */
         @media (max-width: 768px) {
             .cart-items-container {
                 display: none !important;
@@ -840,17 +836,54 @@ $cart_total = 0;
     </style>
 
     <script>
+        let currentItemIdToRemove = null;
+
         function removeFromCart(itemId) {
-            if (confirm('Are you sure you want to remove this item from your cart?')) {
+            console.log('Remove from cart called with ID:', itemId);
+            currentItemIdToRemove = itemId;
+            showRemoveModal();
+        }
+
+        function showRemoveModal() {
+            const removeModal = document.getElementById('removeItemModal');
+            if (!removeModal) {
+                console.error('Remove modal not found');
+                if (currentItemIdToRemove && confirm('Are you sure you want to remove this item from your cart?')) {
+                    confirmRemoveItem();
+                }
+                return;
+            }
+            
+            removeModal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+
+            const confirmBtn = removeModal.querySelector('.remove-btn-confirm');
+            if (confirmBtn) {
+                confirmBtn.focus();
+            }
+        }
+
+        function hideRemoveModal() {
+            const removeModal = document.getElementById('removeItemModal');
+            if (removeModal) {
+                removeModal.classList.remove('show');
+            }
+            document.body.style.overflow = '';
+            currentItemIdToRemove = null;
+        }
+
+        function confirmRemoveItem() {
+            if (currentItemIdToRemove) {
                 fetch('remove_from_cart.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `item_id=${itemId}`
+                    body: `item_id=${currentItemIdToRemove}`
                 })
                 .then(response => response.json())
                 .then(data => {
+                    hideRemoveModal();
                     if (data.success) {
                         location.reload();
                     } else {
@@ -859,13 +892,37 @@ $cart_total = 0;
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                    hideRemoveModal();
                     alert('Error removing item from cart');
                 });
             }
         }
 
         document.addEventListener("DOMContentLoaded", function () {
-            // Handle quantity changes
+            const removeModal = document.getElementById('removeItemModal');
+            if (removeModal) {
+                const closeBtn = removeModal.querySelector('.remove-modal-close');
+                const cancelBtn = removeModal.querySelector('.remove-btn-cancel');
+                const confirmBtn = removeModal.querySelector('.remove-btn-confirm');
+
+                closeBtn?.addEventListener('click', hideRemoveModal);
+                cancelBtn?.addEventListener('click', hideRemoveModal);
+                confirmBtn?.addEventListener('click', confirmRemoveItem);
+
+                removeModal.addEventListener('click', (e) => {
+                    if (e.target === removeModal) {
+                        hideRemoveModal();
+                    }
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    const modal = document.getElementById('removeItemModal');
+                    if (e.key === 'Escape' && modal && modal.classList.contains('show')) {
+                        hideRemoveModal();
+                    }
+                });
+            }
+
             document.querySelectorAll(".qty-btn").forEach((btn) => {
                 btn.addEventListener("click", function () {
                     const input = this.parentElement.querySelector(".qty-input");
@@ -882,13 +939,11 @@ $cart_total = 0;
                         input.value = currentValue - 1;
                     }
 
-                    // Update cart in database
                     const itemId = input.dataset.itemId;
                     updateCartItem(itemId, input.value);
                 });
             });
 
-            // Handle direct quantity input
             document.querySelectorAll(".qty-input").forEach((input) => {
                 input.addEventListener("change", function () {
                     const maxStock = parseInt(this.dataset.maxStock);
@@ -900,14 +955,12 @@ $cart_total = 0;
                         this.value = maxStock;
                         alert(`Maximum available stock is ${maxStock}.`);
                     }
-                    
-                    // Update cart in database
+
                     const itemId = this.dataset.itemId;
                     updateCartItem(itemId, this.value);
                 });
             });
 
-            // Function to update cart item
             async function updateCartItem(itemId, quantity) {
                 try {
                     const response = await fetch("../Includes/cart_operations.php", {
@@ -920,7 +973,6 @@ $cart_total = 0;
 
                     const data = await response.json();
                     if (data.success) {
-                        // Reload the page to update totals
                         location.reload();
                     } else {
                         console.error("Failed to update cart:", data.message);
@@ -933,5 +985,205 @@ $cart_total = 0;
             }
         });
     </script>
+
+    <div id="removeItemModal" class="remove-modal">
+        <div class="remove-modal-content">
+            <button class="remove-modal-close" type="button" aria-label="Close">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="remove-modal-header">
+                <div class="remove-modal-icon">
+                    <i class="fas fa-trash"></i>
+                </div>
+                <h3 class="remove-modal-title">Remove Item</h3>
+                <p class="remove-modal-message">Are you sure you want to remove this item from your cart?</p>
+            </div>
+            <div class="remove-modal-buttons">
+                <button type="button" class="remove-btn-cancel">Cancel</button>
+                <button type="button" class="remove-btn-confirm">Yes, Remove</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    .remove-modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(5px);
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .remove-modal.show {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .remove-modal-content {
+        background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 20px;
+        padding: 30px;
+        width: 90%;
+        max-width: 420px;
+        box-shadow: 
+            0 20px 60px rgba(0, 0, 0, 0.2),
+            0 8px 24px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        transform: scale(0.7);
+        animation: modalSlideIn 0.3s ease-out forwards;
+        text-align: center;
+        position: relative;
+    }
+
+    .remove-modal-header {
+        margin-bottom: 20px;
+    }
+
+    .remove-modal-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 15px;
+        box-shadow: 0 8px 20px rgba(220, 53, 69, 0.3);
+    }
+
+    .remove-modal-icon i {
+        color: white;
+        font-size: 24px;
+    }
+
+    .remove-modal-title {
+        font-family: var(--primary-font-family, 'Anton', serif);
+        font-size: 24px;
+        color: #333;
+        margin: 0 0 8px 0;
+        font-weight: 600;
+    }
+
+    .remove-modal-message {
+        font-family: var(--secondary-font-family, 'Smooch Sans', serif);
+        font-size: 16px;
+        color: #666;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .remove-modal-buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+        justify-content: center;
+    }
+
+    .remove-btn-confirm,
+    .remove-btn-cancel {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 100px;
+        font-family: var(--secondary-font-family, 'Smooch Sans', serif);
+    }
+
+    .remove-btn-confirm {
+        background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
+
+    .remove-btn-confirm:hover {
+        background: linear-gradient(135deg, #b02a37 0%, #8c1f2a 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+    }
+
+    .remove-btn-cancel {
+        background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+    }
+
+    .remove-btn-cancel:hover {
+        background: linear-gradient(135deg, #545b62 0%, #3d4146 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(108, 117, 125, 0.4);
+    }
+
+    .remove-modal-close {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #999;
+        cursor: pointer;
+        transition: color 0.3s ease;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .remove-modal-close:hover {
+        color: #333;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes modalSlideIn {
+        from { 
+            transform: scale(0.7) translateY(-50px);
+            opacity: 0;
+        }
+        to { 
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .remove-modal-content {
+            margin: 20px;
+            padding: 25px;
+            max-width: none;
+        }
+        
+        .remove-modal-title {
+            font-size: 20px;
+        }
+        
+        .remove-modal-message {
+            font-size: 14px;
+        }
+        
+        .remove-modal-buttons {
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .remove-btn-confirm,
+        .remove-btn-cancel {
+            width: 100%;
+        }
+    }
+    </style>
 </body>
 </html> 

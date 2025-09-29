@@ -241,8 +241,6 @@
             function normalizeCategoryName($name) {
                 return strtolower(str_replace([' ', '_'], '-', $name));
             }
-            
-                // echo "<!-- categories loaded: " . count($dynamicCategories) . " -->";
             ?>
             
             <?php if (count($dynamicCategories) > 0): ?>
@@ -289,20 +287,19 @@
         <main class="content">
             <div class="products-grid">
                 <?php
-                foreach ($products as $baseItemCode => $product):
-                    if ((int)($product['stock'] ?? 0) <= 0) { continue; }
-                    $availableSizes = $product['sizes'];
-                    $prices = $product['prices'];
-                    $courses = $product['courses'];
-                    $stocksBySize = [];
-                    $itemCodesBySize = [];
-                    foreach ($product['variants'] as $variant) {
+                    foreach ($products as $baseItemCode => $product):
+                        if ((int)($product['stock'] ?? 0) <= 0) { continue; }
+                        $availableSizes = $product['sizes'];
+                        $prices = $product['prices'];
+                        $courses = $product['courses'];
+                        $stocksBySize = [];
+                        $itemCodesBySize = [];
+                        foreach ($product['variants'] as $variant) {
                         $size = $variant['size'];
                         $stocksBySize[$size] = $variant['stock'];
                         $itemCodesBySize[$size] = $variant['item_code'];
-                    }
-                    
-                    ?>
+                        }
+                ?>
                     <div class="product-container" 
                         data-category="<?php echo strtolower(str_replace(' ', '-', $product['category'])); ?>"
                         data-sizes="<?php echo implode(',', $availableSizes); ?>"
@@ -325,7 +322,7 @@
                             if (empty($productImage)) {
                                 $productImage = '../uploads/itemlist/default.png';
                             }
-                            ?>
+                        ?>
                             <img src="<?php echo $productImage; ?>" alt="<?php echo $product['name']; ?>">
                         <div class="product-overlay">
                             <div class="items"></div>
