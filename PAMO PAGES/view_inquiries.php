@@ -27,6 +27,7 @@ $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <title>Student Inquiries</title>
     
     <link rel="stylesheet" href="../PAMO CSS/styles.css">
+    <link rel="stylesheet" href="../CSS/logout-modal.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../PAMO CSS/view_inquiries.css">
@@ -82,6 +83,7 @@ $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </form>
         </div>
     </div>
+    <script src="../Javascript/logout-modal.js"></script>
     <script src="../PAMO JS/view_inquiries.js"></script>
 </body>
 </html>

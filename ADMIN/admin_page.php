@@ -381,9 +381,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
 <script>
     function logout() {
-        if (confirm('Are you sure you want to logout?')) {
-            window.location.href = '../logout.php';
-        }
+        showLogoutConfirmation();
     }
 
     function filterUsers() {
@@ -2589,6 +2587,15 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             }
 </style>
     `);
+
+    // Add logout modal CSS and JS
+    document.head.insertAdjacentHTML('beforeend', `
+        <link rel="stylesheet" href="../CSS/logout-modal.css">
+    `);
+    
+    const logoutScript = document.createElement('script');
+    logoutScript.src = '../Javascript/logout-modal.js';
+    document.head.appendChild(logoutScript);
 
     function initBirthdayFields() {
         const birthdayContainers = document.querySelectorAll('.birthday-inputs');

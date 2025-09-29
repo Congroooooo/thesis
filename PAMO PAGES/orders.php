@@ -69,6 +69,7 @@ unset($order);
     <title>PAMO - Orders</title>
     <link rel="stylesheet" href="../PAMO CSS/styles.css">
     <link rel="stylesheet" href="../PAMO CSS/orders.css">
+    <link rel="stylesheet" href="../CSS/logout-modal.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -253,6 +254,7 @@ unset($order);
         window.PAMO_USER = { name: "<?php echo addslashes($_SESSION['name'] ?? ''); ?>" };
     </script>
 
+    <script src="../Javascript/logout-modal.js"></script>
     <script src="../PAMO JS/orders.js"></script>
 </body>
 

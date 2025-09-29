@@ -48,7 +48,9 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,100..900;1,100..900&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="../PAMO CSS/dashboard.css">
+    <link rel="stylesheet" href="../CSS/logout-modal.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../Javascript/logout-modal.js"></script>
     <script src="../PAMO JS/dashboard.js"></script>
 </head>
 

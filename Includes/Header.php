@@ -185,6 +185,7 @@ if (isset($_SESSION['user_id'])) {
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <link rel="stylesheet" href="../CSS/cart.css">
+<link rel="stylesheet" href="../CSS/logout-modal.css">
 
 <script>
     function redirectToLogin(destination) {
@@ -201,9 +202,7 @@ if (isset($_SESSION['user_id'])) {
 
     function signOut(event) {
         event.preventDefault();
-        if (confirm("Are you sure you want to log out?")) {
-            window.location.href = 'logout.php';
-        }
+        showLogoutConfirmation();
     }
 
      /* window.onload = function () {
@@ -596,6 +595,8 @@ if (isset($_SESSION['user_id'])) {
 
 <!-- Include cart functionality -->
 <script src="../Javascript/cart.js"></script>
+<!-- Include logout modal functionality -->
+<script src="../Javascript/logout-modal.js"></script>
 
 <!-- Mailbox Modal -->
 <div id="mailboxModal" style="display:none;">

@@ -31,6 +31,7 @@ if (isset($_GET['error'])) {
     <title>Content Management</title>
     <link rel="stylesheet" href="../PAMO CSS/content-edit.css">
     <link rel="stylesheet" href="../PAMO CSS/styles.css">
+    <link rel="stylesheet" href="../CSS/logout-modal.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         .alert { padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-size: 1em; position: relative; }
@@ -214,6 +215,7 @@ if (isset($_GET['error'])) {
                     </form>
                 </div>
             </div>
+            <script src="../Javascript/logout-modal.js"></script>
             <script src="../PAMO JS/content-edit.js"></script>
         </main>
     </div>

@@ -292,10 +292,11 @@ try {
     }
 </style>
 
+<!-- Include Font Awesome for modal icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
 <script>
 function logout() {
-    if (confirm('Are you sure you want to log out?')) {
-        window.location.href = '../logout.php';
-    }
+    showLogoutConfirmation();
 }
 </script>

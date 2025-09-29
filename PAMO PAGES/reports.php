@@ -26,6 +26,8 @@ $offset = ($page - 1) * $limit;
     <title>PAMO - Reports</title>
     <link rel="stylesheet" href="../PAMO CSS/styles.css">
     <link rel="stylesheet" href="../PAMO CSS/reports.css">
+    <link rel="stylesheet" href="../CSS/logout-modal.css">
+    <script src="../Javascript/logout-modal.js"></script>
     <script src="../PAMO JS/reports.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
