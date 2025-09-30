@@ -392,11 +392,22 @@
                                  target.classList.contains('fa-sign-out-alt') ||
                                  target.getAttribute('title') === 'Sign Out';
 
+            const isCartOrNotificationAction = target.closest('.cart-icon') ||
+                                             target.closest('.notification-icon') ||
+                                             target.closest('.cart-popup') ||
+                                             target.closest('.notification-popup') ||
+                                             target.classList.contains('fa-shopping-cart') ||
+                                             target.classList.contains('fa-bell') ||
+                                             target.classList.contains('fas') && (
+                                                 target.classList.contains('fa-shopping-cart') ||
+                                                 target.classList.contains('fa-bell')
+                                             );
+
             const isInstantAction = target.classList.contains('instant') ||
                                    target.getAttribute('data-loader') === 'false' ||
                                    target.getAttribute('data-instant') === 'true';
 
-            if (isLogoutAction) {
+            if (isLogoutAction || isCartOrNotificationAction) {
                 setTimeout(() => {
                     if (!e.defaultPrevented) {
                     }

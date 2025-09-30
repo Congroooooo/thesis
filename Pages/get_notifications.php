@@ -17,7 +17,7 @@ try {
     echo json_encode([
         'success' => true,
         'notifications' => $notifications,
-        'count' => $count
+        'count' => $count 
     ]);
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);

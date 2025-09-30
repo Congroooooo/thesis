@@ -6,8 +6,10 @@ require_once '../Includes/connection.php';
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
+
 }
 
+include '../Includes/loader.php';
 // Get cart items
 $cart_query = $conn->prepare("SELECT * FROM cart WHERE user_id = ?");
 $cart_query->execute([$_SESSION['user_id']]);
