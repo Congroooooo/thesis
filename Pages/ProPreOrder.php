@@ -1,6 +1,7 @@
 <?php
 include("../Includes/Header.php");
 require_once '../Includes/connection.php';
+include("../Includes/loader.php");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -21,13 +22,11 @@ require_once '../Includes/connection.php';
 
 <body>
     <?php
-    // Check if user is logged in
     if (!isset($_SESSION['user_id'])) {
         header('Location: login.php');
         exit();
     }
 
-    // Fetch cart items for the current user
     $stmt = $conn->prepare("SELECT * FROM cart WHERE user_id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     $cart_items = $stmt->fetchAll(PDO::FETCH_ASSOC);

@@ -1,6 +1,7 @@
 <?php
 include("../Includes/Header.php");
 include("../Includes/connection.php");
+include("../Includes/loader.php");
 ?>
 <!DOCTYPE html>
 <html lang="en">

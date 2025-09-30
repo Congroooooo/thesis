@@ -1,0 +1,363 @@
+.sti-shopping-cart {
+  position: relative;
+  margin-bottom: 40px;
+  animation: cartBounce 2s ease-in-out infinite;
+}
+
+.cart-body {
+  width: 80px;
+  height: 60px;
+  background: #ffcb05;
+  border-radius: 8px 8px 4px 4px;
+  position: relative;
+  margin: 0 auto;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.cart-body::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.cart-wheel {
+  width: 16px;
+  height: 16px;
+  background: #004aad;
+  border-radius: 50%;
+  position: absolute;
+  bottom: -8px;
+  animation: wheelSpin 1s linear infinite;
+}
+
+.cart-wheel-1 {
+  left: 15px;
+}
+
+.cart-wheel-2 {
+  right: 15px;
+}
+
+.cart-handle {
+  width: 50px;
+  height: 35px;
+  border: 4px solid #ffcb05;
+  border-bottom: none;
+  border-radius: 25px 25px 0 0;
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Floating Items */
+.floating-items {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 80px;
+}
+
+.item {
+  position: absolute;
+  font-size: 20px;
+  animation: itemFloat 3s ease-in-out infinite;
+  opacity: 0;
+}
+
+.item-1 {
+  left: 10px;
+  top: 10px;
+  animation-delay: 0s;
+}
+
+.item-2 {
+  right: 10px;
+  top: 5px;
+  animation-delay: 0.7s;
+}
+
+.item-3 {
+  left: 20px;
+  bottom: 10px;
+  animation-delay: 1.4s;
+}
+
+.item-4 {
+  right: 20px;
+  bottom: 15px;
+  animation-delay: 2.1s;
+}
+
+/* Progress Bar */
+.sti-progress-container {
+  margin-bottom: 30px;
+}
+
+.sti-progress-bar {
+  width: 200px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  margin: 0 auto 15px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sti-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffcb05 0%, #fff 50%, #ffcb05 100%);
+  border-radius: 3px;
+  width: 0%;
+  animation: progressFill 3s ease-in-out infinite;
+}
+
+.sti-progress-glow {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 203, 5, 0.6) 50%,
+    transparent 100%
+  );
+  animation: progressGlow 2s ease-in-out infinite;
+}
+
+/* Loading Text */
+.sti-loading-text {
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.loading-dots span {
+  animation: dotPulse 1.5s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* STI Branding */
+.sti-brand {
+  color: white;
+}
+
+.sti-logo-placeholder {
+  font-size: 24px;
+  font-weight: bold;
+  color: #ffcb05;
+  margin-bottom: 5px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.sti-tagline {
+  font-size: 12px;
+  opacity: 0.8;
+  margin: 0;
+}
+
+/* Background Elements */
+.background-elements {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.floating-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 203, 5, 0.1);
+  animation: floatUpDown 4s ease-in-out infinite;
+}
+
+.circle-1 {
+  width: 60px;
+  height: 60px;
+  top: 20%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.circle-2 {
+  width: 40px;
+  height: 40px;
+  top: 60%;
+  right: 15%;
+  animation-delay: 1.5s;
+}
+
+.circle-3 {
+  width: 30px;
+  height: 30px;
+  bottom: 30%;
+  left: 20%;
+  animation-delay: 3s;
+}
+
+.shopping-bag {
+  position: absolute;
+  font-size: 30px;
+  opacity: 0.3;
+  animation: bagFloat 6s ease-in-out infinite;
+}
+
+.bag-1 {
+  top: 15%;
+  right: 10%;
+  animation-delay: 0s;
+}
+
+.bag-2 {
+  bottom: 20%;
+  right: 20%;
+  animation-delay: 3s;
+}
+
+/* Animations */
+@keyframes cartBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes wheelSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes itemFloat {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+  }
+  20%,
+  80% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1);
+  }
+}
+
+@keyframes progressFill {
+  0% {
+    width: 0%;
+  }
+  50% {
+    width: 70%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+@keyframes progressGlow {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes dotPulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+@keyframes floatUpDown {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+  }
+}
+
+@keyframes bagFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-5deg);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-15px) rotate(5deg);
+    opacity: 0.6;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sti-shopping-cart {
+    transform: scale(0.8);
+  }
+
+  .sti-progress-bar {
+    width: 150px;
+  }
+
+  .sti-loading-text {
+    font-size: 14px;
+  }
+
+  .sti-logo-placeholder {
+    font-size: 20px;
+  }
+
+  .floating-circle {
+    display: none;
+  }
+
+  .shopping-bag {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sti-shopping-cart {
+    transform: scale(0.7);
+    margin-bottom: 30px;
+  }
+
+  .sti-progress-bar {
+    width: 120px;
+  }
+
+  .sti-loading-text {
+    font-size: 12px;
+  }
+}

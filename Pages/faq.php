@@ -1,4 +1,7 @@
-<?php include '../Includes/Header.php'; ?>
+<?php
+include '../Includes/Header.php';
+include '../Includes/loader.php';
+?>
 
 <!DOCTYPE html>
 <html lang="en">
