@@ -184,6 +184,7 @@ if (isset($_SESSION['user_id'])) {
 </div>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link rel="stylesheet" href="../CSS/cart.css">
 <link rel="stylesheet" href="../CSS/logout-modal.css">
 
@@ -228,31 +229,73 @@ if (isset($_SESSION['user_id'])) {
         function formatTimeAgo(timestamp) {
             const currentTime = Math.floor(Date.now() / 1000);
             const timeDifference = currentTime - timestamp;
-            
+
             if (timeDifference < 60) {
                 return 'Just now';
             } else if (timeDifference < 3600) {
                 const minutes = Math.floor(timeDifference / 60);
-                return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+                return `${minutes}m ago`;
             } else if (timeDifference < 86400) {
                 const hours = Math.floor(timeDifference / 3600);
-                return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+                return `${hours}h ago`;
             } else if (timeDifference < 604800) {
                 const days = Math.floor(timeDifference / 86400);
-                return `${days} day${days > 1 ? 's' : ''} ago`;
+                return `${days}d ago`;
             } else {
                 return new Date(timestamp * 1000).toLocaleDateString('en-US', {
                     month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: 'numeric',
-                    minute: 'numeric',
-                    hour12: true
+                    day: 'numeric'
                 });
             }
         }
 
-        function updateNotificationTimes() {
+        function getNotificationTypeDisplay(type) {
+            const typeMap = {
+                'approved': 'Order Approved',
+                'rejected': 'Order Rejected',
+                'processing': 'Order Processing',
+                'ready': 'Order Ready',
+                'completed': 'Order Completed',
+                'cancelled': 'Order Cancelled',
+                // Database ENUM values
+                'Restock Item': 'Restock',
+                'Restock': 'Restock',
+                'Add Item Size': 'Add Item Size',
+                'New Item': 'New Item',
+                // Legacy mappings for compatibility
+                'new_item': 'New Item',
+                'low_stock': 'Low Stock Alert',
+                'inventory_update': 'Inventory Updated',
+                'system': 'System Notification',
+                'announcement': 'Announcement',
+                'reminder': 'Reminder'
+            };
+            return typeMap[type] || type;
+        }
+
+        function getNotificationIcon(type) {
+            const iconMap = {
+                'approved': 'check_circle',
+                'rejected': 'cancel',
+                'processing': 'hourglass_empty',
+                'ready': 'shopping_bag',
+                'completed': 'done_all',
+                'cancelled': 'block',
+                // Database ENUM values
+                'Restock Item': 'inventory',
+                'Restock': 'inventory',
+                'Add Item Size': 'straighten',
+                'New Item': 'add_shopping_cart',
+                // Legacy mappings for compatibility
+                'new_item': 'add_shopping_cart',
+                'low_stock': 'warning',
+                'inventory_update': 'inventory',
+                'system': 'settings',
+                'announcement': 'campaign',
+                'reminder': 'schedule'
+            };
+            return iconMap[type] || 'notifications';
+        }        function updateNotificationTimes() {
             const notificationItems = document.querySelectorAll('.notification-item');
             notificationItems.forEach(item => {
                 const timestamp = parseInt(item.dataset.timestamp);
@@ -283,15 +326,26 @@ if (isset($_SESSION['user_id'])) {
                         if (data.notifications && data.notifications.length > 0) {
                             container.innerHTML = data.notifications.map(notification => {
                                 const timestamp = Math.floor(new Date(notification.created_at).getTime() / 1000);
+                                const notificationType = getNotificationTypeDisplay(notification.type);
+                                const notificationIcon = getNotificationIcon(notification.type);
+                                const cssClass = notification.type.replace(/\s+/g, '_').toLowerCase();
                                 return `
                                     <div class="notification-item ${notification.is_read ? '' : 'unread'}" 
                                          onclick="markNotificationAsRead(${notification.id})"
                                          data-timestamp="${timestamp}">
-                                        <p class="notification-message"></p>
-                                        <span class="notification-status ${notification.type}">
-                                            ${notification.type.charAt(0).toUpperCase() + notification.type.slice(1)}
-                                        </span>
-                                        <p class="notification-time">${formatTimeAgo(timestamp)}</p>
+                                        <div class="notification-avatar">
+                                            <div class="notification-icon-wrapper ${cssClass}">
+                                                <i class="material-icons">${notificationIcon}</i>
+                                            </div>
+                                        </div>
+                                        <div class="notification-content">
+                                            <div class="notification-header-info">
+                                                <span class="notification-type">${notificationType}</span>
+                                                <span class="notification-timestamp">${formatTimeAgo(timestamp)}</span>
+                                            </div>
+                                            <div class="notification-message"></div>
+                                            ${!notification.is_read ? '<div class="notification-indicator"></div>' : ''}
+                                        </div>
                                     </div>
                                 `;
                             }).join('');
@@ -1675,96 +1729,175 @@ document.addEventListener('DOMContentLoaded', function() {
         background: #a8a8a8;
     }
 
-    /* Notification Item Styles */
+    /* New Notification Item Styles - Based on Reference Design */
     .notification-item {
-        padding: 1rem;
-        border-bottom: 1px solid #f0f2f5;
+        display: flex;
+        align-items: flex-start;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f0f0f0;
         cursor: pointer;
         transition: all 0.2s ease;
-        border-radius: 8px;
-        margin-bottom: 0.5rem;
-        width: 100%;
-        box-sizing: border-box;
+        position: relative;
+        background-color: #ffffff;
+        border-radius: 0;
+        margin-bottom: 0;
     }
 
     .notification-item:last-child {
         border-bottom: none;
-        margin-bottom: 0;
     }
 
     .notification-item:hover {
         background-color: #f8f9fa;
-        transform: translateX(5px);
     }
 
     .notification-item.unread {
-        background-color: #f0f7ff;
-        border-left: 4px solid var(--primary-color);
+        background-color: #f8f9fa;
+    }
+
+    .notification-avatar {
+        margin-right: 12px;
+        flex-shrink: 0;
+    }
+
+    .notification-icon-wrapper {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .notification-icon-wrapper i {
+        font-size: 20px;
+        color: white;
+    }
+
+    /* Icon colors based on notification type */
+    .notification-icon-wrapper.approved {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+    }
+
+    .notification-icon-wrapper.rejected {
+        background: linear-gradient(135deg, #f44336, #da190b);
+    }
+
+    .notification-icon-wrapper.processing {
+        background: linear-gradient(135deg, #ff9800, #f57c00);
+    }
+
+    .notification-icon-wrapper.ready {
+        background: linear-gradient(135deg, #2196F3, #1976d2);
+    }
+
+    .notification-icon-wrapper.completed {
+        background: linear-gradient(135deg, #9C27B0, #7b1fa2);
+    }
+
+    .notification-icon-wrapper.cancelled {
+        background: linear-gradient(135deg, #757575, #424242);
+    }
+
+    .notification-icon-wrapper.new_item {
+        background: linear-gradient(135deg, #00BCD4, #0097a7);
+    }
+
+    .notification-icon-wrapper.low_stock {
+        background: linear-gradient(135deg, #FFC107, #ffa000);
+    }
+
+    .notification-icon-wrapper.inventory_update {
+        background: linear-gradient(135deg, #795548, #5d4037);
+    }
+
+    .notification-icon-wrapper.system {
+        background: linear-gradient(135deg, #607D8B, #455a64);
+    }
+
+    .notification-icon-wrapper.announcement {
+        background: linear-gradient(135deg, #E91E63, #c2185b);
+    }
+
+    .notification-icon-wrapper.reminder {
+        background: linear-gradient(135deg, #3F51B5, #303f9f);
+    }
+
+    /* Database ENUM values with normalized class names */
+    .notification-icon-wrapper.restock_item {
+        background: linear-gradient(135deg, #795548, #5d4037);
+    }
+
+    .notification-icon-wrapper.restock {
+        background: linear-gradient(135deg, #795548, #5d4037);
+    }
+
+    .notification-icon-wrapper.add_item_size {
+        background: linear-gradient(135deg, #9C27B0, #7b1fa2);
+    }
+
+    .notification-icon-wrapper.new_item {
+        background: linear-gradient(135deg, #00BCD4, #0097a7);
+    }
+
+    .notification-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .notification-header-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+    }
+
+    .notification-type {
+        font-weight: 600;
+        font-size: 14px;
+        color: #1a1a1a;
+    }
+
+    .notification-timestamp {
+        font-size: 12px;
+        color: #8e8e93;
+        font-weight: 400;
     }
 
     .notification-message {
-        margin: 0 0 0.5rem 0;
-        color: #2c3e50;
-        font-size: 0.95rem;
-        line-height: 1.5;
-        font-weight: 500;
+        margin: 0;
+        color: #3c3c43;
+        font-size: 13px;
+        line-height: 1.4;
+        font-weight: 400;
         word-wrap: break-word;
         overflow-wrap: break-word;
     }
 
-    .notification-time {
-        color: #6c757d;
-        font-size: 0.85rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .notification-time::before {
-        content: '';
-        display: inline-block;
-        width: 6px;
-        height: 6px;
-        background-color: #6c757d;
+    .notification-indicator {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 8px;
+        height: 8px;
+        background-color: #007AFF;
         border-radius: 50%;
+        border: 2px solid white;
     }
 
-    .notification-status {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
+    .notification-item.unread .notification-type {
+        color: #000000;
+        font-weight: 700;
+    }
+
+    .notification-item.unread .notification-message {
+        color: #1a1a1a;
         font-weight: 500;
-        margin-top: 0.5rem;
-    }
-
-    .notification-status.approved {
-        background-color: #e8f5e9;
-        color: #2e7d32;
-    }
-
-    .notification-status.rejected {
-        background-color: #ffebee;
-        color: #c62828;
-    }
-
-    .notification-status.processing {
-        background-color: #fff3e0;
-        color: #ef6c00;
-    }
-
-    .notification-status.ready {
-        background-color: #e3f2fd;
-        color: #1565c0;
-    }
-
-    .notification-status.completed {
-        background-color: #e8f5e9;
-        color: #2e7d32;
     }
 
     /* Empty State Messages */
-    .empty-cart-message, .empty-notification-message {
+    .empty-cart-message {
         text-align: center;
         color: #6c757d;
         padding: 2rem 0;
@@ -1772,6 +1905,14 @@ document.addEventListener('DOMContentLoaded', function() {
         background-color: #f8f9fa;
         border-radius: 8px;
         margin: 1rem 0;
+    }
+
+    .empty-notification-message {
+        text-align: center;
+        color: #8e8e93;
+        padding: 40px 20px;
+        font-size: 15px;
+        font-weight: 400;
     }
 
     /* Count Badges */
