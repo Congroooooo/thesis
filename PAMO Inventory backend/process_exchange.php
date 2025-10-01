@@ -8,14 +8,14 @@ header('Access-Control-Allow-Headers: Content-Type');
 require_once '../Includes/connection.php'; // PDO $conn
 
 $sales_id = isset($_POST['sales_id']) ? intval($_POST['sales_id']) : 0;
-$transaction_number = isset($_POST['transaction_number']) ? mysqli_real_escape_string($conn, $_POST['transaction_number']) : '';
+$transaction_number = isset($_POST['transaction_number']) ? $_POST['transaction_number'] : '';
 $customer_id = isset($_POST['customer_id']) ? intval($_POST['customer_id']) : 0;
-$customer_name = isset($_POST['customer_name']) ? mysqli_real_escape_string($conn, $_POST['customer_name']) : '';
-$item_code = isset($_POST['item_code']) ? mysqli_real_escape_string($conn, $_POST['item_code']) : '';
-$old_size = isset($_POST['old_size']) ? mysqli_real_escape_string($conn, $_POST['old_size']) : '';
-$new_size = isset($_POST['new_size']) ? mysqli_real_escape_string($conn, $_POST['new_size']) : '';
-$new_item_code = isset($_POST['new_item_code']) ? mysqli_real_escape_string($conn, $_POST['new_item_code']) : '';
-$remarks = isset($_POST['remarks']) ? mysqli_real_escape_string($conn, $_POST['remarks']) : '';
+$customer_name = isset($_POST['customer_name']) ? $_POST['customer_name'] : '';
+$item_code = isset($_POST['item_code']) ? $_POST['item_code'] : '';
+$old_size = isset($_POST['old_size']) ? $_POST['old_size'] : '';
+$new_size = isset($_POST['new_size']) ? $_POST['new_size'] : '';
+$new_item_code = isset($_POST['new_item_code']) ? $_POST['new_item_code'] : '';
+$remarks = isset($_POST['remarks']) ? $_POST['remarks'] : '';
 
 if (!$sales_id || !$transaction_number || !$customer_id || !$customer_name || !$item_code || !$old_size || !$new_size || !$new_item_code) {
     echo json_encode(['success' => false, 'message' => 'All required fields must be provided']);
@@ -26,14 +26,17 @@ $processed_by = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
 if (!$processed_by) {
     $check_admin_sql = "SELECT id FROM account WHERE id = 1 LIMIT 1";
-    $check_result = mysqli_query($conn, $check_admin_sql);
-    if (mysqli_num_rows($check_result) > 0) {
+    $check_stmt = $conn->prepare($check_admin_sql);
+    $check_stmt->execute();
+    $check_result = $check_stmt->fetch(PDO::FETCH_ASSOC);
+    if ($check_result) {
         $processed_by = 1;
     } else {
         $first_user_sql = "SELECT id FROM account WHERE status = 'active' ORDER BY id LIMIT 1";
-        $first_user_result = mysqli_query($conn, $first_user_sql);
-        if ($first_user_result && mysqli_num_rows($first_user_result) > 0) {
-            $first_user = mysqli_fetch_assoc($first_user_result);
+        $first_user_stmt = $conn->prepare($first_user_sql);
+        $first_user_stmt->execute();
+        $first_user = $first_user_stmt->fetch(PDO::FETCH_ASSOC);
+        if ($first_user) {
             $processed_by = $first_user['id'];
         } else {
             throw new Exception('No valid user found for processed_by field');
@@ -88,11 +91,14 @@ try {
     echo json_encode([
         'success' => true,
         'message' => 'Exchange processed successfully',
-        'exchange_id' => mysqli_insert_id($conn)
+        'exchange_id' => $conn->lastInsertId()
     ]);
 
 } catch (Exception $e) {
     if ($conn instanceof PDO && $conn->inTransaction()) { $conn->rollBack(); }
+    
+    // Log the full error for debugging
+    error_log("Exchange processing error: " . $e->getMessage() . " at line " . $e->getLine());
     
     echo json_encode([
         'success' => false,

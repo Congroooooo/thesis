@@ -760,13 +760,44 @@ function page_link($page, $query_string) {
                             <select id="exchangeCustomerName" name="customerName" required>
                                 <option value="">Search customer...</option>
                                 <?php
-                                $sql = "SELECT id, first_name, last_name, id_number, role_category FROM account WHERE status = 'active' ORDER BY first_name, last_name";
-                                $stmt = $conn->query($sql);
-
-                                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                                    $fullName = $row['first_name'] . ' ' . $row['last_name'];
-                                    echo "<option value='" . $row['id'] . "' data-id-number='" . htmlspecialchars($row['id_number']) . "' data-role='" . htmlspecialchars($row['role_category']) . "'>" . 
-                                         htmlspecialchars($fullName) . " (" . htmlspecialchars($row['id_number']) . ")</option>";
+                                // Get customers who have had transactions in the last 24 hours
+                                $sql = "SELECT DISTINCT a.id, a.first_name, a.last_name, a.id_number, a.role_category 
+                                       FROM account a 
+                                       INNER JOIN transaction_customers tc ON a.id = tc.customer_id 
+                                       INNER JOIN sales s ON tc.transaction_number = s.transaction_number 
+                                       WHERE a.status = 'active' 
+                                       AND s.sale_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                                       ORDER BY a.first_name, a.last_name";
+                                
+                                try {
+                                    $stmt = $conn->query($sql);
+                                    $customers_found = false;
+                                    
+                                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                        $customers_found = true;
+                                        $fullName = $row['first_name'] . ' ' . $row['last_name'];
+                                        echo "<option value='" . $row['id'] . "' data-id-number='" . htmlspecialchars($row['id_number']) . "' data-role='" . htmlspecialchars($row['role_category']) . "'>" . 
+                                             htmlspecialchars($fullName) . " (" . htmlspecialchars($row['id_number']) . ")</option>";
+                                    }
+                                    
+                                    // If no customers with recent transactions found, show a message
+                                    if (!$customers_found) {
+                                        echo "<option value='' disabled>No customers with transactions in the last 24 hours</option>";
+                                    }
+                                } catch (PDOException $e) {
+                                    // Fallback: show all active customers if there's an error with the filtered query
+                                    echo "<option value='' disabled>Loading customers...</option>";
+                                    error_log("Error loading recent customers: " . $e->getMessage());
+                                    
+                                    // Fallback query
+                                    $fallback_sql = "SELECT id, first_name, last_name, id_number, role_category FROM account WHERE status = 'active' ORDER BY first_name, last_name";
+                                    $fallback_stmt = $conn->query($fallback_sql);
+                                    
+                                    while ($row = $fallback_stmt->fetch(PDO::FETCH_ASSOC)) {
+                                        $fullName = $row['first_name'] . ' ' . $row['last_name'];
+                                        echo "<option value='" . $row['id'] . "' data-id-number='" . htmlspecialchars($row['id_number']) . "' data-role='" . htmlspecialchars($row['role_category']) . "'>" . 
+                                             htmlspecialchars($fullName) . " (" . htmlspecialchars($row['id_number']) . ")</option>";
+                                    }
                                 }
                                 ?>
                             </select>
@@ -840,7 +871,6 @@ function page_link($page, $query_string) {
                 document.getElementById('exchangeNewSize').innerHTML = '<option value="">Select New Size</option>';
             }
         }
-
 
     </script>
 

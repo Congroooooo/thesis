@@ -32,7 +32,12 @@ function loadCustomerPurchases() {
   fetch(
     `../PAMO Inventory backend/get_customer_purchases.php?customer_id=${customerId}`
   )
-    .then((response) => response.json())
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
     .then((data) => {
       itemBoughtSelect.innerHTML =
         '<option value="">Select Item (Purchased within 24 hours)</option>';
@@ -85,7 +90,12 @@ function loadAvailableSizes() {
     fetch(
       `../PAMO Inventory backend/get_available_sizes.php?item_code=${purchase.item_code}`
     )
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => {
         newSizeSelect.innerHTML = '<option value="">Select New Size</option>';
 
@@ -147,21 +157,27 @@ function submitExchangeItem(event) {
       method: "POST",
       body: formData,
     })
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => {
         if (data.success) {
           alert("Exchange processed successfully!");
           closeModal("exchangeItemModal");
           location.reload();
         } else {
+          console.error("Exchange error details:", data);
           alert(
             "Error processing exchange: " + (data.message || "Unknown error")
           );
         }
       })
       .catch((error) => {
-        console.error("Error:", error);
-        alert("Error processing exchange");
+        console.error("Exchange processing error:", error);
+        alert("Error processing exchange: " + error.message);
       });
   } catch (error) {
     console.error("Error parsing purchase data:", error);

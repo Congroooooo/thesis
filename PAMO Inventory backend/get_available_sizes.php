@@ -6,7 +6,7 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 require_once '../Includes/connection.php'; // PDO $conn
 
-$item_code = isset($_GET['item_code']) ? mysqli_real_escape_string($conn, $_GET['item_code']) : '';
+$item_code = isset($_GET['item_code']) ? $_GET['item_code'] : '';
 
 if (!$item_code) {
     echo json_encode(['success' => false, 'message' => 'Item code is required']);
