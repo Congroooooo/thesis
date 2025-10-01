@@ -121,6 +121,7 @@ function page_link($page, $query_string) {
                     loadCustomerPurchases();
                 });
             }
+
         });
 
         function clearLowStockSessionAndReload() {
@@ -552,7 +553,7 @@ function page_link($page, $query_string) {
                 <span class="close" onclick="closeModal('deductQuantityModal')">&times;</span>
             </div>
             <div class="modal-body">
-                <form id="deductQuantityForm" onsubmit="submitDeductQuantity(event)">
+                <form id="deductQuantityForm" class="instant" onsubmit="submitDeductQuantity(event)">
                     <div class="order-section form-row">
                         <div class="input-group">
                             <label for="transactionNumber">Transaction Number:</label>
@@ -1409,6 +1410,65 @@ function page_link($page, $query_string) {
         justify-content: flex-end;
         gap: 12px;
         background: #f8f9fa;
+    }
+    .select2-result-student {
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .select2-result-student:last-child {
+        border-bottom: none;
+    }
+    
+    .select2-result-student .student-name {
+        font-weight: 600;
+        color: #333;
+        font-size: 14px;
+        margin-bottom: 2px;
+    }
+    
+    .select2-result-student .student-id {
+        font-size: 12px;
+        color: #666;
+        font-style: italic;
+    }
+    
+    .select2-container--default .select2-results__option[aria-selected=true] .select2-result-student .student-name {
+        color: #fff;
+    }
+    
+    .select2-container--default .select2-results__option[aria-selected=true] .select2-result-student .student-id {
+        color: #e0e0e0;
+    }
+    
+    .select2-container--default .select2-results__option--highlighted .select2-result-student .student-name {
+        color: #fff;
+    }
+    
+    .select2-container--default .select2-results__option--highlighted .select2-result-student .student-id {
+        color: #e0e0e0;
+    }
+    
+    /* Improve Select2 search input */
+    .select2-search--dropdown .select2-search__field {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .select2-search--dropdown .select2-search__field:focus {
+        border-color: #007bff;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    }
+    
+    /* Loading state for Select2 */
+    .select2-results__option.loading-results {
+        text-align: center;
+        color: #666;
+        font-style: italic;
+        padding: 12px;
     }
     </style>
 </body>

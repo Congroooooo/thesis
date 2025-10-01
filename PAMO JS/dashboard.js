@@ -29,10 +29,7 @@ function clearActivities() {
 }
 
 function redirectToLowStock() {
-  console.log("redirectToLowStock called");
   sessionStorage.setItem("applyLowStockFilter", "true");
-  console.log("Session storage set, redirecting to inventory.php");
-  console.log("Current location:", window.location.href);
   window.location.href = "inventory.php";
 }
 
@@ -84,7 +81,6 @@ async function fetchStockData(category = "", course = "") {
       return [];
     }
     const data = await res.json();
-    console.log("Stock Data:", data);
     return data;
   } catch (error) {
     console.error("Fetch stock data error:", error);
@@ -103,7 +99,6 @@ async function fetchSalesData(category, course, period) {
       return [];
     }
     const data = await res.json();
-    console.log("Sales Data:", data);
     return data;
   } catch (error) {
     console.error("Fetch sales data error:", error);
@@ -187,9 +182,6 @@ function renderSalesLineChart(data) {
   const sales = filteredData.map((d) => Number(d.total_sales));
 
   // Debug logging
-  console.log("Labels:", labels);
-  console.log("Sales:", sales);
-  console.log("Raw data:", data);
 
   const canvas = document.getElementById("salesLineChart");
   if (!canvas) {

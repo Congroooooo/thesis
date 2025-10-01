@@ -1,5 +1,3 @@
-console.log("inventory.js loaded");
-
 function handleAddQuantity() {
   if (!selectedItemCode) {
     alert("Please select an item first");
@@ -9,7 +7,6 @@ function handleAddQuantity() {
 }
 
 function editPrice(itemCode, currentPrice) {
-  console.log("Edit Price clicked:", itemCode, currentPrice);
   document.getElementById("itemId").value = itemCode;
   document.getElementById("newPrice").value = currentPrice;
   document.getElementById("editPriceModal").style.display = "block";
@@ -29,8 +26,6 @@ function updatePrice() {
   const itemCode = document.getElementById("itemId").value;
   const newPrice = document.getElementById("newPrice").value;
 
-  console.log("Updating price:", itemCode, newPrice);
-
   if (!newPrice || newPrice <= 0) {
     alert("Please enter a valid price");
     return;
@@ -46,11 +41,9 @@ function updatePrice() {
     )}`,
   })
     .then((response) => {
-      console.log("Response received");
       return response.json();
     })
     .then((data) => {
-      console.log("Data:", data);
       if (data.success) {
         alert("Price updated successfully!");
         location.reload();
@@ -135,7 +128,7 @@ function saveEdit() {
 
 function editImage() {
   // Logic to edit image (e.g., open a file input or modal)
-  console.log("Edit image functionality to be implemented.");
+  // TODO: Implement edit image functionality
 }
 
 function showEditPriceModal() {

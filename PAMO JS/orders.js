@@ -162,11 +162,9 @@ let currentRejectionOrderId = null;
 
 function showOrderReceipt(orderId) {
   currentOrderId = orderId;
-  console.log("[DEBUG] showOrderReceipt called with orderId:", orderId);
   const order = (window.ORDERS || []).find(
     (o) => String(o.id) === String(orderId)
   );
-  console.log("[DEBUG] Found order:", order);
   if (!order) {
     alert("[DEBUG] Order not found for orderId: " + orderId);
     return;
@@ -285,7 +283,6 @@ function showOrderReceipt(orderId) {
   receiptContainer.innerHTML = ""; // Prevent duplication
   receiptContainer.innerHTML = html;
   document.getElementById("orderReceiptModal").style.display = "block";
-  console.log("[DEBUG] Modal should now be visible");
 }
 
 function printOrderReceipt() {
@@ -334,12 +331,6 @@ function confirmAndCompleteOrder() {
     closeOrderReceiptModal();
   }
 }
-
-// Debug: Log how many complete-btn buttons are found
-console.log(
-  "[DEBUG] Number of .complete-btn buttons:",
-  document.querySelectorAll(".complete-btn").length
-);
 
 document.addEventListener("click", function (e) {
   const btn = e.target.closest(".complete-btn");

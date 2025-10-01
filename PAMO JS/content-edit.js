@@ -66,7 +66,6 @@ function openSection(sectionId) {
 
 function openCategory(categoryId) {
   // Handle category click
-  console.log(`Opening category: ${categoryId}`);
   // Add your category-specific logic here
 }
 
@@ -187,25 +186,21 @@ function loadFeaturedSection() {
 
 function editImage(section, imageId) {
   // Handle image editing
-  console.log(`Editing image ${imageId} in ${section}`);
   // Add your image editing logic here
 }
 
 function deleteImage(section, imageId) {
   // Handle image deletion
-  console.log(`Deleting image ${imageId} from ${section}`);
   // Add your image deletion logic here
 }
 
 function editProduct(productId) {
   // Handle product editing
-  console.log(`Editing product ${productId}`);
   // Add your product editing logic here
 }
 
 function deleteProduct(productId) {
   // Handle product deletion
-  console.log(`Deleting product ${productId}`);
   // Add your product deletion logic here
 }
 

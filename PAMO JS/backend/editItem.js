@@ -23,9 +23,6 @@ function selectRow(row, itemCode, price) {
 }
 
 function handleEdit() {
-  console.log("Edit button clicked");
-  console.log("Selected Item Code:", selectedItemCode);
-
   if (!selectedItemCode) {
     alert("Please select an item first");
     return;
@@ -135,12 +132,6 @@ function submitEditImage() {
   const originalText = saveButton.textContent;
   saveButton.textContent = "Uploading...";
   saveButton.disabled = true;
-
-  // Log the FormData contents for debugging
-  console.log("Uploading image for item:", itemId);
-  console.log("File name:", newImage.name);
-  console.log("File type:", newImage.type);
-  console.log("File size:", newImage.size);
 
   fetch("../PAMO Inventory backend/edit_image.php", {
     method: "POST",

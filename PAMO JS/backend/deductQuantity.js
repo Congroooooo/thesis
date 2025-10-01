@@ -1,5 +1,3 @@
-// Sales Entry Modal Backend Functions
-
 function showDeductQuantityModal() {
   document.getElementById("deductQuantityModal").style.display = "block";
   document.getElementById("deductQuantityForm").reset();
@@ -8,7 +6,18 @@ function showDeductQuantityModal() {
     select.value = "";
   });
 
-  // Auto-fill Transaction Number
+  const studentNameSelect = document.getElementById("studentName");
+  if (studentNameSelect) {
+    studentNameSelect.innerHTML = '<option value="">Select Name</option>';
+    if (window.jQuery && $(studentNameSelect).data("select2")) {
+      $(studentNameSelect).prop("disabled", true).trigger("change.select2");
+    } else {
+      studentNameSelect.disabled = true;
+    }
+  }
+
+  document.getElementById("studentIdNumber").value = "";
+
   const transactionInput = document.getElementById("transactionNumber");
   if (transactionInput) {
     fetch("../PAMO Inventory backend/get_next_transaction_number.php")
@@ -30,7 +39,6 @@ function addSalesItem() {
   const salesItems = document.getElementById("salesItems");
   const originalItem = salesItems.querySelector(".sales-item");
 
-  // Destroy Select2 on the original select before cloning
   const originalSelect = originalItem.querySelector('select[name="itemId[]"]');
   if (window.jQuery && $(originalSelect).data("select2")) {
     $(originalSelect).select2("destroy");
@@ -38,7 +46,6 @@ function addSalesItem() {
 
   const newItem = originalItem.cloneNode(true);
 
-  // Reset the values in the cloned item
   const select = newItem.querySelector('select[name="itemId[]"]');
   const sizeSelect = newItem.querySelector('select[name="size[]"]');
   const quantityInput = newItem.querySelector(
@@ -394,7 +401,7 @@ function showSalesReceipt(formData) {
     `;
   }
 
-  // Combine both copies in one A4 page
+  // A4 NA RESIBO
   const html = `
     <!-- PRINTING NOTE: For best results, set print scale to 100% or Actual Size in your print dialog. -->
     <div class="receipt-a4">
@@ -588,7 +595,6 @@ function showSalesReceipt(formData) {
 
 function printSalesReceipt() {
   window.print();
-  // Automatically close the modal after printing
   setTimeout(function () {
     if (document.getElementById("salesReceiptModal")) {
       document.getElementById("salesReceiptModal").style.display = "none";
@@ -601,8 +607,16 @@ function submitDeductQuantity(event) {
 
   const transactionNumber = document.getElementById("transactionNumber").value;
   const studentNameSelect = document.getElementById("studentName");
-  const studentName =
-    studentNameSelect.options[studentNameSelect.selectedIndex].text;
+
+  let studentName;
+  if (window.jQuery && $(studentNameSelect).data("select2")) {
+    const selectedData = $(studentNameSelect).select2("data")[0];
+    studentName = selectedData ? selectedData.name || selectedData.text : "";
+  } else {
+    studentName =
+      studentNameSelect.options[studentNameSelect.selectedIndex]?.text || "";
+  }
+
   const studentIdNumber = document.getElementById("studentIdNumber").value;
   const cashierName = document.getElementById("cashierName").value;
   const salesItems = document.querySelectorAll(".sales-item");
@@ -611,6 +625,7 @@ function submitDeductQuantity(event) {
     !transactionNumber ||
     !studentNameSelect.value ||
     !studentIdNumber ||
+    !studentName ||
     salesItems.length === 0
   ) {
     alert("Please fill in all required fields");
@@ -626,7 +641,6 @@ function submitDeductQuantity(event) {
   formData.append("customerId", studentNameSelect.value);
   formData.append("customerName", studentName);
 
-  // Arrays to store multiple items
   const itemIds = [];
   const itemNames = [];
   const itemCategories = [];
@@ -635,7 +649,6 @@ function submitDeductQuantity(event) {
   const prices = [];
   const itemTotals = [];
 
-  // Validate and collect all items data
   let hasErrors = false;
   salesItems.forEach((item, index) => {
     const itemSelect = item.querySelector('select[name="itemId[]"]');
@@ -670,7 +683,6 @@ function submitDeductQuantity(event) {
       return;
     }
 
-    // Get the full item code and category from the selected size option
     const sizeOption = sizeSelect.options[sizeSelect.selectedIndex];
     const fullItemCode = sizeOption.getAttribute("data-item-code");
     const itemCategory = sizeOption.getAttribute("data-category") || "";
@@ -692,7 +704,6 @@ function submitDeductQuantity(event) {
     return;
   }
 
-  // Append arrays to FormData
   itemIds.forEach((id, index) => {
     formData.append("itemId[]", id);
     formData.append("size[]", sizes[index]);
@@ -703,20 +714,54 @@ function submitDeductQuantity(event) {
 
   formData.append("totalAmount", document.getElementById("totalAmount").value);
 
-  fetch("../PAMO Inventory backend/process_deduct_quantity.php", {
-    method: "POST",
-    body: formData,
-  })
+  if (window.PAMOLoader) {
+    window.PAMOLoader.show();
+  }
+
+  const submitBtn =
+    event.target.querySelector('button[type="submit"]') ||
+    document.querySelector('#deductQuantityForm button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Processing...";
+  }
+
+  // Create a timeout promise
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(
+      () => reject(new Error("Request timeout - processing took too long")),
+      30000
+    ); // 30 second timeout
+  });
+
+  // Race between fetch and timeout
+  Promise.race([
+    fetch("../PAMO Inventory backend/process_deduct_quantity.php", {
+      method: "POST",
+      body: formData,
+    }),
+    timeoutPromise,
+  ])
     .then((response) => {
       return response.text().then((text) => {
         try {
           return JSON.parse(text);
         } catch (e) {
+          console.error("Invalid JSON response:", text);
           throw new Error("Invalid JSON response from server");
         }
       });
     })
     .then((data) => {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Save";
+      }
+
+      if (window.PAMOLoader) {
+        window.PAMOLoader.hide();
+      }
+
       if (data.success) {
         closeModal("deductQuantityModal");
         showSalesReceipt({
@@ -734,10 +779,22 @@ function submitDeductQuantity(event) {
           cashierName,
         });
       } else {
+        console.error("Sales transaction failed:", data.message);
         alert("Error: " + (data.message || "Unknown error occurred"));
       }
     })
-    .catch(() => {
+    .catch((error) => {
+      console.error("Sales processing error:", error);
+
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Save";
+      }
+
+      if (window.PAMOLoader) {
+        window.PAMOLoader.hide();
+      }
+
       alert(
         "An error occurred while processing your request. Check console for details."
       );
@@ -746,43 +803,164 @@ function submitDeductQuantity(event) {
 
 function populateNamesByRole(role) {
   const nameSelect = document.getElementById("studentName");
-  nameSelect.innerHTML = '<option value="">Select Name</option>';
+
   document.getElementById("studentIdNumber").value = "";
-  if (!role) return;
-  fetch(
+
+  if (!role) {
+    nameSelect.innerHTML = '<option value="">Select Name</option>';
+    if (window.jQuery && $(nameSelect).data("select2")) {
+      $(nameSelect).prop("disabled", true).trigger("change.select2");
+    }
+    return;
+  }
+
+  nameSelect.innerHTML = '<option value="">Loading students...</option>';
+  if (window.jQuery && $(nameSelect).data("select2")) {
+    $(nameSelect).prop("disabled", true).trigger("change.select2");
+  }
+
+  const apiUrl =
     "../PAMO Inventory backend/get_students.php?role=" +
-      encodeURIComponent(role)
-  )
-    .then((response) => response.json())
-    .then((data) => {
-      if (data.success) {
+    encodeURIComponent(role);
+
+  fetch(apiUrl)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.text();
+    })
+    .then((text) => {
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Invalid JSON response: " + text);
+      }
+
+      nameSelect.innerHTML = '<option value="">Select Name</option>';
+
+      if (data.success && data.students && data.students.length > 0) {
         data.students.forEach((student) => {
           const option = document.createElement("option");
           option.value = student.id;
-          option.textContent = student.name;
+          option.textContent = student.name + " (" + student.id_number + ")";
+          option.setAttribute("data-name", student.name);
           option.setAttribute("data-id-number", student.id_number);
           nameSelect.appendChild(option);
         });
+
+        if (window.jQuery && $(nameSelect).data("select2")) {
+          $(nameSelect).prop("disabled", false).trigger("change.select2");
+        } else {
+          nameSelect.disabled = false;
+        }
+      } else {
+        console.error(
+          "No students found or API error:",
+          data.message || "Unknown error"
+        );
+        nameSelect.innerHTML =
+          '<option value="">No students found for this role</option>';
+        if (window.jQuery && $(nameSelect).data("select2")) {
+          $(nameSelect).prop("disabled", true).trigger("change.select2");
+        }
       }
+    })
+    .catch((error) => {
+      console.error("Error loading students:", error);
+      nameSelect.innerHTML = '<option value="">Error loading students</option>';
+      if (window.jQuery && $(nameSelect).data("select2")) {
+        $(nameSelect).prop("disabled", true).trigger("change.select2");
+      }
+      alert(
+        "Error loading students. Please check your connection and try again."
+      );
     });
 }
 
-// Event Listeners
 document.addEventListener("DOMContentLoaded", function () {
-  // When a role is selected, update the names dropdown
   document
     .getElementById("roleCategory")
     .addEventListener("change", function () {
       populateNamesByRole(this.value);
     });
 
-  // When a name is selected, autofill the ID number
+  const studentNameSelect = document.getElementById("studentName");
+  if (window.jQuery && studentNameSelect) {
+    $(studentNameSelect).select2({
+      placeholder: "Select role first...",
+      allowClear: true,
+      width: "100%",
+      disabled: true,
+      templateResult: function (item) {
+        // Handle loading state or empty option
+        if (item.loading || !item.element || item.id === "") {
+          return item.text;
+        }
+
+        // Get data from the option element
+        const element = item.element;
+        const name = element.getAttribute("data-name");
+        const idNumber = element.getAttribute("data-id-number");
+
+        if (!name || !idNumber) {
+          return item.text;
+        }
+
+        // Create enhanced dropdown item display
+        var $container = $(
+          "<div class='select2-result-student'>" +
+            "<div class='student-name'>" +
+            $("<div>").text(name).html() +
+            "</div>" +
+            "<div class='student-id'>" +
+            $("<div>").text(idNumber).html() +
+            "</div>" +
+            "</div>"
+        );
+
+        return $container;
+      },
+      templateSelection: function (item) {
+        // Handle default selection
+        if (!item.element || item.id === "") {
+          return item.text;
+        }
+
+        // Display just the name in the selection
+        const name = item.element.getAttribute("data-name");
+        return name || item.text;
+      },
+    });
+
+    // Handle selection events for auto-filling ID number
+    $(studentNameSelect).on("select2:select", function (e) {
+      const selectedElement = e.params.data.element;
+      if (selectedElement) {
+        const idNumber = selectedElement.getAttribute("data-id-number");
+        if (idNumber) {
+          document.getElementById("studentIdNumber").value = idNumber;
+        }
+      }
+    });
+
+    // Handle clear events
+    $(studentNameSelect).on("select2:clear", function (e) {
+      document.getElementById("studentIdNumber").value = "";
+    });
+  }
+
+  // When a name is selected, autofill the ID number (fallback for non-Select2 functionality)
   document
     .getElementById("studentName")
     .addEventListener("change", function () {
-      const selectedOption = this.options[this.selectedIndex];
-      const idNumber = selectedOption.getAttribute("data-id-number") || "";
-      document.getElementById("studentIdNumber").value = idNumber;
+      // This handles the case when Select2 is not available
+      if (!window.jQuery || !$(this).data("select2")) {
+        const selectedOption = this.options[this.selectedIndex];
+        const idNumber = selectedOption.getAttribute("data-id-number") || "";
+        document.getElementById("studentIdNumber").value = idNumber;
+      }
     });
 
   // Add click handlers to existing close buttons
@@ -848,6 +1026,20 @@ function resetDeductQuantityModal() {
   if (window.jQuery && $('select[name="itemId[]"]').length) {
     $('select[name="itemId[]"]').val(null).trigger("change");
   }
+
+  // Reset student name Select2 and disable it
+  const studentNameSelect = document.getElementById("studentName");
+  if (studentNameSelect) {
+    studentNameSelect.innerHTML = '<option value="">Select Name</option>';
+    if (window.jQuery && $(studentNameSelect).data("select2")) {
+      $(studentNameSelect).prop("disabled", true).trigger("change.select2");
+    } else {
+      studentNameSelect.disabled = true;
+    }
+  }
+
+  // Clear ID number field
+  document.getElementById("studentIdNumber").value = "";
 }
 
 function updateSalesProductOptions() {
