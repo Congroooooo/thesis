@@ -2,6 +2,7 @@
 session_start();
 include 'includes/config_functions.php';
 include '../includes/connection.php';
+include 'includes/pamo_loader.php';
 
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (!isset($_SESSION['user_id'])) {

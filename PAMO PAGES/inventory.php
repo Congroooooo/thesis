@@ -1,6 +1,7 @@
 <?php
 session_start();
 include 'includes/config_functions.php';
+include 'includes/pamo_loader.php';
 
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (!isset($_SESSION['user_id'])) {
@@ -51,6 +52,7 @@ $query_string = http_build_query($query_params);
 function page_link($page, $query_string) {
     return "?page=$page" . ($query_string ? "&$query_string" : "");
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">

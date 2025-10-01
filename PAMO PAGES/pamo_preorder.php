@@ -12,7 +12,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
     header("Location: ../Pages/home.php");
     exit();
 }
-
+include 'includes/pamo_loader.php';
 $basePath = '';
 ?>
 <!DOCTYPE html>

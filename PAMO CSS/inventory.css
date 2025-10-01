@@ -43,13 +43,13 @@
   padding: 20px 0;
 }
 
-.inventory-item {
+/*.inventory-item {
   background-color: white;
   border-radius: 12px;
   padding: 20px;
   box-shadow: var(--card-shadow);
 }
-
+*/
 .item-header {
   display: flex;
   justify-content: space-between;

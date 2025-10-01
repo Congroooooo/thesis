@@ -31,6 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_threshold'])) 
 }
 
 $current_threshold = getLowStockThreshold($conn);
+
+include 'includes/pamo_loader.php';
 ?>
 
 <!DOCTYPE html>

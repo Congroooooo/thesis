@@ -16,6 +16,8 @@ $reportType = isset($_GET['type']) ? $_GET['type'] : 'inventory';
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $limit = 15;
 $offset = ($page - 1) * $limit;
+
+include 'includes/pamo_loader.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">

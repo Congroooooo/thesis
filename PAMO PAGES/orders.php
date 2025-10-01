@@ -58,6 +58,8 @@ foreach ($orders as &$order) {
     }
 }
 unset($order);
+
+include 'includes/pamo_loader.php';
 ?>
 
 <!DOCTYPE html>
