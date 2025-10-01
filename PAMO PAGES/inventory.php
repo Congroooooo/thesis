@@ -52,11 +52,10 @@ $query_string = http_build_query($query_params);
 function page_link($page, $query_string) {
     return "?page=$page" . ($query_string ? "&$query_string" : "");
 }
-
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -82,7 +81,6 @@ function page_link($page, $query_string) {
     <script src="../PAMO JS/backend/addItemSize.js"></script>
     <script src="../PAMO JS/backend/exchangeItem.js"></script>
     <script>
-
         document.addEventListener('DOMContentLoaded', function() {
             const applyLowStockFilter = sessionStorage.getItem('applyLowStockFilter');
             console.log('Checking for low stock filter:', applyLowStockFilter);
@@ -141,19 +139,19 @@ function page_link($page, $query_string) {
             <h3>Filters</h3>
             <form id="filterForm" method="get" style="margin-bottom: 20px; display: flex; align-items: center; gap: 12px;">
                 <input type="text" id="searchInput" name="search" placeholder="Search by item name..." value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>" style="margin-right: 12px;">
-                <select name="category" id="categoryFilter" onchange="document.getElementById('filterForm').submit()">
+                <select name="category" id="categoryFilter">
                     <option value="">All Categories</option>
                     <?php foreach ($categories as $cat): ?>
                         <option value="<?php echo htmlspecialchars($cat); ?>"<?php if(($_GET['category'] ?? '') == $cat) echo ' selected'; ?>><?php echo htmlspecialchars($cat); ?></option>
                     <?php endforeach; ?>
                 </select>
-                <select name="size" id="sizeFilter" onchange="document.getElementById('filterForm').submit()">
+                <select name="size" id="sizeFilter">
                     <option value="">All Sizes</option>
                     <?php foreach ($sizes as $size_option): ?>
                         <option value="<?php echo htmlspecialchars($size_option); ?>"<?php if(($_GET['size'] ?? '') == $size_option) echo ' selected'; ?>><?php echo htmlspecialchars($size_option); ?></option>
                     <?php endforeach; ?>
                 </select>
-                <select name="status" id="statusFilter" onchange="document.getElementById('filterForm').submit()">
+                <select name="status" id="statusFilter">
                     <option value="">All Status</option>
                     <option value="In Stock"<?php if(($_GET['status'] ?? '')=='In Stock') echo ' selected'; ?>>In Stock</option>
                     <option value="Low Stock"<?php if(($_GET['status'] ?? '')=='Low Stock') echo ' selected'; ?>>Low Stock</option>

@@ -9,7 +9,13 @@ function handleAddQuantity() {
 function editPrice(itemCode, currentPrice) {
   document.getElementById("itemId").value = itemCode;
   document.getElementById("newPrice").value = currentPrice;
-  document.getElementById("editPriceModal").style.display = "block";
+  document.getElementById("editPriceModal").style.display = fetch(
+    "fetch_inventory.php?" + queryString
+  )
+    .then(function (res) {
+      return res.json();
+    })
+    .then(updateTableAndPagination);
 }
 
 function addQuantity(itemCode) {
@@ -316,7 +322,7 @@ function updateTableAndPagination(data) {
       );
     }
   }
-  // Show result count
+  /* Show result count
   var resultCountDiv = document.getElementById("resultCount");
   if (!resultCountDiv) {
     var inventoryContent = document.querySelector(".inventory-content");
@@ -334,6 +340,91 @@ function updateTableAndPagination(data) {
   } else {
     resultCountDiv.textContent = "No items found.";
   }
+  */
+}
+
+// Search debouncing variables
+let searchTimeout = null;
+let currentSearchController = null;
+
+// Visual feedback functions
+function showSearchLoader() {
+  const tableBody = document.querySelector(".inventory-table tbody");
+  if (tableBody) {
+    // Add subtle loading effect without replacing content
+    tableBody.style.opacity = "0.7";
+    tableBody.style.pointerEvents = "none";
+  }
+}
+
+function hideSearchLoader() {
+  const tableBody = document.querySelector(".inventory-table tbody");
+  if (tableBody) {
+    tableBody.style.opacity = "1";
+    tableBody.style.pointerEvents = "auto";
+  }
+}
+
+// Debounced search function
+function performSearch() {
+  const filterForm = document.getElementById("filterForm");
+  if (!filterForm) return;
+
+  // Cancel any ongoing search request
+  if (currentSearchController) {
+    currentSearchController.abort();
+  }
+
+  // Create new AbortController for this search
+  currentSearchController = new AbortController();
+
+  // Always reset to page 1 on new search
+  let pageInput = filterForm.querySelector('input[name="page"]');
+  if (!pageInput) {
+    pageInput = document.createElement("input");
+    pageInput.type = "hidden";
+    pageInput.name = "page";
+    filterForm.appendChild(pageInput);
+  }
+  pageInput.value = 1;
+
+  var formData = new FormData(filterForm);
+  var queryString = new URLSearchParams(formData).toString();
+
+  // Start timer for performance monitoring
+  const startTime = performance.now();
+
+  fetch("fetch_inventory.php?" + queryString, {
+    signal: currentSearchController.signal,
+    // Add cache control for faster subsequent requests
+    headers: {
+      "Cache-Control": "no-cache",
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  })
+    .then(function (res) {
+      if (res.ok) {
+        return res.json();
+      }
+      throw new Error("Network response was not ok");
+    })
+    .then(function (data) {
+      // Hide loading state immediately
+      hideSearchLoader();
+      updateTableAndPagination(data);
+
+      // Log performance for debugging
+      const endTime = performance.now();
+      console.log(`Search completed in ${endTime - startTime}ms`);
+    })
+    .catch(function (error) {
+      // Hide loading state on error too
+      hideSearchLoader();
+      // Only log errors that aren't from aborted requests
+      if (error.name !== "AbortError") {
+        console.error("Search error:", error);
+      }
+    });
 }
 
 // Always bind search input event, even if DOMContentLoaded is missed
@@ -346,52 +437,88 @@ document.addEventListener("DOMContentLoaded", function () {
   if (filterForm) {
     filterForm.addEventListener("submit", function (e) {
       e.preventDefault();
-      // Always reset to page 1 on new filter
-      let pageInput = filterForm.querySelector('input[name="page"]');
-      if (!pageInput) {
-        pageInput = document.createElement("input");
-        pageInput.type = "hidden";
-        pageInput.name = "page";
-        filterForm.appendChild(pageInput);
+      // Clear any pending search timeout
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+        searchTimeout = null;
       }
-      pageInput.value = 1;
-      var formData = new FormData(filterForm);
-      var queryString = new URLSearchParams(formData).toString();
-      fetch("fetch_inventory.php?" + queryString)
-        .then(function (res) {
-          return res.json();
-        })
-        .then(updateTableAndPagination);
+      performSearch();
       return false;
     });
   }
 
   if (searchInput && filterForm && tableBody) {
     searchInput.addEventListener("input", function () {
-      // Always reset to page 1 on new search
-      let pageInput = filterForm.querySelector('input[name="page"]');
-      if (!pageInput) {
-        pageInput = document.createElement("input");
-        pageInput.type = "hidden";
-        pageInput.name = "page";
-        filterForm.appendChild(pageInput);
+      // Clear any existing timeout
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
       }
-      pageInput.value = 1;
-      var formData = new FormData(filterForm);
-      var queryString = new URLSearchParams(formData).toString();
-      fetch("fetch_inventory.php?" + queryString)
-        .then(function (res) {
-          return res.json();
-        })
-        .then(updateTableAndPagination);
+
+      // Add immediate visual feedback
+      showSearchLoader();
+
+      const searchTerm = this.value.trim();
+
+      // For very short searches (1-2 characters), use slightly longer delay
+      // For longer searches, use shorter delay for more responsiveness
+      const delay = searchTerm.length <= 2 ? 150 : 50;
+
+      searchTimeout = setTimeout(function () {
+        performSearch();
+        searchTimeout = null;
+      }, delay);
     });
   }
 
-  // AJAX pagination
+  const categoryFilter = document.getElementById("categoryFilter");
+  const sizeFilter = document.getElementById("sizeFilter");
+  const statusFilter = document.getElementById("statusFilter");
+
+  if (categoryFilter) {
+    categoryFilter.addEventListener("change", function () {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+        searchTimeout = null;
+      }
+      performSearch();
+    });
+  }
+
+  if (sizeFilter) {
+    sizeFilter.addEventListener("change", function () {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+        searchTimeout = null;
+      }
+      performSearch();
+    });
+  }
+
+  if (statusFilter) {
+    statusFilter.addEventListener("change", function () {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+        searchTimeout = null;
+      }
+      performSearch();
+    });
+  }
+
   document.addEventListener("click", function (e) {
     if (e.target.classList.contains("ajax-page-link")) {
       e.preventDefault();
-      // Instead of using the link's href, update the page input in the filter form and use current form data
+
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+        searchTimeout = null;
+      }
+
+      if (currentSearchController) {
+        currentSearchController.abort();
+      }
+
+      currentSearchController = new AbortController();
+
       const url = new URL(e.target.href, window.location.origin);
       const page = url.searchParams.get("page") || 1;
       let pageInput = filterForm.querySelector('input[name="page"]');
@@ -402,14 +529,25 @@ document.addEventListener("DOMContentLoaded", function () {
         filterForm.appendChild(pageInput);
       }
       pageInput.value = page;
-      // Build query string from current form data (including search/filter)
+
       var formData = new FormData(filterForm);
       var queryString = new URLSearchParams(formData).toString();
-      fetch("fetch_inventory.php?" + queryString)
+
+      fetch("fetch_inventory.php?" + queryString, {
+        signal: currentSearchController.signal,
+      })
         .then(function (res) {
-          return res.json();
+          if (res.ok) {
+            return res.json();
+          }
+          throw new Error("Network response was not ok");
         })
-        .then(updateTableAndPagination);
+        .then(updateTableAndPagination)
+        .catch(function (error) {
+          if (error.name !== "AbortError") {
+            console.error("Pagination error:", error);
+          }
+        });
     }
   });
 });

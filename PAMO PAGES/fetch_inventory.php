@@ -1,4 +1,7 @@
 <?php
+ob_start();
+header('Content-Type: application/json');
+header('Cache-Control: no-cache, must-revalidate');
 
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (!isset($_SESSION['user_id'])) {
@@ -12,51 +15,83 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
     exit();
 }
 
-$conn = mysqli_connect("localhost", "root", "", "proware");
-if (!$conn) {
-    http_response_code(500);
-    echo json_encode([
-        'tbody' => "<tr><td colspan='7'>Database connection failed.</td></tr>",
-        'pagination' => ''
-    ]);
-    exit;
-}
-$category = isset($_GET['category']) ? mysqli_real_escape_string($conn, $_GET['category']) : '';
-$size = isset($_GET['size']) ? mysqli_real_escape_string($conn, $_GET['size']) : '';
-$status = isset($_GET['status']) ? mysqli_real_escape_string($conn, $_GET['status']) : '';
-$search = isset($_GET['search']) ? mysqli_real_escape_string($conn, $_GET['search']) : '';
-// Normalize search: remove all whitespace
+require_once '../Includes/connection.php';
+require_once 'includes/config_functions.php';
+
+$lowStockThreshold = getLowStockThreshold($conn);
+
+$category = isset($_GET['category']) && $_GET['category'] !== '' ? $_GET['category'] : '';
+$size = isset($_GET['size']) && $_GET['size'] !== '' ? $_GET['size'] : '';
+$status = isset($_GET['status']) && $_GET['status'] !== '' ? $_GET['status'] : '';
+$search = isset($_GET['search']) && $_GET['search'] !== '' ? trim($_GET['search']) : '';
 $normalized_search = preg_replace('/\s+/', '', $search);
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $limit = 15;
 $offset = ($page - 1) * $limit;
 $where = [];
-if ($category) $where[] = "category = '$category'";
-if ($size) $where[] = "sizes = '$size'";
-if ($status) {
-    if ($status == 'In Stock') $where[] = "actual_quantity > 10";
-    else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= $lowStockThreshold";
-    else if ($status == 'Out of Stock') $where[] = "actual_quantity <= 0";
+$params = [];
+
+if ($category) {
+    $where[] = "category = ?";
+    $params[] = $category;
 }
-if ($normalized_search) {
-    $where[] = "(" .
-        "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(item_name, ' ', ''), '\t', ''), '\n', ''), '\r', ''), '\f', ''), '\v', ''), '\u00A0', ''), '\u200B', ''), '\u202F', ''), '\u3000', '') LIKE '%$normalized_search%' OR " .
-        "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(item_code, ' ', ''), '\t', ''), '\n', ''), '\r', ''), '\f', ''), '\v', ''), '\u00A0', ''), '\u200B', ''), '\u202F', ''), '\u3000', '') LIKE '%$normalized_search%' OR " .
-        "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(category, ' ', ''), '\t', ''), '\n', ''), '\r', ''), '\f', ''), '\v', ''), '\u00A0', ''), '\u200B', ''), '\u202F', ''), '\u3000', '') LIKE '%$normalized_search%')";
+if ($size) {
+    $where[] = "sizes = ?";
+    $params[] = $size;
+}
+if ($status) {
+    if ($status == 'In Stock') {
+        $where[] = "actual_quantity > 10";
+    } else if ($status == 'Low Stock') {
+        $where[] = "actual_quantity > 0 AND actual_quantity <= ?";
+        $params[] = $lowStockThreshold;
+    } else if ($status == 'Out of Stock') {
+        $where[] = "actual_quantity <= 0";
+    }
+}
+if ($search) {
+    $keywords = array_filter(explode(' ', trim($search)));
+    
+    if (!empty($keywords)) {
+        $search_conditions = [];
+        
+        foreach ($keywords as $keyword) {
+            $search_conditions[] = "(CONCAT(item_name, ' ', item_code, ' ', category, ' ', sizes) LIKE ?)";
+            $params[] = "%$keyword%";
+        }
+
+        $where[] = "(" . implode(" AND ", $search_conditions) . ")";
+    }
 }
 $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
 // Pagination
-$total_sql = "SELECT COUNT(*) as total FROM inventory $where_clause";
-$total_result = mysqli_query($conn, $total_sql);
-$total_row = mysqli_fetch_assoc($total_result);
-$total_items = $total_row['total'];
-$total_pages = ($total_items > 0) ? ceil($total_items / $limit) : 1;
-$sql = "SELECT * FROM inventory $where_clause ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
-$result = mysqli_query($conn, $sql);
+try {
+    // Use unified enhanced search logic for all cases
+    $total_sql = "SELECT COUNT(*) as total FROM inventory $where_clause";
+    $total_stmt = $conn->prepare($total_sql);
+    $total_stmt->execute($params);
+    $total_row = $total_stmt->fetch(PDO::FETCH_ASSOC);
+    $total_items = $total_row['total'];
+    
+    $total_pages = ($total_items > 0) ? ceil($total_items / $limit) : 1;
+
+
+
+    // Use unified enhanced search logic for main query
+    $sql = "SELECT * FROM inventory $where_clause ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($params);
+    $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Database error in fetch_inventory: " . $e->getMessage());
+    $result = [];
+    $total_pages = ($total_items > 0) ? ceil($total_items / $limit) : 1;
+}
 // Build tbody
 ob_start();
-if ($result) {
-    while ($row = mysqli_fetch_assoc($result)) {
+if (!empty($result)) {
+    foreach ($result as $row) {
         $statusClass = '';
         if ($row['actual_quantity'] <= 0) {
             $status = 'Out of Stock';
@@ -68,21 +103,18 @@ if ($result) {
             $status = 'In Stock';
             $statusClass = 'status-in-stock';
         }
-        echo "<tr data-item-code='" . $row['item_code'] . "' data-created-at='" . $row['created_at'] . "' data-category='" . strtolower($row['category']) . "' onclick='selectRow(this, \"" . $row['item_code'] . "\", " . $row['price'] . ")'>";
-        echo "<td>" . $row['item_code'] . "</td>";
-        echo "<td>" . $row['item_name'] . "</td>";
-        echo "<td>" . $row['category'] . "</td>";
+        echo "<tr data-item-code='" . htmlspecialchars($row['item_code']) . "' data-created-at='" . htmlspecialchars($row['created_at']) . "' data-category='" . strtolower(htmlspecialchars($row['category'])) . "' onclick='selectRow(this, \"" . htmlspecialchars($row['item_code']) . "\", " . $row['price'] . ")'>";
+        echo "<td>" . htmlspecialchars($row['item_code']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['item_name']) . "</td>";
+        echo "<td>" . htmlspecialchars($row['category']) . "</td>";
         echo "<td>" . (isset($row['actual_quantity']) ? $row['actual_quantity'] : '0') . "</td>";
-        echo "<td>" . $row['sizes'] . "</td>";
+        echo "<td>" . htmlspecialchars($row['sizes']) . "</td>";
         echo "<td>₱" . number_format($row['price'], 2) . "</td>";
         echo "<td class='" . $statusClass . "'>" . $status . "</td>";
         echo "</tr>";
     }
-    if (mysqli_num_rows($result) === 0) {
-        echo "<tr class='empty-row'><td colspan='7'>No items found.</td></tr>";
-    }
 } else {
-    echo "<tr><td colspan='7'>Query failed.</td></tr>";
+    echo "<tr class='empty-row'><td colspan='7'>No items found.</td></tr>";
 }
 $tbody = ob_get_clean();
 // Build pagination
@@ -113,11 +145,11 @@ if ($total_items > 0 && $total_pages > 1) {
             echo '<a href="?page=' . $i . '" class="ajax-page-link">' . $i . '</a>';
         }
     }
-    // Show ellipsis if needed after the window
+
     if ($page < $total_pages - 3) {
         echo '<span class="pagination-ellipsis">...</span>';
     }
-    // Always show last page (if more than 1 page)
+
     if ($total_pages > 1) {
         if ($page == $total_pages) {
             echo '<a href="?page=' . $total_pages . '" class="ajax-page-link active">' . $total_pages . '</a>';
@@ -131,13 +163,19 @@ if ($total_items > 0 && $total_pages > 1) {
     echo '</div>';
 }
 $pagination = ob_get_clean();
-mysqli_close($conn);
-header('Content-Type: application/json');
-echo json_encode([
+$response = [
     'tbody' => $tbody,
     'pagination' => $pagination,
     'total_items' => $total_items,
     'total_pages' => $total_pages,
     'page' => $page,
     'limit' => $limit
-]); 
+];
+
+echo json_encode($response);
+
+// Flush output buffer for faster response
+if (ob_get_level()) {
+    ob_end_flush();
+}
+flush(); 

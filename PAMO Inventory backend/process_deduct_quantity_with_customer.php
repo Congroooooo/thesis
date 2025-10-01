@@ -7,10 +7,10 @@ header('Access-Control-Allow-Headers: Content-Type');
 require_once '../Includes/connection.php'; // PDO $conn
 
 // Get POST data
-$transactionNumber = isset($_POST['transactionNumber']) ? mysqli_real_escape_string($conn, $_POST['transactionNumber']) : '';
+$transactionNumber = isset($_POST['transactionNumber']) ? $_POST['transactionNumber'] : '';
 $customerId = isset($_POST['customerId']) ? intval($_POST['customerId']) : 0;
-$customerName = isset($_POST['customerName']) ? mysqli_real_escape_string($conn, $_POST['customerName']) : '';
-$cashierName = isset($_POST['cashierName']) ? mysqli_real_escape_string($conn, $_POST['cashierName']) : '';
+$customerName = isset($_POST['customerName']) ? $_POST['customerName'] : '';
+$cashierName = isset($_POST['cashierName']) ? $_POST['cashierName'] : '';
 $items = isset($_POST['items']) ? $_POST['items'] : [];
 
 if (!$transactionNumber || !$customerId || !$customerName || empty($items)) {
@@ -33,8 +33,8 @@ try {
 
     // Process each item
     foreach ($items as $item) {
-        $itemId = mysqli_real_escape_string($conn, $item['itemId']);
-        $size = mysqli_real_escape_string($conn, $item['size']);
+        $itemId = $item['itemId'];
+        $size = $item['size'];
         $quantityToDeduct = intval($item['quantityToDeduct']);
         $pricePerItem = floatval($item['pricePerItem']);
         $itemTotal = floatval($item['itemTotal']);
