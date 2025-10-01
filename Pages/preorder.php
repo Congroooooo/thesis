@@ -142,7 +142,10 @@ include '../Includes/loader.php';
     let currentPreId = null;
     function closePreModal(){ document.getElementById('preorderRequestModal').classList.remove('show'); }
     function openPreModal(card){
-        if (!window.isLoggedIn) { alert('Please login to place a pre-order request.'); return; }
+        if (!window.isLoggedIn) { 
+            window.location.href = "login.php?redirect=preorder.php"; 
+            return; 
+        }
         const preId = card.getAttribute('data-preorder-id');
         const sizesCsv = card.getAttribute('data-sizes') || '';
         const name = card.getAttribute('data-item-name') || '';
