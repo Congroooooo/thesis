@@ -122,6 +122,29 @@ $basePath = '';
 
     <script>
     let CATEGORIES = [];
+    
+    // Alert system for feedback
+    function showAlert(message, type = 'success') {
+        const alertDiv = $(`
+            <div class="alert alert-${type}">
+                <i class="material-icons">${type === 'success' ? 'check_circle' : 'error'}</i>
+                ${message}
+            </div>
+        `);
+        
+        $('.main-content').prepend(alertDiv);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            alertDiv.fadeOut(300, () => alertDiv.remove());
+        }, 5000);
+        
+        // Manual close on click
+        alertDiv.click(() => {
+            alertDiv.fadeOut(300, () => alertDiv.remove());
+        });
+    }
+    
     function loadCategories() {
         return $.getJSON('../PAMO%20Inventory%20backend/api_categories_list.php')
             .then(rows => {
@@ -150,31 +173,90 @@ $basePath = '';
             });
     }
     function loadPreorders() {
-        return $.getJSON('../PAMO_PREORDER_BACKEND/api_preorder_list.php')
-            .then(resp => {
-                const $tbody = $('#preorderRows').empty();
-                (resp.items||[]).forEach(it => {
+        $('#preorderList').addClass('loading');
+        
+        $.ajax({
+            url: '../PAMO_PREORDER_BACKEND/api_preorder_list.php',
+            method: 'GET',
+            dataType: 'json',
+            timeout: 10000, // 10 second timeout
+            cache: false
+        })
+        .done(function(resp) {
+            const $tbody = $('#preorderRows').empty();
+            
+            if (resp && resp.items && Array.isArray(resp.items)) {
+                resp.items.forEach(it => {
                     const img = it.image_path ? `../${it.image_path}` : '../uploads/itemlist/default.png';
                     const isPending = (String(it.status).toLowerCase() === 'pending');
                     const actionCell = isPending
-                      ? `<button class="table-btn" onclick="openDeliver(this)">Mark Delivered</button>`
-                      : `<button class="table-btn" disabled style="opacity:.6; cursor:not-allowed;">Delivered</button>`;
+                      ? `<button class="table-btn deliver-btn" onclick="openDeliver(this)"><i class="material-icons">local_shipping</i> Mark Delivered</button>`
+                      : `<button class="table-btn delivered-btn" disabled><i class="material-icons">check_circle</i> Delivered</button>`;
                     const row = `
-                        <tr data-id="${it.id}" data-sizes="${it.sizes}">
-                            <td><img src="${img}" alt="" style="width:58px;height:58px;object-fit:cover;border-radius:6px;"></td>
-                            <td>${it.item_name}</td>
-                            <td>${it.base_item_code}</td>
-                            <td>₱${parseFloat(it.price).toFixed(2)}</td>
-                            <td>${it.sizes}</td>
+                        <tr data-id="${it.id}" data-sizes="${it.sizes}" data-status="${it.status.toLowerCase()}">
+                            <td><img src="${img}" alt="${it.item_name}" title="${it.item_name}"></td>
+                            <td><strong>${it.item_name}</strong></td>
+                            <td><code>${it.base_item_code}</code></td>
+                            <td><strong>₱${parseFloat(it.price).toFixed(2)}</strong></td>
+                            <td><span class="sizes-badge">${it.sizes}</span></td>
                             <td><strong>${it.total_requests}</strong></td>
-                            <td>${it.status}</td>
+                            <td><span class="status-badge status-${it.status.toLowerCase()}">${it.status}</span></td>
                             <td>
                                 ${actionCell}
                             </td>
                         </tr>`;
                     $tbody.append(row);
                 });
-            });
+                
+                // Show empty state if no items
+                if (resp.items.length === 0) {
+                    $tbody.append(`
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 40px;">
+                                <div class="no-preorders">
+                                    <i class="material-icons">inbox</i>
+                                    <h3>No Pre-Order Items</h3>
+                                    <p>Start by adding your first pre-order item using the button above.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    `);
+                }
+            } else {
+                // Handle case where response is invalid
+                $tbody.append(`
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px;">
+                            <div class="no-preorders">
+                                <i class="material-icons">error_outline</i>
+                                <h3>Error Loading Data</h3>
+                                <p>Unable to load pre-order items. Please try refreshing the page.</p>
+                            </div>
+                        </td>
+                    </tr>
+                `);
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('Failed to load preorders:', error);
+            const $tbody = $('#preorderRows').empty();
+            $tbody.append(`
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 40px;">
+                        <div class="no-preorders">
+                            <i class="material-icons">wifi_off</i>
+                            <h3>Connection Error</h3>
+                            <p>Failed to load pre-order items. Please check your connection and try again.</p>
+                            <button class="action-btn" onclick="loadPreorders()">Retry</button>
+                        </div>
+                    </td>
+                </tr>
+            `);
+        })
+        .always(function() {
+            // Always remove loading state, regardless of success or failure
+            $('#preorderList').removeClass('loading');
+        });
     }
 
     function openDeliver(btn) {
@@ -205,8 +287,12 @@ $basePath = '';
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({ preorder_item_id: id, delivered }),
-        }).done(()=>{ $('#deliverModal').hide(); loadPreorders(); })
-        .fail(xhr=> alert(xhr.responseJSON?.message || 'Failed'));
+        }).done((response)=>{ 
+            $('#deliverModal').hide(); 
+            showAlert('Pre-order marked as delivered successfully!', 'success');
+            loadPreorders(); 
+        })
+        .fail(xhr=> showAlert(xhr.responseJSON?.message || 'Failed to mark as delivered', 'error'));
     });
 
     $('#addPreItemBtn').on('click', function(){
@@ -225,8 +311,12 @@ $basePath = '';
             data: fd,
             processData: false,
             contentType: false
-        }).done(()=>{ $('#addPreModal').hide(); loadPreorders(); })
-        .fail(xhr=> alert(xhr.responseJSON?.message || 'Failed'));
+        }).done((response)=>{ 
+            $('#addPreModal').hide(); 
+            showAlert('Pre-order item created successfully!', 'success');
+            loadPreorders(); 
+        })
+        .fail(xhr=> showAlert(xhr.responseJSON?.message || 'Failed to create pre-order item', 'error'));
     });
 
     // Category dynamic add and subcategory prompt behavior
@@ -283,20 +373,6 @@ $basePath = '';
     });
     </script>
 
-    <style>
-        .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-        .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-        .datatable { width:100%; border-collapse: collapse; }
-        .datatable th, .datatable td { padding:10px; border-bottom:1px solid #eee; text-align:left; }
-        .table-btn { padding:6px 10px; border:none; background:#007bff; color:#fff; border-radius:4px; cursor:pointer; }
-        .modal { position:fixed; inset:0; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; }
-        .modal-content { background:#fff; padding:16px; border-radius:8px; width: min(720px, 96vw); }
-        .modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-        .input-group { display:flex; flex-direction:column; }
-        .input-group input, .input-group select, .input-group textarea { padding:8px 10px; border:1px solid #ddd; border-radius:6px; }
-        .save-btn { background:#007bff; color:#fff; border:none; padding:10px 16px; border-radius:6px; cursor:pointer; }
-        .cancel-btn { background:#dc3545; color:#fff; border:none; padding:10px 16px; border-radius:6px; cursor:pointer; }
-        .modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:12px; }
-    </style>
+
 </body>
 </html>
