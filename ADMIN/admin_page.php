@@ -15,7 +15,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     <div class="container">
         <div class="header-flex">
             <div>
-                <h1><i class="fas fa-users-cog"></i> Admin Dashboard</h1>
+                <h1><i class="fas fa-users-cog"></i> Admin Page</h1>
                 <p class="mb-0">Manage user accounts and system administration</p>
             </div>
             <div class="header-right">
@@ -34,98 +34,85 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
 <div class="container mt-0" style="margin-top: -10px;">
   <div class="admin-grid">
-    <aside class="admin-sidebar">
+    <!-- First Row: Filters & Search -->
+    <div class="admin-filters-row">
       <div class="filters-card">
         <div class="card-header">
             <h5><i class="fas fa-filter"></i> Filters & Search</h5>
         </div>
         <div class="card-body">
-            <div class="form-group"><label>Search:</label>
-              <div class="input-group">
-                <input type="text" class="form-control" placeholder="Search by name..." id="searchInput" pattern="[A-Za-z\s]*" title="Only letters and spaces are allowed">
-                <span class="input-group-text"><i class="fas fa-search"></i></span>
-              </div>
+            <div class="filters-horizontal">
+                <div class="form-group"><label>Search:</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Search by name..." id="searchInput" pattern="[A-Za-z\s]*" title="Only letters and spaces are allowed">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                  </div>
+                </div>
+                <div class="form-group"><label>Role:</label>
+                  <select class="form-control" id="roleFilter" onchange="filterUsers()">
+                    <option value="all">All Roles</option>
+                    <option value="shs">SHS</option>
+                    <option value="college student">College Student</option>
+                    <option value="employee">Employee</option>
+                </select>
+                </div>
+                <div class="form-group"><label>Program:</label>
+                  <select class="form-control" id="programFilter" onchange="filterUsers()">
+                    <option value="all">All Programs/Positions</option>
+                    <?php
+                    require_once '../Includes/connection.php';
+                    $stmt = $conn->query("SELECT COALESCE(NULLIF(TRIM(abbreviation), ''), name) AS abbr, category FROM programs_positions WHERE is_active = 1 ORDER BY abbr ASC");
+                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                    $abbrMap = [];
+                    $seen = [];
+                    foreach ($rows as $row) {
+                        $abbr = $row['abbr'];
+                        if (!$abbr || isset($seen[$abbr])) { continue; }
+                        $seen[$abbr] = true;
+                        $abbrMap[$abbr] = strtolower($row['category']);
+                        echo '<option value="' . htmlspecialchars($abbr) . '">' . htmlspecialchars($abbr) . '</option>';
+                    }
+                    echo '<script>window.abbrToCategory = ' . json_encode($abbrMap) . ';</script>';
+                    ?>
+                </select>
+                </div>
+                <div class="form-group"><label>Status:</label>
+                  <select class="form-control" id="statusFilter" onchange="filterUsers()">
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+                </div>
             </div>
-            <div class="form-group"><label>Role:</label>
-              <select class="form-control" id="roleFilter" onchange="filterUsers()">
-                <option value="all">All Roles</option>
-                <option value="shs">SHS</option>
-                <option value="college student">College Student</option>
-                <option value="employee">Employee</option>
-            </select>
         </div>
-            <div class="form-group"><label>Program:</label>
-              <select class="form-control" id="programFilter" onchange="filterUsers()">
-                <option value="all">All Programs/Positions</option>
-                <?php
-                require_once '../Includes/connection.php';
-                $stmt = $conn->query("SELECT COALESCE(NULLIF(TRIM(abbreviation), ''), name) AS abbr, category FROM programs_positions WHERE is_active = 1 ORDER BY abbr ASC");
-                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                $abbrMap = [];
-                $seen = [];
-                foreach ($rows as $row) {
-                    $abbr = $row['abbr'];
-                    if (!$abbr || isset($seen[$abbr])) { continue; }
-                    $seen[$abbr] = true;
-                    $abbrMap[$abbr] = strtolower($row['category']);
-                    echo '<option value="' . htmlspecialchars($abbr) . '">' . htmlspecialchars($abbr) . '</option>';
-                }
-                echo '<script>window.abbrToCategory = ' . json_encode($abbrMap) . ';</script>';
-                ?>
-            </select>
-        </div>
-            <div class="form-group"><label>Status:</label>
-              <select class="form-control" id="statusFilter" onchange="filterUsers()">
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-            </select>
-        </div>
-    </div>
+      </div>
     </div>
 
-      <div class="action-buttons-card mt-3">
-        <div class="card-header">
-            <h5><i class="fas fa-tools"></i> Actions</h5>
-    </div>
-        <div class="card-body">
-            <button class="btn btn-primary action-btn" onclick="openAddAccountModal()">
-        <i class="fas fa-plus"></i> Add Account
-    </button>
-            <button class="btn btn-success action-btn" onclick="window.location.href='manage_programs.php'">
-                <i class="fas fa-graduation-cap"></i> Manage Programs
-            </button>
-            <button class="btn btn-secondary action-btn" onclick="changePassword()" id="changePasswordBtn" disabled>
-        <i class="fas fa-key"></i> Change Password
-    </button>
-            <button class="btn btn-warning action-btn" onclick="updateStatus()" id="updateStatusBtn" disabled>
-        <i class="fas fa-sync"></i> Update Status
-    </button>
-            <button class="btn btn-info action-btn" onclick="bulkUpdateStatus()" id="bulkUpdateStatusBtn" disabled>
-        <i class="fas fa-users-cog"></i> Bulk Update Status
-    </button>
-</div>
-        
-        <div class="selection-status mt-2" id="selectionStatus" style="display: none;">
-            <small class="text-muted">
-                <i class="fas fa-info-circle"></i>
-                <span id="selectionStatusText">Single row selection active</span>
-            </small>
-        </div>
-        
-        <div class="status-restriction-info mt-2" id="statusRestrictionInfo" style="display: none;">
-            <small class="text-warning">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>Only users with matching status can be selected together</span>
-            </small>
-        </div>
-</div>
-    </aside>
-
-    <section class="admin-main">
+    <!-- Second Row: User Accounts Table -->
+    <div class="admin-table-row">
       <div class="table-card">
         <div class="card-header">
-            <h5><i class="fas fa-users"></i> User Accounts</h5>
+            <div class="table-header-content">
+                <h5><i class="fas fa-users"></i> User Accounts</h5>
+                <div class="table-header-actions">
+                    <button class="btn btn-primary header-action-btn" onclick="openAddAccountModal()">
+                        <i class="fas fa-plus"></i> Add Account
+                    </button>
+                    <button class="btn btn-success header-action-btn" onclick="window.location.href='manage_programs.php'">
+                        <i class="fas fa-graduation-cap"></i> Manage Programs
+                    </button>
+                    <button class="btn btn-secondary header-action-btn" onclick="changePassword()" id="changePasswordBtn" disabled title="Select a user row to change password">
+                        <i class="fas fa-key"></i> Change Password
+                    </button>
+                    <button class="btn btn-warning header-action-btn" onclick="updateStatus()" id="updateStatusBtn" disabled title="Select a user row to update status">
+                        <i class="fas fa-sync"></i> Update Status
+                    </button>
+                    <button class="btn btn-info header-action-btn" onclick="bulkUpdateStatus()" id="bulkUpdateStatusBtn" disabled>
+                        <i class="fas fa-users-cog"></i> Bulk Update Status
+                    </button>
+                </div>
+            </div>
+            
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -175,7 +162,8 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 </div>
             </div>
         </div>
-    </section>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -234,7 +222,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 <div class="password-input-wrapper">
                     <input type="password" class="form-control" id="newPassword" name="newPassword" required>
                     <button type="button" class="password-toggle-btn" onclick="togglePassword('newPassword')" title="Show password">
-                        <i class="fas fa-eye" id="newPasswordToggleIcon"></i>
+                        <i class="fas fa-eye-slash" id="newPasswordToggleIcon"></i>
                     </button>
                 </div>
                 <div class="error-feedback" id="newPasswordError"></div>
@@ -244,7 +232,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 <div class="password-input-wrapper">
                     <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
                     <button type="button" class="password-toggle-btn" onclick="togglePassword('confirmPassword')" title="Show password">
-                        <i class="fas fa-eye" id="confirmPasswordToggleIcon"></i>
+                        <i class="fas fa-eye-slash" id="confirmPasswordToggleIcon"></i>
                     </button>
                 </div>
                 <div class="error-feedback" id="confirmPasswordError"></div>
@@ -457,6 +445,9 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             updateBulkButtons();
         }
 
+        // Restore checkbox states for previously selected users that are now visible
+        restoreCheckboxStates();
+
         if (selectedUserId) {
             const selectedRow = document.querySelector(`tr[data-id="${selectedUserId}"]`);
             if (selectedRow && selectedRow.style.display !== 'none') {
@@ -550,6 +541,12 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         document.getElementById('roleFilter').addEventListener('change', filterUsers);
         document.getElementById('programFilter').addEventListener('change', filterUsers);
         document.getElementById('statusFilter').addEventListener('change', filterUsers);
+        
+        // Also clear selections when searching
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', filterUsers);
+        }
         
         const changePasswordForm = document.getElementById('changePasswordForm');
         if (changePasswordForm) {
@@ -907,12 +904,144 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     let selectedUserIds = [];
     let firstSelectedStatus = null;
 
+    function clearAllSelections() {
+        // Clear checkbox selections
+        const checkboxes = document.querySelectorAll('.user-checkbox');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            checkbox.classList.remove('hidden');
+        });
+        
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.classList.remove('hidden');
+        }
+        
+        // Clear row selections
+        document.querySelectorAll('.account-row').forEach(row => {
+            row.classList.remove('selected');
+        });
+        
+        // Reset selection state
+        selectedUserIds = [];
+        selectedUserId = null;
+        firstSelectedStatus = null;
+        
+        // Re-enable all selection methods
+        setCheckboxesEnabledByStatus(null);
+        setBulkCheckboxesEnabled(true);
+        setRowSelectionEnabled(true);
+        
+        // Update button states
+        const changePasswordBtn = document.getElementById('changePasswordBtn');
+        const updateStatusBtn = document.getElementById('updateStatusBtn');
+        const bulkUpdateBtn = document.getElementById('bulkUpdateStatusBtn');
+        
+        if (changePasswordBtn) {
+            changePasswordBtn.disabled = true;
+            changePasswordBtn.title = 'Select a user row to change password';
+        }
+        if (updateStatusBtn) {
+            updateStatusBtn.disabled = true;
+            updateStatusBtn.title = 'Select a user row to update status';
+        }
+        if (bulkUpdateBtn) {
+            bulkUpdateBtn.disabled = true;
+        }
+        
+        // Hide selection status messages
+        const selectionStatus = document.getElementById('selectionStatus');
+        const restrictionInfo = document.getElementById('statusRestrictionInfo');
+        if (selectionStatus) selectionStatus.style.display = 'none';
+        if (restrictionInfo) restrictionInfo.style.display = 'none';
+    }
+
+    function restoreCheckboxStates() {
+        // Restore checkboxes for previously selected users that are now visible
+        const visibleRows = Array.from(document.querySelectorAll('.account-row')).filter(row => 
+            row.style.display !== 'none' && row.id !== 'emptyStateRow'
+        );
+        
+        visibleRows.forEach(row => {
+            const checkbox = row.querySelector('.user-checkbox');
+            if (checkbox) {
+                const userId = checkbox.value;
+                if (selectedUserIds.includes(userId)) {
+                    checkbox.checked = true;
+                } else {
+                    checkbox.checked = false;
+                }
+            }
+        });
+
+        // If we have selected users, enforce status constraints
+        if (selectedUserIds.length > 0 && !firstSelectedStatus) {
+            // Find the first visible selected user to determine status constraint
+            for (const row of visibleRows) {
+                const checkbox = row.querySelector('.user-checkbox');
+                if (checkbox && checkbox.checked) {
+                    firstSelectedStatus = getUserStatus(row);
+                    setCheckboxesEnabledByStatus(firstSelectedStatus);
+                    setRowSelectionEnabled(false);
+                    break;
+                }
+            }
+        } else if (selectedUserIds.length > 0 && firstSelectedStatus) {
+            // Apply existing status constraints
+            setCheckboxesEnabledByStatus(firstSelectedStatus);
+            setRowSelectionEnabled(false);
+        }
+
+        // Update select all checkbox state
+        updateSelectAllCheckboxState();
+    }
+
+    function updateSelectAllCheckboxState() {
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (!selectAllCheckbox) return;
+
+        const visibleCheckboxes = Array.from(document.querySelectorAll('.account-row')).filter(row => 
+            row.style.display !== 'none' && row.id !== 'emptyStateRow'
+        ).map(row => row.querySelector('.user-checkbox')).filter(cb => cb && !cb.classList.contains('hidden'));
+        
+        const visibleCheckedBoxes = visibleCheckboxes.filter(cb => cb.checked);
+
+        if (visibleCheckboxes.length === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (visibleCheckedBoxes.length === visibleCheckboxes.length) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else if (visibleCheckedBoxes.length > 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+    }
+
     function getUserStatus(row) {
         const statusCell = row.querySelector('td:last-child');
         return statusCell ? statusCell.textContent.trim().toLowerCase() : null;
     }
 
     function handleCheckboxChange(checkbox) {
+        const userId = checkbox.value;
+        
+        if (checkbox.checked) {
+            // Add to selection if not already present
+            if (!selectedUserIds.includes(userId)) {
+                selectedUserIds.push(userId);
+            }
+        } else {
+            // Remove from selection
+            selectedUserIds = selectedUserIds.filter(id => id !== userId);
+        }
+        
         updateBulkButtons();
     }
 
@@ -929,23 +1058,34 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             const rowStatus = getUserStatus(row);
             
             if (targetStatus === null) {
+                // Show all checkboxes when no status restriction
+                checkbox.classList.remove('hidden');
                 checkbox.disabled = false;
-                row.classList.remove('status-disabled');
                 checkbox.title = '';
             } else if (rowStatus === targetStatus) {
+                // Show checkboxes for matching status
+                checkbox.classList.remove('hidden');
                 checkbox.disabled = false;
-                row.classList.remove('status-disabled');
                 checkbox.title = '';
             } else {
-                checkbox.disabled = true;
+                // Hide checkboxes for different status instead of disabling
+                checkbox.classList.add('hidden');
                 checkbox.checked = false;
-                row.classList.add('status-disabled');
-                checkbox.title = `Cannot select - different status (${rowStatus} vs ${targetStatus})`;
+                checkbox.disabled = false; // Keep functionally enabled but hidden
+                checkbox.title = '';
             }
         });
 
         if (restrictionInfo) {
-            restrictionInfo.style.display = targetStatus ? 'block' : 'none';
+            if (targetStatus) {
+                restrictionInfo.style.display = 'block';
+                const restrictionText = restrictionInfo.querySelector('span');
+                if (restrictionText) {
+                    restrictionText.textContent = 'Checkboxes are hidden for users with different status';
+                }
+            } else {
+                restrictionInfo.style.display = 'none';
+            }
         }
     }
 
@@ -956,19 +1096,21 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         if (enabled) {
             firstSelectedStatus = null;
             setCheckboxesEnabledByStatus(null);
-        } else {
+            // Show all checkboxes
             checkboxes.forEach(checkbox => {
-                checkbox.disabled = true;
+                checkbox.classList.remove('hidden');
             });
-        }
-        
-        if (selectAllCheckbox) {
-            selectAllCheckbox.disabled = !enabled;
-        }
-
-        if (!enabled) {
-            checkboxes.forEach(checkbox => checkbox.checked = false);
             if (selectAllCheckbox) {
+                selectAllCheckbox.classList.remove('hidden');
+            }
+        } else {
+            // Hide all checkboxes when row selection is active
+            checkboxes.forEach(checkbox => {
+                checkbox.classList.add('hidden');
+                checkbox.checked = false;
+            });
+            if (selectAllCheckbox) {
+                selectAllCheckbox.classList.add('hidden');
                 selectAllCheckbox.checked = false;
                 selectAllCheckbox.indeterminate = false;
             }
@@ -995,8 +1137,12 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
         if (!enabled) {
             selectedUserId = null;
-            document.getElementById('changePasswordBtn').disabled = true;
-            document.getElementById('updateStatusBtn').disabled = true;
+            const changePasswordBtn = document.getElementById('changePasswordBtn');
+            const updateStatusBtn = document.getElementById('updateStatusBtn');
+            changePasswordBtn.disabled = true;
+            updateStatusBtn.disabled = true;
+            changePasswordBtn.title = 'Select a user row to change password';
+            updateStatusBtn.title = 'Select a user row to update status';
         }
     }
 
@@ -1009,12 +1155,8 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         if (mode === 'bulk' && count > 0) {
             statusDiv.style.display = 'block';
             const statusInfo = status ? ` (${status.charAt(0).toUpperCase() + status.slice(1)} users only)` : '';
-            statusText.innerHTML = `<i class="fas fa-check-square"></i> Bulk selection active (${count} user${count !== 1 ? 's' : ''} selected)${statusInfo}`;
-            statusDiv.className = 'selection-status mt-2 text-info';
         } else if (mode === 'row' && count > 0) {
             statusDiv.style.display = 'block';
-            statusText.innerHTML = `<i class="fas fa-mouse-pointer"></i> Single row selection active`;
-            statusDiv.className = 'selection-status mt-2 text-success';
         } else {
             statusDiv.style.display = 'none';
         }
@@ -1037,6 +1179,33 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     function toggleSelectAll() {
         const selectAllCheckbox = document.getElementById('selectAllCheckbox');
 
+        // If unchecking select all, remove all visible users from selection
+        if (!selectAllCheckbox.checked) {
+            const visibleRows = Array.from(document.querySelectorAll('.account-row')).filter(row => 
+                row.style.display !== 'none' && row.id !== 'emptyStateRow'
+            );
+            
+            visibleRows.forEach(row => {
+                const checkbox = row.querySelector('.user-checkbox');
+                if (checkbox && checkbox.checked) {
+                    checkbox.checked = false;
+                    // Remove from persistent selection
+                    selectedUserIds = selectedUserIds.filter(id => id !== checkbox.value);
+                }
+            });
+            
+            // If no selections remain, clear status constraints
+            if (selectedUserIds.length === 0) {
+                firstSelectedStatus = null;
+                setCheckboxesEnabledByStatus(null);
+                setRowSelectionEnabled(true);
+            }
+            
+            updateBulkButtons();
+            return;
+        }
+
+        // If checking select all, enforce status constraints
         if (selectAllCheckbox.checked && hasMixedStatuses()) {
             selectAllCheckbox.checked = false;
             
@@ -1057,63 +1226,78 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             return;
         }
         
+        // Get visible rows and their common status
         const visibleRows = Array.from(document.querySelectorAll('.account-row')).filter(row => 
             row.style.display !== 'none' && row.id !== 'emptyStateRow'
         );
         
+        if (visibleRows.length === 0) return;
+        
+        // Determine the status of visible users (should be consistent if we reach here)
+        const targetStatus = getUserStatus(visibleRows[0]);
+        
+        // Select all visible rows (they should all have the same status)
         visibleRows.forEach(row => {
             const checkbox = row.querySelector('.user-checkbox');
-            if (checkbox && !checkbox.disabled) {
-                checkbox.checked = selectAllCheckbox.checked;
+            if (checkbox && !checkbox.classList.contains('hidden')) {
+                checkbox.checked = true;
+                // Add to persistent selection
+                if (!selectedUserIds.includes(checkbox.value)) {
+                    selectedUserIds.push(checkbox.value);
+                }
             }
         });
+        
+        // Set the status constraint
+        if (targetStatus && visibleRows.length > 1) {
+            firstSelectedStatus = targetStatus;
+            setCheckboxesEnabledByStatus(targetStatus);
+            setRowSelectionEnabled(false);
+        }
         
         updateBulkButtons();
     }
 
     function updateBulkButtons() {
-        const checkedBoxes = document.querySelectorAll('.user-checkbox:checked');
-        selectedUserIds = Array.from(checkedBoxes).map(cb => cb.value);
-        
+        // selectedUserIds is now maintained persistently
         const bulkUpdateBtn = document.getElementById('bulkUpdateStatusBtn');
-        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
 
-        if (selectedUserIds.length > 0) {
-            if (firstSelectedStatus === null && checkedBoxes.length > 0) {
-                const firstCheckedBox = checkedBoxes[0];
-                const firstRow = firstCheckedBox.closest('.account-row');
-                firstSelectedStatus = getUserStatus(firstRow);
-                setCheckboxesEnabledByStatus(firstSelectedStatus);
-                setRowSelectionEnabled(false);
+        // Determine status constraint if we haven't already and have selections
+        if (selectedUserIds.length > 0 && firstSelectedStatus === null) {
+            // Find the first selected user that's currently visible to determine status
+            const visibleRows = Array.from(document.querySelectorAll('.account-row')).filter(row => 
+                row.style.display !== 'none' && row.id !== 'emptyStateRow'
+            );
+            
+            for (const row of visibleRows) {
+                const checkbox = row.querySelector('.user-checkbox');
+                if (checkbox && selectedUserIds.includes(checkbox.value)) {
+                    firstSelectedStatus = getUserStatus(row);
+                    setCheckboxesEnabledByStatus(firstSelectedStatus);
+                    setRowSelectionEnabled(false);
+                    break;
+                }
             }
-        } else {
+        } else if (selectedUserIds.length === 0) {
             firstSelectedStatus = null;
             setCheckboxesEnabledByStatus(null);
             setRowSelectionEnabled(true);
         }
-        const visibleCheckboxes = Array.from(document.querySelectorAll('.account-row')).filter(row => 
-            row.style.display !== 'none' && row.id !== 'emptyStateRow'
-        ).map(row => row.querySelector('.user-checkbox')).filter(cb => cb && !cb.disabled);
-        
-        const visibleCheckedBoxes = visibleCheckboxes.filter(cb => cb.checked);
 
-        bulkUpdateBtn.disabled = selectedUserIds.length === 0;
+        // Update bulk update button
+        if (bulkUpdateBtn) {
+            bulkUpdateBtn.disabled = selectedUserIds.length === 0;
+        }
 
+        // Update selection status display
         if (selectedUserIds.length > 0) {
             updateSelectionStatus('bulk', selectedUserIds.length, firstSelectedStatus);
         } else {
             updateSelectionStatus('row', selectedUserId ? 1 : 0);
         }
 
-        if (visibleCheckedBoxes.length === 0) {
-            selectAllCheckbox.indeterminate = false;
-            selectAllCheckbox.checked = false;
-        } else if (visibleCheckedBoxes.length === visibleCheckboxes.length && visibleCheckboxes.length > 0) {
-            selectAllCheckbox.indeterminate = false;
-            selectAllCheckbox.checked = true;
-        } else {
-            selectAllCheckbox.indeterminate = true;
-        }
+        // Update select all checkbox state
+        updateSelectAllCheckboxState();
     }
 
     function bulkUpdateStatus() {
@@ -1137,6 +1321,13 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             }
         });
 
+        // Set the dropdown to the current status of selected users
+        const bulkStatusSelect = document.getElementById('bulkStatusSelect');
+        if (firstSelectedStatus && bulkStatusSelect) {
+            bulkStatusSelect.value = firstSelectedStatus.toLowerCase();
+        }
+        
+
         const modal = document.getElementById('bulkUpdateStatusModal');
         modal.style.display = 'flex';
     }
@@ -1158,15 +1349,23 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             if (isSelected) {
                 this.classList.remove('selected');
                 selectedUserId = null;
-                document.getElementById('changePasswordBtn').disabled = true;
-                document.getElementById('updateStatusBtn').disabled = true;
+                const changePasswordBtn = document.getElementById('changePasswordBtn');
+                const updateStatusBtn = document.getElementById('updateStatusBtn');
+                changePasswordBtn.disabled = true;
+                updateStatusBtn.disabled = true;
+                changePasswordBtn.title = 'Select a user row to change password';
+                updateStatusBtn.title = 'Select a user row to update status';
                 setBulkCheckboxesEnabled(true);
                 updateSelectionStatus('row', 0);
             } else {
                 this.classList.add('selected');
                 selectedUserId = this.dataset.id;
-                document.getElementById('changePasswordBtn').disabled = false;
-                document.getElementById('updateStatusBtn').disabled = false;
+                const changePasswordBtn = document.getElementById('changePasswordBtn');
+                const updateStatusBtn = document.getElementById('updateStatusBtn');
+                changePasswordBtn.disabled = false;
+                updateStatusBtn.disabled = false;
+                changePasswordBtn.title = 'Change password for selected user';
+                updateStatusBtn.title = 'Update status for selected user';
                 setBulkCheckboxesEnabled(false);
                 updateSelectionStatus('row', 1);
             }
@@ -1417,12 +1616,12 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             const confirmPasswordIcon = document.getElementById('confirmPasswordToggleIcon');
             
             if (newPasswordIcon) {
-                newPasswordIcon.className = 'fas fa-eye';
+                newPasswordIcon.className = 'fas fa-eye-slash';
                 newPasswordIcon.setAttribute('title', 'Show password');
             }
             
             if (confirmPasswordIcon) {
-                confirmPasswordIcon.className = 'fas fa-eye';
+                confirmPasswordIcon.className = 'fas fa-eye-slash';
                 confirmPasswordIcon.setAttribute('title', 'Show password');
             }
 
@@ -1760,6 +1959,85 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             .card-body {
                 padding: 24px;
             }
+            
+            .table-header-content {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+            
+            .table-header-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                align-items: center;
+            }
+            
+            .header-action-btn {
+                padding: 8px 16px;
+                font-size: 13px;
+                font-weight: 600;
+                border-radius: 8px;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                white-space: nowrap;
+                transition: all 0.3s ease;
+                border: none;
+            }
+            
+            .header-action-btn i {
+                font-size: 14px;
+            }
+            
+            .header-action-btn:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            }
+            
+            .header-action-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                background: #6c757d !important;
+                border-color: #6c757d !important;
+                transform: none !important;
+                box-shadow: none !important;
+            }
+            
+            .header-action-btn:disabled:hover {
+                transform: none !important;
+                box-shadow: none !important;
+                opacity: 0.5;
+            }
+            
+            .selection-status, .status-restriction-info {
+                margin-top: 10px;
+                padding: 8px 12px;
+                border-radius: 6px;
+                background: rgba(0,0,0,0.02);
+            }
+            
+            .account-row {
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            
+            .account-row:hover {
+                background-color: rgba(0, 114, 188, 0.05) !important;
+            }
+            
+            .account-row.selected {
+                background-color: rgba(0, 114, 188, 0.1) !important;
+                border-left: 4px solid #0072bc !important;
+            }
+            
+            .account-row.row-selection-disabled {
+                cursor: not-allowed;
+            }
+            
+            /* Removed status-disabled class usage to prevent visual dimming */
             
             .action-btn {
                 margin: 8px;
@@ -2115,44 +2393,131 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 padding: 0 20px;
             }
 
-            .admin-grid { display:grid; grid-template-columns: 360px minmax(0,1fr); gap:16px; }
-            .admin-sidebar { position: sticky; top: 16px; height: fit-content; }
-            .admin-main { min-width: 0; }
-
-            .admin-sidebar .card-body { padding: 14px 16px; }
-            .admin-sidebar .form-group { display:flex; align-items:center; gap:12px; margin-bottom:10px; padding-bottom:10px; border-bottom: 1px dashed #e6eef6; }
-            .admin-sidebar .form-group label { margin:0; min-width: 150px; white-space:nowrap; }
-            .admin-sidebar .form-group .form-control, .admin-sidebar .form-group .input-group { flex:1; }
-            .admin-sidebar .form-control { height: 38px; padding: 6px 10px; }
-
-            .action-buttons-card .card-body { display:flex; flex-direction:row; flex-wrap:wrap; gap:10px; }
-            .action-buttons-card .action-btn { flex:1 1 calc(50% - 10px); min-width:160px; justify-content:center; display:inline-flex; align-items:center; gap:10px; padding:12px 16px; border-radius:10px; font-size:15px; }
-            .action-buttons-card .action-btn i { font-size:18px; }
-
-            @media (max-width: 992px) {
-                .admin-grid { grid-template-columns: 1fr; }
-                .admin-sidebar { position: static; }
+            .admin-grid { 
+                display: grid; 
+                grid-template-rows: auto 1fr; 
+                gap: 20px; 
+                width: 100%;
             }
             
-            .filters-card .card-body > .row {
-        display: flex;
-                flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-    }
-            .filters-card .form-group {
-        display: flex;
-                align-items: center;
-                gap: 12px;
-                margin-bottom: 0;
+            .admin-filters-row { 
+                width: 100%; 
             }
-            .filters-card .form-group label {
-                margin: 0;
-                white-space: nowrap;
-                min-width: 70px;
+            
+            .admin-table-row { 
+                width: 100%; 
             }
-            .filters-card .form-group .form-control { flex: 1; }
-            .filters-card .form-group .input-group { flex: 1; }
+
+            .filters-card .card-body, .action-buttons-card .card-body { 
+                padding: 16px 20px; 
+            }
+            
+            .filters-horizontal { 
+                display: grid; 
+                grid-template-columns: repeat(4, 1fr); 
+                gap: 20px; 
+                align-items: end;
+                max-width: 100%;
+            }
+            
+            .filters-horizontal .form-group { 
+                display: flex; 
+                flex-direction: column; 
+                gap: 8px; 
+                margin-bottom: 0; 
+            }
+            
+            .filters-horizontal .form-group label { 
+                margin: 0; 
+                font-size: 13px; 
+                font-weight: 700; 
+                color: #003d82;
+                text-transform: uppercase; 
+                letter-spacing: 0.5px;
+                text-align: left;
+            }
+            
+            .filters-horizontal .form-control, .filters-horizontal .input-group { 
+                height: 42px; 
+                font-size: 14px; 
+                border-radius: 8px;
+            }
+            
+            .filters-horizontal .input-group .form-control {
+                border-top-left-radius: 8px;
+                border-bottom-left-radius: 8px;
+            }
+            
+            .filters-horizontal .input-group .input-group-text {
+                border-top-right-radius: 8px;
+                border-bottom-right-radius: 8px;
+            }
+
+            /* Action buttons moved to table header - old styles removed */
+
+            @media (max-width: 1200px) {
+                .filters-horizontal { 
+                    grid-template-columns: repeat(2, 1fr); 
+                    gap: 15px;
+                }
+                
+                .table-header-content {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 12px;
+                }
+                
+                .table-header-actions {
+                    width: 100%;
+                    justify-content: flex-start;
+                }
+                
+                .header-action-btn {
+                    font-size: 12px;
+                    padding: 6px 12px;
+                }
+            }
+            
+            @media (max-width: 768px) {
+                .admin-grid {
+                    gap: 15px;
+                }
+                
+                .filters-horizontal { 
+                    grid-template-columns: 1fr; 
+                    gap: 12px;
+                }
+                
+                .table-header-actions {
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 8px;
+                }
+                
+                .header-action-btn {
+                    width: 100%;
+                    justify-content: center;
+                    font-size: 13px;
+                    padding: 10px 12px;
+                }
+            }
+            
+            @media (max-width: 480px) {
+                .table-header-content {
+                    gap: 10px;
+                }
+                
+                .header-action-btn {
+                    font-size: 12px;
+                    padding: 8px 10px;
+                }
+                
+                .header-action-btn i {
+                    font-size: 12px;
+                }
+            }
+            
+            /* Updated filters layout - handled by .filters-horizontal styles above */
             
             .section-spacing {
                 margin-bottom: 40px;
@@ -2527,19 +2892,20 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             
             /* Disabled checkbox styling */
             .user-checkbox:disabled {
-                opacity: 0.3;
                 cursor: not-allowed;
             }
             
-            /* Row styling when checkbox is disabled due to status mismatch */
-            .account-row.status-disabled {
-                opacity: 0.5;
-                background-color: #f8f9fa;
+            /* Hidden checkbox styling */
+            .user-checkbox.hidden {
+                visibility: hidden;
             }
             
-            .account-row.status-disabled .user-checkbox {
-                opacity: 0.3;
+            /* Hidden select all checkbox */
+            #selectAllCheckbox.hidden {
+                visibility: hidden;
             }
+            
+            /* Removed status-disabled styling to prevent visual dimming while keeping functional restrictions */
             
             /* Disabled row styling */
             .account-row.row-selection-disabled {
@@ -2745,11 +3111,11 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
-                toggleIcon.className = 'fas fa-eye-slash';
+                toggleIcon.className = 'fas fa-eye';
                 toggleIcon.setAttribute('title', 'Hide password');
             } else {
                 passwordInput.type = 'password';
-                toggleIcon.className = 'fas fa-eye';
+                toggleIcon.className = 'fas fa-eye-slash';
                 toggleIcon.setAttribute('title', 'Show password');
             }
         } catch (error) {
