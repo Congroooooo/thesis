@@ -38,7 +38,7 @@ try {
     $password = password_hash($autoPassword, PASSWORD_DEFAULT);
 
     $sanitizedFirstName = preg_replace('/\s+/', '', strtolower($firstName));
-    $email = strtolower(str_replace(' ', '', $lastName . '.' . $firstName . '@lucena.sti.edu.ph'));
+    $email = strtolower(str_replace(' ', '', $firstName . '.' . $lastName . '@lucena.sti.edu.ph'));
 
     $checkEmailSql = "SELECT COUNT(*) FROM account WHERE email = ?";
     $checkStmt = $conn->prepare($checkEmailSql);

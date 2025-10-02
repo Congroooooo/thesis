@@ -56,7 +56,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     <option value="employee">Employee</option>
                 </select>
                 </div>
-                <div class="form-group"><label>Program:</label>
+                <div class="form-group"><label>Designation:</label>
                   <select class="form-control" id="programFilter" onchange="filterUsers()">
                     <option value="all">All Programs/Positions</option>
                     <?php
@@ -125,7 +125,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 <th onclick="sortTable(3)">Birthday</th>
                 <th onclick="sortTable(4)">ID Number</th>
                 <th onclick="sortTable(5)">Role</th>
-                <th onclick="sortTable(6)">Position/Program</th>
+                <th onclick="sortTable(6)">Designation</th>
                 <th onclick="sortTable(7)">Status</th>
             </tr>
         </thead>
@@ -509,24 +509,18 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         document.getElementById('searchInput').addEventListener('input', filterUsers);
         document.getElementById('searchInput').addEventListener('input', function(){
             const value = this.value;
-            
-            // If input is empty, allow anything (reset state)
+
             if (value.length === 0) {
                 return;
             }
-            
-            // Get the first character to determine input mode
+
             const firstChar = value.charAt(0);
             
-            // Determine input mode based on first character
             if (/[A-Za-z]/.test(firstChar)) {
-                // First character is a letter - only allow letters and spaces
                 this.value = value.replace(/[^A-Za-z\s]/g, '');
             } else if (/[0-9]/.test(firstChar)) {
-                // First character is a number - only allow numbers
                 this.value = value.replace(/[^0-9]/g, '');
             } else {
-                // First character is neither letter nor number - remove it
                 this.value = value.replace(/[^A-Za-z0-9\s]/g, '');
             }
         });

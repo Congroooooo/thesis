@@ -210,12 +210,12 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label for="category">Category</label>
+                            <label for="category">ROLE</label>
                             <select id="category" name="category" class="form-control" required>
-                                <option value="">Select Category</option>
-                                <option value="SHS">Academic Track</option>
-                                <option value="COLLEGE STUDENT">Course</option>
-                                <option value="EMPLOYEE">Position</option>
+                                <option value="">Select Role</option>
+                                <option value="SHS">SHS Academic Strand</option>
+                                <option value="COLLEGE STUDENT">COLLEGE Courses</option>
+                                <option value="EMPLOYEE">EMPLOYEE Postion</option>
                             </select>
                         </div>
                     </div>
@@ -242,7 +242,24 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
             ?>
             <div class="category-section" style="background:#fff; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,.06); border:1px solid rgba(0,114,188,.08); overflow:hidden;">
                 <div class="category-header" style="background:#f7f9fc; padding:14px 16px; border-bottom:2px solid #e1ebf5; font-weight:700; color:#003d82;">
-                    <i class="fas fa-users"></i> <?= $category ?> Programs/Positions
+                    <i class="fas fa-users"></i> 
+                    <?php 
+                        $headerText = '';
+                        switch($category) {
+                            case 'SHS':
+                                $headerText = 'SHS Academic Strand';
+                                break;
+                            case 'COLLEGE STUDENT':
+                                $headerText = 'COLLEGE Courses';
+                                break;
+                            case 'EMPLOYEE':
+                                $headerText = 'Employee Position';
+                                break;
+                            default:
+                                $headerText = $category;
+                        }
+                        echo $headerText;
+                    ?>
                     <span class="badge badge-secondary ml-2"><?= count($categoryPrograms) ?></span>
                 </div>
                 <div class="category-body" style="padding:16px;">
