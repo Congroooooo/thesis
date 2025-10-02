@@ -44,7 +44,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             <div class="filters-horizontal">
                 <div class="form-group"><label>Search:</label>
                   <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Search by name..." id="searchInput" pattern="[A-Za-z\s]*" title="Only letters and spaces are allowed">
+                    <input type="text" class="form-control" placeholder="Search by name or ID number..." id="searchInput" title="Smart search: Start with letter for name search (letters + spaces), start with number for ID search (numbers only)">
                     <span class="input-group-text"><i class="fas fa-search"></i></span>
                   </div>
                 </div>
@@ -384,6 +384,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             const getText = (idx) => (row.cells[idx] ? row.cells[idx].textContent.toLowerCase() : '');
             const firstName = getText(1);
             const lastName = getText(2);
+            const idNumber = getText(4); // ID Number is in column 4
             const role = getText(5);
             const program = getText(6);
             const status = getText(7);
@@ -394,6 +395,11 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
             const matchesSearch = (() => {
                 if (!searchTerm.trim()) return true;
+                
+                // Check if search term matches ID number exactly or partially
+                if (idNumber.includes(searchTerm)) {
+                    return true;
+                }
                 
                 const searchWords = searchTerm.trim().split(/\s+/); 
                 
@@ -501,9 +507,29 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         updateBulkButtons();
 
         document.getElementById('searchInput').addEventListener('input', filterUsers);
-            document.getElementById('searchInput').addEventListener('input', function(){
-                this.value = this.value.replace(/[^A-Za-z\s]/g, '');
-            });
+        document.getElementById('searchInput').addEventListener('input', function(){
+            const value = this.value;
+            
+            // If input is empty, allow anything (reset state)
+            if (value.length === 0) {
+                return;
+            }
+            
+            // Get the first character to determine input mode
+            const firstChar = value.charAt(0);
+            
+            // Determine input mode based on first character
+            if (/[A-Za-z]/.test(firstChar)) {
+                // First character is a letter - only allow letters and spaces
+                this.value = value.replace(/[^A-Za-z\s]/g, '');
+            } else if (/[0-9]/.test(firstChar)) {
+                // First character is a number - only allow numbers
+                this.value = value.replace(/[^0-9]/g, '');
+            } else {
+                // First character is neither letter nor number - remove it
+                this.value = value.replace(/[^A-Za-z0-9\s]/g, '');
+            }
+        });
             const roleSel = document.getElementById('roleFilter');
             const programSel = document.getElementById('programFilter');
 
