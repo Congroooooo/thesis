@@ -70,8 +70,8 @@ function colorForCategory(label) {
   return fill;
 }
 
-async function fetchStockData(category = "", course = "") {
-  const params = new URLSearchParams({ category, course });
+async function fetchStockData(category = "", subcategory = "") {
+  const params = new URLSearchParams({ category, subcategory });
   try {
     const res = await fetch(
       `../PAMO_DASHBOARD_BACKEND/api_inventory_stocks.php?${params}`
@@ -88,8 +88,8 @@ async function fetchStockData(category = "", course = "") {
   }
 }
 
-async function fetchSalesData(category, course, period) {
-  const params = new URLSearchParams({ category, course, period });
+async function fetchSalesData(category, subcategory, period) {
+  const params = new URLSearchParams({ category, subcategory, period });
   try {
     const res = await fetch(
       `../PAMO_DASHBOARD_BACKEND/api_sales_performance.php?${params}`
@@ -192,7 +192,7 @@ function renderSalesLineChart(data) {
 
   // Get current filter values
   const category = document.getElementById("salesCategoryFilter").value;
-  const course = document.getElementById("salesCourseFilter").value;
+  const subcategory = document.getElementById("salesSubcategoryFilter").value;
 
   if (salesLineChart) salesLineChart.destroy();
   salesLineChart = new Chart(ctx, {
@@ -241,8 +241,9 @@ function renderSalesLineChart(data) {
               let label = `Sold: ${point.total_sales}`;
               if (!category) {
                 if (point.category) label += ` | Category: ${point.category}`;
-              } else if (category === "Tertiary-Uniform") {
-                if (point.course) label += ` | Course: ${point.course}`;
+              } else if (subcategory) {
+                if (point.subcategory)
+                  label += ` | Subcategory: ${point.subcategory}`;
               }
               return label;
             },
@@ -265,15 +266,16 @@ async function populateSalesCategoryDropdown() {
   const select = document.getElementById("salesCategoryFilter");
   try {
     const res = await fetch(
-      "../PAMO_DASHBOARD_BACKEND/api_inventory_categories.php"
+      "../PAMO Inventory backend/api_categories_list.php"
     );
     if (!res.ok) throw new Error("Failed to fetch categories");
     const categories = await res.json();
     select.innerHTML = '<option value="">All</option>';
-    categories.forEach((cat) => {
+    categories.forEach((category) => {
       const opt = document.createElement("option");
-      opt.value = cat;
-      opt.textContent = cat;
+      opt.value = category.id;
+      opt.textContent = category.name;
+      opt.dataset.hasSubcategories = category.has_subcategories;
       select.appendChild(opt);
     });
   } catch (e) {
@@ -281,38 +283,37 @@ async function populateSalesCategoryDropdown() {
   }
 }
 
-async function populateSalesCourseDropdown() {
-  const select = document.getElementById("salesCourseFilter");
-  try {
-    const res = await fetch("../PAMO_DASHBOARD_BACKEND/api_courses.php");
-    if (!res.ok) throw new Error("Failed to fetch courses");
-    const courses = await res.json();
+async function populateSalesSubcategoryDropdown(categoryId) {
+  const select = document.getElementById("salesSubcategoryFilter");
+  if (!categoryId) {
     select.innerHTML = '<option value="">All</option>';
-    courses.forEach((course) => {
+    return;
+  }
+
+  try {
+    const res = await fetch(
+      `../PAMO Inventory backend/api_subcategories_list.php?category_id=${categoryId}`
+    );
+    if (!res.ok) throw new Error("Failed to fetch subcategories");
+    const subcategories = await res.json();
+    select.innerHTML = '<option value="">All</option>';
+    subcategories.forEach((subcategory) => {
       const opt = document.createElement("option");
-      opt.value = course;
-      opt.textContent = course;
+      opt.value = subcategory.id;
+      opt.textContent = subcategory.name;
       select.appendChild(opt);
     });
   } catch (e) {
-    console.error("Error loading sales courses:", e);
+    console.error("Error loading sales subcategories:", e);
   }
 }
 
 // --- SALES ANALYTICS ---
 async function updateSalesAnalytics() {
   const category = document.getElementById("salesCategoryFilter").value;
-  const courseSelect = document.getElementById("salesCourseFilter");
-  let course = "";
-  if (category === "Tertiary-Uniform") {
-    course = courseSelect.value;
-    courseSelect.disabled = false;
-  } else {
-    courseSelect.value = "";
-    courseSelect.disabled = true;
-  }
+  const subcategory = document.getElementById("salesSubcategoryFilter").value;
   const period = document.getElementById("salesPeriodFilter").value;
-  const salesData = await fetchSalesData(category, course, period);
+  const salesData = await fetchSalesData(category, subcategory, period);
   renderSalesLineChart(salesData);
 }
 
@@ -323,28 +324,34 @@ async function updateInventoryAnalytics() {
 }
 
 function handleSalesCategoryChange() {
-  const category = document.getElementById("salesCategoryFilter").value;
-  const courseSelect = document.getElementById("salesCourseFilter");
-  if (category === "Tertiary-Uniform") {
-    courseSelect.disabled = false;
+  const categorySelect = document.getElementById("salesCategoryFilter");
+  const subcategoryLabel = document.getElementById("subcategoryLabel");
+  const subcategorySelect = document.getElementById("salesSubcategoryFilter");
+
+  const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+  const hasSubcategories = selectedOption?.dataset.hasSubcategories === "1";
+
+  if (categorySelect.value && hasSubcategories) {
+    // Show subcategory dropdown and populate it
+    subcategoryLabel.style.display = "block";
+    populateSalesSubcategoryDropdown(categorySelect.value);
   } else {
-    courseSelect.value = "";
-    courseSelect.disabled = true;
+    // Hide subcategory dropdown and clear it
+    subcategoryLabel.style.display = "none";
+    subcategorySelect.innerHTML = '<option value="">All</option>';
   }
+
   updateSalesAnalytics();
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
-  await Promise.all([
-    populateSalesCategoryDropdown(),
-    populateSalesCourseDropdown(),
-  ]);
+  await populateSalesCategoryDropdown();
   handleSalesCategoryChange();
   document
     .getElementById("salesCategoryFilter")
     .addEventListener("change", handleSalesCategoryChange);
   document
-    .getElementById("salesCourseFilter")
+    .getElementById("salesSubcategoryFilter")
     .addEventListener("change", updateSalesAnalytics);
   document
     .getElementById("salesPeriodFilter")

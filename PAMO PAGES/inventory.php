@@ -80,6 +80,45 @@ function page_link($page, $query_string) {
     <script src="../PAMO JS/backend/deductQuantity.js"></script>
     <script src="../PAMO JS/backend/addItemSize.js"></script>
     <script src="../PAMO JS/backend/exchangeItem.js"></script>
+    <style>
+        .file-info {
+            color: #666 !important;
+            font-size: 12px !important;
+            margin-top: 4px !important;
+            display: block !important;
+        }
+        
+        .file-info.large-file {
+            color: #e74c3c !important;
+            font-weight: bold !important;
+        }
+        
+        .file-info.good-size {
+            color: #27ae60 !important;
+        }
+        
+        .processing-images {
+            color: #3498db !important;
+            font-weight: bold !important;
+        }
+        
+        /* Base item code validation styles */
+        input.valid-base-code {
+            border-color: #27ae60 !important;
+            box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.2) !important;
+        }
+        
+        input.invalid-base-code {
+            border-color: #e74c3c !important;
+            box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2) !important;
+        }
+        
+        .base-code-validation {
+            font-size: 12px !important;
+            margin-top: 4px !important;
+            display: block !important;
+        }
+    </style>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const applyLowStockFilter = sessionStorage.getItem('applyLowStockFilter');
@@ -391,19 +430,17 @@ function page_link($page, $query_string) {
                                 <h4>Product Information</h4>
                                 <div class="input-group">
                                     <label for="newProductItemCode_0">Base Item Code (Prefix):</label>
-                                    <input type="text" id="newProductItemCode_0" name="products[0][baseItemCode]" placeholder="e.g., USHPWV001" required>
+                                    <input type="text" id="newProductItemCode_0" name="products[0][baseItemCode]" placeholder="e.g., USHPWV001" required maxlength="20">
                                 </div>
                                 <div class="input-group">
                                     <label for="newCategory_0">Category:</label>
                                     <select id="newCategory_0" name="products[0][category_id]" required>
                                         <option value="">Select Category</option>
-                                        <option value="__add__">+ Add new category…</option>
                                     </select>
                                 </div>
                                 <div class="input-group" id="subcategoryGroup_0" style="display:none;">
                                     <label for="subcategorySelect_0">Subcategory:</label>
                                     <select id="subcategorySelect_0" name="products[0][subcategory_ids][]" multiple style="width:100%;">
-                                        <option value="__add__">+ Add new subcategory…</option>
                                     </select>
                                 </div>
                                 <div class="input-group">
@@ -412,7 +449,8 @@ function page_link($page, $query_string) {
                                 </div>
                                 <div class="input-group">
                                     <label for="newImage_0">Product Image:</label>
-                                    <input type="file" id="newImage_0" name="products[0][newImage]" accept="image/*" required>
+                                    <input type="file" id="newImage_0" name="products[0][newImage]" accept="image/*" required onchange="showFileInfo(this)">
+                                    <small id="fileInfo_0" class="file-info" style="color: #666; font-size: 12px; margin-top: 4px; display: block;"></small>
                                 </div>
                             </div>
 

@@ -95,9 +95,9 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
                                 Category:
                                 <select id="salesCategoryFilter"><option value="">All</option></select>
                             </label>
-                            <label>
-                                Course:
-                                <select id="salesCourseFilter"><option value="">All</option></select>
+                            <label id="subcategoryLabel" style="display: none;">
+                                Subcategory:
+                                <select id="salesSubcategoryFilter"><option value="">All</option></select>
                             </label>
                             <label>
                                 Period:

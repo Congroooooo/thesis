@@ -1,5 +1,83 @@
 // New Delivery Modal Backend Functions
 
+// Validate order number (numbers only)
+function validateOrderNumber(orderNumber) {
+  const numericRegex = /^[0-9]*$/;
+  return numericRegex.test(orderNumber);
+}
+
+// Clean order number by removing non-numeric characters
+function cleanOrderNumber(orderNumber) {
+  return orderNumber.replace(/[^0-9]/g, "");
+}
+
+// Show validation styling for order number (without messages)
+function showOrderNumberValidation(input, isValid) {
+  // Remove existing classes
+  input.classList.remove("valid-order-number", "invalid-order-number");
+
+  if (isValid) {
+    input.classList.add("valid-order-number");
+  } else {
+    input.classList.add("invalid-order-number");
+  }
+}
+
+// Setup order number validation handler
+function setupOrderNumberHandler() {
+  const orderNumberInput = document.getElementById("orderNumber");
+  if (orderNumberInput) {
+    // Remove existing event listeners to avoid duplicates
+    if (orderNumberInput._orderNumberHandler) {
+      orderNumberInput.removeEventListener("input", orderNumberInput._orderNumberHandler);
+    }
+    if (orderNumberInput._keyPressHandler) {
+      orderNumberInput.removeEventListener("keypress", orderNumberInput._keyPressHandler);
+    }
+
+    orderNumberInput._orderNumberHandler = (e) => {
+      const originalValue = e.target.value;
+      const cleanValue = cleanOrderNumber(originalValue);
+
+      // If the input had invalid characters, replace with clean value
+      if (originalValue !== cleanValue) {
+        e.target.value = cleanValue;
+      }
+
+      // Validate the current value
+      const isValid = validateOrderNumber(e.target.value);
+      showOrderNumberValidation(e.target, isValid);
+    };
+
+    // Keypress handler to prevent non-numeric input
+    orderNumberInput._keyPressHandler = (e) => {
+      // Allow control keys (backspace, delete, tab, etc.)
+      if (e.ctrlKey || e.altKey || e.metaKey) {
+        return;
+      }
+      
+      // Allow: backspace, delete, tab, escape, enter
+      if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
+          // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
+          (e.keyCode === 65 && e.ctrlKey === true) ||
+          (e.keyCode === 67 && e.ctrlKey === true) ||
+          (e.keyCode === 86 && e.ctrlKey === true) ||
+          (e.keyCode === 88 && e.ctrlKey === true) ||
+          (e.keyCode === 90 && e.ctrlKey === true)) {
+          return;
+      }
+      
+      // Ensure that it is a number and stop the keypress
+      if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+          e.preventDefault();
+      }
+    };
+
+    orderNumberInput.addEventListener("input", orderNumberInput._orderNumberHandler);
+    orderNumberInput.addEventListener("keypress", orderNumberInput._keyPressHandler);
+  }
+}
+
 function showAddQuantityModal() {
   document.getElementById("addQuantityModal").style.display = "block";
   document.getElementById("addQuantityForm").reset();
@@ -7,6 +85,9 @@ function showAddQuantityModal() {
   document.querySelectorAll('select[name="itemId[]"]').forEach((select) => {
     select.value = "";
   });
+
+  // Setup order number validation
+  setupOrderNumberHandler();
 }
 
 function addDeliveryItem() {
@@ -111,6 +192,12 @@ function submitAddQuantity(event) {
 
     if (!orderNumber || orderNumber.trim() === "") {
       alert("Please enter a delivery order number");
+      return false;
+    }
+
+    // Validate order number format (numbers only)
+    if (!validateOrderNumber(orderNumber)) {
+      alert("Delivery order number must contain only numbers (e.g., 12345)");
       return false;
     }
 
