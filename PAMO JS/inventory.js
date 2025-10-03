@@ -179,30 +179,108 @@ function submitEditPrice() {
     .catch(handleError);
 }
 
-function submitEditImage() {
+// Helper function to compress images (same as Add New Item)
+function compressImage(file, maxWidth = 1200, quality = 0.8) {
+  return new Promise((resolve) => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+
+    img.onload = function () {
+      // Calculate new dimensions
+      let { width, height } = img;
+
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      // Draw and compress
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          resolve(blob);
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function submitEditImage() {
   const itemId = document.getElementById("imageItemId").value;
   const newImage = document.getElementById("newImage").files[0];
 
-  const formData = new FormData();
-  formData.append("itemId", itemId);
-  formData.append("newImage", newImage);
+  try {
+    // Compress large images (same as Add New Item)
+    let processedFile = newImage;
+    if (newImage.size > 1024 * 1024) {
+      // 1MB
+      console.log(
+        `Compressing image: ${newImage.name} (${(
+          newImage.size /
+          1024 /
+          1024
+        ).toFixed(1)}MB)`
+      );
+      processedFile = await compressImage(newImage);
+      console.log(
+        `Compressed to: ${(processedFile.size / 1024 / 1024).toFixed(1)}MB`
+      );
+    }
 
-  fetch("../PAMO Inventory backend/edit_image.php", {
-    method: "POST",
-    body: formData,
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      if (data.success) {
-        showMessage(`Updated image for item ${itemId}.`);
-        closeModal("editImageModal");
-        // Clear input field
-        document.getElementById("newImage").value = "";
-      } else {
-        alert("Error updating image");
-      }
+    const formData = new FormData();
+    formData.append("itemId", itemId);
+    formData.append("newImage", processedFile);
+
+    fetch("../PAMO Inventory backend/edit_image.php", {
+      method: "POST",
+      body: formData,
     })
-    .catch((error) => console.error("Error:", error));
+      .then((response) => {
+        if (!response.ok) {
+          if (response.status === 413) {
+            throw new Error(
+              "File is too large for the server to process. Please compress your image and try again."
+            );
+          } else if (response.status === 500) {
+            throw new Error(
+              "Server error occurred. Please try again or contact support."
+            );
+          } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (data.success) {
+          showMessage(data.message || `Updated image for item ${itemId}.`);
+          closeModal("editImageModal");
+          // Clear input field
+          document.getElementById("newImage").value = "";
+        } else {
+          alert("Error updating image: " + (data.message || "Unknown error"));
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("An error occurred while updating the image: " + error.message);
+      });
+  } catch (compressionError) {
+    console.error("Error during compression:", compressionError);
+    alert(
+      "An error occurred while processing the image: " +
+        compressionError.message
+    );
+  }
 }
 
 // Function to show a message

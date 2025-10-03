@@ -14,25 +14,29 @@ try {
     }
     $itemId = $_POST['itemId'];
 
-    // Validate item exists
+    // Validate item exists and get base item code
     $checkItem = $conn->prepare("SELECT item_code FROM inventory WHERE item_code = ?");
     $checkItem->execute([$itemId]);
     if (!$checkItem->fetch(PDO::FETCH_ASSOC)) {
         throw new Exception('Item not found');
     }
 
-    // Check if file was uploaded
+    $baseItemCode = strtok($itemId, '-');
+
+    // Check if file was uploaded (using same logic as Add New Item)
     if (!isset($_FILES['newImage']) || $_FILES['newImage']['error'] !== UPLOAD_ERR_OK) {
-        throw new Exception('No file uploaded or upload error occurred: ' . 
-            (isset($_FILES['newImage']) ? $_FILES['newImage']['error'] : 'No file data'));
+        throw new Exception('Image upload is required');
     }
 
     $newImage = $_FILES['newImage'];
+    $imageTmpPath = $newImage['tmp_name'];
+    $imageName = $newImage['name'];
+    $imageType = $newImage['type'];
 
-    // Validate file type
+    // Validate file type (same as Add New Item)
     $allowed_types = ['image/jpeg', 'image/png', 'image/gif'];
-    if (!in_array($newImage['type'], $allowed_types)) {
-        throw new Exception('Invalid file type. Only JPG, PNG and GIF are allowed.');
+    if (!in_array($imageType, $allowed_types)) {
+        throw new Exception('Invalid image type. Allowed types: JPG, PNG, GIF');
     }
 
     // Create uploads directory if it doesn't exist
@@ -43,39 +47,44 @@ try {
         }
     }
 
-    // Generate unique filename
-    $fileExtension = pathinfo($newImage['name'], PATHINFO_EXTENSION);
-    $uniqueFilename = uniqid('item_') . '.' . $fileExtension;
-    $uploadFile = $uploadDir . $uniqueFilename;
-    $dbFilePath = 'uploads/itemlist/' . $uniqueFilename;
+    // Generate unique filename (same as Add New Item)
+    $imageExtension = pathinfo($imageName, PATHINFO_EXTENSION);
+    $uniqueName = uniqid('img_', true) . '.' . $imageExtension;
+    $imagePath = $uploadDir . $uniqueName;
+    $dbFilePath = 'uploads/itemlist/' . $uniqueName;
 
-    // Get the old image path to delete it
-    $getOldImageQuery = "SELECT image_path FROM inventory WHERE item_code = ?";
-    $stmt = $conn->prepare($getOldImageQuery);
-    $stmt->execute([$itemId]);
-    if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $oldImagePath = '../' . $row['image_path'];
+    // Get all old image paths for items with the same base code to delete them
+    $getOldImagesQuery = "SELECT DISTINCT image_path FROM inventory WHERE item_code LIKE ? AND image_path IS NOT NULL AND image_path != ''";
+    $stmt = $conn->prepare($getOldImagesQuery);
+    $stmt->execute([$baseItemCode . '%']);
+    $oldImages = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($oldImages as $imageRow) {
+        $oldImagePath = '../' . $imageRow['image_path'];
         if (file_exists($oldImagePath)) {
             unlink($oldImagePath);
         }
     }
 
-    // Move the uploaded file
-    if (!move_uploaded_file($newImage['tmp_name'], $uploadFile)) {
-        throw new Exception('Failed to move uploaded file: ' . error_get_last()['message']);
+    // Move the uploaded file (same as Add New Item)
+    if (!move_uploaded_file($imageTmpPath, $imagePath)) {
+        throw new Exception('Error moving uploaded file');
     }
 
-    // Update database with new image path
-    $sql = "UPDATE inventory SET image_path = ? WHERE item_code = ?";
+    // Update database with new image path for all items with the same base code
+    $sql = "UPDATE inventory SET image_path = ? WHERE item_code LIKE ?";
     $stmt = $conn->prepare($sql);
-    if (!$stmt->execute([$dbFilePath, $itemId])) {
+    if (!$stmt->execute([$dbFilePath, $baseItemCode . '%'])) {
         // If database update fails, delete the uploaded file
-        unlink($uploadFile);
+        unlink($imagePath);
         throw new Exception('Database update failed');
     }
 
+    // Get count of updated items for logging
+    $updatedCount = $stmt->rowCount();
+
     // Log the activity
-    $activity_description = "Updated image for item: $itemId";
+    $activity_description = "Updated image for: $baseItemCode (affected $updatedCount items, triggered from: $itemId)";
     $log_activity_query = "INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES ('Edit Image', ?, ?, ?, NOW())";
     $stmt = $conn->prepare($log_activity_query);
     session_start();
@@ -84,8 +93,10 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => 'Image updated successfully',
-        'image_path' => $dbFilePath
+        'message' => "Image updated successfully for all items in the $baseItemCode group ($updatedCount items affected)",
+        'image_path' => $dbFilePath,
+        'updated_count' => $updatedCount,
+        'base_item_code' => $baseItemCode
     ]);
 
 } catch (Exception $e) {

@@ -88,7 +88,42 @@ function submitEditPrice() {
     .catch((error) => console.error("Error:", error));
 }
 
-function submitEditImage() {
+// Helper function to compress images (same as Add New Item)
+function compressImage(file, maxWidth = 1200, quality = 0.8) {
+  return new Promise((resolve) => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+
+    img.onload = function () {
+      // Calculate new dimensions
+      let { width, height } = img;
+
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      // Draw and compress
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          resolve(blob);
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function submitEditImage() {
   const itemId = document.getElementById("imageItemId").value;
   const fileInput = document.getElementById("editNewImage");
 
@@ -109,63 +144,98 @@ function submitEditImage() {
     return;
   }
 
-  // Validate file type
+  // Basic client-side validation (matching Add New Item approach)
   const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
   if (!allowedTypes.includes(newImage.type)) {
     alert("Invalid file type. Only JPG, PNG and GIF files are allowed.");
     return;
   }
 
-  // Validate file size (5MB max)
-  const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-  if (newImage.size > maxSize) {
-    alert("File is too large. Maximum size is 5MB.");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("itemId", itemId);
-  formData.append("newImage", newImage);
-
   // Show loading indicator
   const saveButton = document.querySelector("#editImageModal .save-btn");
   const originalText = saveButton.textContent;
-  saveButton.textContent = "Uploading...";
-  saveButton.disabled = true;
 
-  fetch("../PAMO Inventory backend/edit_image.php", {
-    method: "POST",
-    body: formData,
-  })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
+  try {
+    // Compress large images (same as Add New Item)
+    let processedFile = newImage;
+    if (newImage.size > 1024 * 1024) {
+      // 1MB
+      saveButton.textContent = "Compressing...";
+      saveButton.disabled = true;
+
+      console.log(
+        `Compressing image: ${newImage.name} (${(
+          newImage.size /
+          1024 /
+          1024
+        ).toFixed(1)}MB)`
+      );
+      processedFile = await compressImage(newImage);
+      console.log(
+        `Compressed to: ${(processedFile.size / 1024 / 1024).toFixed(1)}MB`
+      );
+    }
+
+    const formData = new FormData();
+    formData.append("itemId", itemId);
+    formData.append("newImage", processedFile);
+
+    // Update loading indicator for upload
+    saveButton.textContent = "Uploading...";
+
+    fetch("../PAMO Inventory backend/edit_image.php", {
+      method: "POST",
+      body: formData,
     })
-    .then((data) => {
-      if (data.success) {
-        alert("Image updated successfully!");
-        closeModal("editImageModal");
-        // Clear input field
-        fileInput.value = "";
-        // Reload the page to show the updated image
-        location.reload();
-      } else {
-        throw new Error(
-          data.message || "Unknown error occurred while updating image"
-        );
-      }
-    })
-    .catch((error) => {
-      console.error("Error:", error);
-      alert("An error occurred while updating the image: " + error.message);
-    })
-    .finally(() => {
-      // Restore button state
-      saveButton.textContent = originalText;
-      saveButton.disabled = false;
-    });
+      .then((response) => {
+        if (!response.ok) {
+          if (response.status === 413) {
+            throw new Error(
+              "File is too large for the server to process. Please compress your image and try again."
+            );
+          } else if (response.status === 500) {
+            throw new Error(
+              "Server error occurred. Please try again or contact support."
+            );
+          } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (data.success) {
+          alert(data.message || "Image updated successfully!");
+          closeModal("editImageModal");
+          // Clear input field
+          fileInput.value = "";
+          // Reload the page to show the updated image
+          location.reload();
+        } else {
+          throw new Error(
+            data.message || "Unknown error occurred while updating image"
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+        alert("An error occurred while updating the image: " + error.message);
+      })
+      .finally(() => {
+        // Restore button state
+        saveButton.textContent = originalText;
+        saveButton.disabled = false;
+      });
+  } catch (compressionError) {
+    console.error("Error during compression:", compressionError);
+    alert(
+      "An error occurred while processing the image: " +
+        compressionError.message
+    );
+    // Restore button state
+    saveButton.textContent = originalText;
+    saveButton.disabled = false;
+  }
 }
 
 function updatePriceDisplay(itemId, newPrice) {
