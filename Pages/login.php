@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="input-icon">
                             <i class="fas fa-lock"></i>
                             <input type="password" id="password" name="password" placeholder="Password" required>
-                            <i class="fas fa-eye toggle-password" id="togglePassword"></i>
+                            <i class="fas fa-eye-slash toggle-password" id="togglePassword"></i>
                         </div>
                     </div>
                     <button type="submit" class="login-btn">
