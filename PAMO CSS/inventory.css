@@ -119,6 +119,15 @@
   align-items: center;
 }
 
+/* Specific centering for small modals */
+#editPriceModal[style*="display: block"],
+#editImageModal[style*="display: block"] {
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
 /* Modal Content Base */
 .modal-content {
   background-color: #fff;
@@ -253,6 +262,136 @@
   background-color: white;
 }
 
+/* Edit Price Modal - Small Centered Modal */
+#editPriceModal .modal-content {
+  width: 400px;
+  max-width: 90%;
+  min-width: 350px;
+  padding: 25px;
+  margin: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  border: none;
+}
+
+#editPriceModal .modal-content h2 {
+  margin: 0 0 20px 0;
+  text-align: center;
+  color: #333;
+  font-size: 1.4rem;
+  font-weight: 600;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 10px;
+}
+
+#editPriceModal .input-group {
+  margin-bottom: 20px;
+}
+
+#editPriceModal .modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+/* Edit Image Modal - Small Centered Modal */
+#editImageModal .modal-content {
+  width: 400px;
+  max-width: 90%;
+  min-width: 350px;
+  padding: 25px;
+  margin: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  border: none;
+}
+
+#editImageModal .modal-content h2 {
+  margin: 0 0 20px 0;
+  text-align: center;
+  color: #333;
+  font-size: 1.4rem;
+  font-weight: 600;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 10px;
+}
+
+#editImageModal .input-group {
+  margin-bottom: 20px;
+}
+
+/* Enhanced input styling for small modals */
+#editPriceModal .input-group label,
+#editImageModal .input-group label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+#editPriceModal .input-group input,
+#editImageModal .input-group input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+
+#editPriceModal .input-group input:focus,
+#editImageModal .input-group input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+#editImageModal .modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+/* Enhanced Button Styling for Small Modals */
+#editPriceModal .save-btn,
+#editImageModal .save-btn {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  min-width: 80px;
+}
+
+#editPriceModal .save-btn:hover,
+#editImageModal .save-btn:hover {
+  background-color: #0056b3;
+}
+
+#editPriceModal .cancel-btn,
+#editImageModal .cancel-btn {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+  min-width: 80px;
+}
+
+#editPriceModal .cancel-btn:hover,
+#editImageModal .cancel-btn:hover {
+  background-color: #545b62;
+}
+
 /* Close Button */
 .close {
   position: absolute;
@@ -277,6 +416,28 @@
   #editItemModal .modal-content,
   #addItemModal .modal-content {
     min-width: unset;
+  }
+
+  /* Small modals responsive */
+  #editPriceModal .modal-content,
+  #editImageModal .modal-content {
+    width: 95%;
+    max-width: 350px;
+    min-width: 300px;
+    padding: 20px;
+  }
+
+  #editPriceModal .modal-buttons,
+  #editImageModal .modal-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #editPriceModal .save-btn,
+  #editImageModal .save-btn,
+  #editPriceModal .cancel-btn,
+  #editImageModal .cancel-btn {
+    width: 100%;
   }
 }
 
