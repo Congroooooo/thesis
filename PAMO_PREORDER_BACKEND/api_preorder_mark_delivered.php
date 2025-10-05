@@ -1,10 +1,26 @@
 <?php
+// Prevent any output before headers
+ob_start();
+error_reporting(E_ERROR | E_PARSE);
+ini_set('display_errors', 0);
+
+// Start session first
+if (session_status() === PHP_SESSION_NONE) { 
+    session_start(); 
+}
+
+// Clean any previous output and set headers
+ob_clean();
 header('Content-Type: application/json');
+
 require_once __DIR__ . '/../Includes/connection.php';
+require_once __DIR__ . '/../Includes/notifications.php';
 
 /* Payload expectation (POST, form or JSON):
    preorder_item_id: int
+   order_number: string
    delivered: { size => qty, ... }
+   delivered_data: { size => {price, quantity, damage, item_code, size}, ... }
 */
 
 try {
@@ -15,8 +31,14 @@ try {
     $preId = intval($data['preorder_item_id'] ?? 0);
     if ($preId <= 0) throw new Exception('preorder_item_id required');
 
+    $orderNumber = trim($data['order_number'] ?? '');
+    if ($orderNumber === '') throw new Exception('order_number is required');
+
     $delivered = $data['delivered'] ?? [];
     if (!is_array($delivered) || empty($delivered)) throw new Exception('delivered map required');
+    
+    $deliveredData = $data['delivered_data'] ?? [];
+    if (!is_array($deliveredData)) $deliveredData = [];
 
     // Load preorder item
     $stmt = $conn->prepare('SELECT * FROM preorder_items WHERE id = ?');
@@ -52,25 +74,32 @@ try {
         $qty = intval($qty);
         if ($qty <= 0 || $size === '') continue;
 
-        // Item code should remain the pure base code (no size suffix)
+        // Get detailed data if available
+        $sizeData = $deliveredData[$size] ?? [];
+        $deliveredPrice = isset($sizeData['price']) ? floatval($sizeData['price']) : $price;
+        $deliveredDamage = isset($sizeData['damage']) ? intval($sizeData['damage']) : 0;
+        $specificItemCode = isset($sizeData['item_code']) ? trim($sizeData['item_code']) : $base;
+
+        // Item code should remain the pure base code (no size suffix) for consistency
         $itemCode = $base;
 
         // Check existing
-        $check = $conn->prepare('SELECT id, actual_quantity, image_path FROM inventory WHERE item_code = ? AND sizes = ? LIMIT 1');
+        $check = $conn->prepare('SELECT id, actual_quantity, image_path, damage FROM inventory WHERE item_code = ? AND sizes = ? LIMIT 1');
         $check->execute([$itemCode, $size]);
         $existing = $check->fetch(PDO::FETCH_ASSOC);
 
         if ($existing) {
             $newQty = intval($existing['actual_quantity']) + $qty;
-            $upd = $conn->prepare('UPDATE inventory SET actual_quantity = ?, new_delivery = new_delivery + ?, status = CASE WHEN ? <= 0 THEN status WHEN ? > 0 THEN "in stock" ELSE status END WHERE id = ?');
-            $upd->execute([$newQty, $qty, $newQty, $newQty, $existing['id']]);
+            $newDamage = intval($existing['damage']) + $deliveredDamage;
+            $upd = $conn->prepare('UPDATE inventory SET actual_quantity = ?, new_delivery = new_delivery + ?, damage = ?, price = ?, status = CASE WHEN ? <= 0 THEN status WHEN ? > 0 THEN "in stock" ELSE status END WHERE id = ?');
+            $upd->execute([$newQty, $qty, $newDamage, $deliveredPrice, $newQty, $newQty, $existing['id']]);
             // Backfill image_path to itemlist variant if needed
             if (!empty($inventoryImagePath) && (empty($existing['image_path']) || strpos($existing['image_path'], 'uploads/preorder/') === 0)) {
                 $updImg = $conn->prepare('UPDATE inventory SET image_path = ? WHERE id = ?');
                 $updImg->execute([$inventoryImagePath, $existing['id']]);
             }
         } else {
-            $ins = $conn->prepare('INSERT INTO inventory (item_code, category, actual_quantity, new_delivery, beginning_quantity, damage, item_name, sizes, price, status, sold_quantity, image_path, created_at, RTW, category_id) VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?, "in stock", 0, ?, CURRENT_TIMESTAMP, 0, ?)');
+            $ins = $conn->prepare('INSERT INTO inventory (item_code, category, actual_quantity, new_delivery, beginning_quantity, damage, item_name, sizes, price, status, sold_quantity, image_path, created_at, RTW, category_id) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, "in stock", 0, ?, CURRENT_TIMESTAMP, 0, ?)');
             // category column stores name; we need name from categories
             $catName = null;
             if (!empty($categoryId)) {
@@ -78,7 +107,7 @@ try {
                 $c->execute([$categoryId]);
                 $catName = $c->fetchColumn();
             }
-            $ins->execute([$itemCode, $catName, $qty, $qty, $itemName, $size, $price, $inventoryImagePath, $categoryId]);
+            $ins->execute([$itemCode, $catName, $qty, $qty, $deliveredDamage, $itemName, $size, $deliveredPrice, $inventoryImagePath, $categoryId]);
         }
     }
 
@@ -106,11 +135,66 @@ try {
     $updPre = $conn->prepare("UPDATE preorder_items SET status='delivered', updated_at=CURRENT_TIMESTAMP WHERE id = ?");
     $updPre->execute([$preId]);
 
+    // Send notifications about delivery
+    try {
+        // 1. Notify customers who placed pre-orders for this item
+        $preorderCustomersStmt = $conn->prepare('
+            SELECT DISTINCT r.user_id, CONCAT(u.first_name, " ", u.last_name) as name 
+            FROM preorder_requests r 
+            JOIN account u ON r.user_id = u.id 
+            WHERE r.preorder_item_id = ? AND r.status = "active"
+        ');
+        $preorderCustomersStmt->execute([$preId]);
+        $preorderCustomers = $preorderCustomersStmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Notification for customers who placed pre-orders
+        $preorderMessage = "🎉 Your Pre-Order is Ready! '{$itemName}' (Order: {$orderNumber}) has been delivered and is now available for pickup/purchase!";
+        
+        foreach ($preorderCustomers as $customer) {
+            createNotification($conn, $customer['user_id'], $preorderMessage, $orderNumber, 'preorder_delivered');
+        }
+        
+        // 2. Notify all other customers (who didn't place pre-orders)
+        $preorderCustomerIds = array_column($preorderCustomers, 'user_id');
+        
+        if (!empty($preorderCustomerIds)) {
+            $placeholders = str_repeat('?,', count($preorderCustomerIds) - 1) . '?';
+            $otherCustomersStmt = $conn->prepare("
+                SELECT id as user_id FROM account 
+                WHERE role_category = 'COLLEGE STUDENT' AND status = 'active' 
+                AND id NOT IN ({$placeholders})
+            ");
+            $otherCustomersStmt->execute($preorderCustomerIds);
+        } else {
+            $otherCustomersStmt = $conn->prepare("
+                SELECT id as user_id FROM account 
+                WHERE role_category = 'COLLEGE STUDENT' AND status = 'active'
+            ");
+            $otherCustomersStmt->execute();
+        }
+        $otherCustomers = $otherCustomersStmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Notification for general customers
+        $generalMessage = "🛍️ New Item Available! '{$itemName}' is now in stock and ready for purchase. Check it out!";
+        
+        foreach ($otherCustomers as $customerId) {
+            createNotification($conn, $customerId, $generalMessage, $orderNumber, 'item_available');
+        }
+    } catch (Throwable $e) { 
+        // Non-critical error, don't fail the request 
+    }
+
     // Audit trail: log this delivery action
     try {
         $userId = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : null;
-        $desc = sprintf('Pre-order delivered → base_code=%s, sizes=%s', $base, implode(',', array_keys($delivered)));
-        $log = $conn->prepare('INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES (?,?,?,?, NOW())');
+        $totalQty = array_sum($delivered);
+        $sizeDetails = [];
+        foreach ($delivered as $size => $qty) {
+            $sizeDetails[] = "{$size}({$qty})";
+        }
+        $desc = sprintf('Pre-order delivered to inventory → Item: %s, Order: %s, Total Qty: %d, Sizes: %s', 
+                       $itemName, $orderNumber, $totalQty, implode(', ', $sizeDetails));
+        $log = $conn->prepare('INSERT INTO activities (action_type, description, item_code, user_id) VALUES (?, ?, ?, ?)');
         $log->execute(['PreOrder Delivered', $desc, $base, $userId]);
     } catch (Throwable $e) { /* best-effort logging */ }
 

@@ -7,7 +7,6 @@ function createNotification($conn, $user_id, $message, $order_number, $type) {
         ");
         return $stmt->execute([$user_id, $message, $order_number, $type]);
     } catch (PDOException $e) {
-        error_log("Error creating notification: " . $e->getMessage());
         return false;
     }
 }

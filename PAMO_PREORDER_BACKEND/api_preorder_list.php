@@ -22,7 +22,6 @@ try {
             pi.item_name,
             pi.category_id,
             pi.price,
-            pi.sizes,
             pi.status,
             pi.image_path,
             pi.created_at,
@@ -38,6 +37,12 @@ try {
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Add all standard sizes to each preorder item since they're all available for pre-order
+    $standardSizes = 'XS,S,M,L,XL,XXL,3XL,4XL,5XL,6XL,7XL,One Size';
+    foreach ($rows as &$row) {
+        $row['sizes'] = $standardSizes;
+    }
 
     echo json_encode(['success' => true, 'items' => $rows]);
     exit;

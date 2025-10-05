@@ -1,7 +1,20 @@
 <?php
+// Prevent any output before headers
+ob_start();
+error_reporting(E_ERROR | E_PARSE);
+ini_set('display_errors', 0);
+
+// Start session first, then set headers
+if (session_status() === PHP_SESSION_NONE) { 
+    session_start(); 
+}
+
+// Clean any previous output and set headers
+ob_clean();
 header('Content-Type: application/json');
+
 require_once __DIR__ . '/../Includes/connection.php';
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+require_once __DIR__ . '/../Includes/notifications.php';
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') throw new Exception('POST required');
@@ -10,11 +23,10 @@ try {
     $baseCode = trim($_POST['base_item_code'] ?? '');
     $categoryId = isset($_POST['category_id']) && $_POST['category_id'] !== '' ? intval($_POST['category_id']) : null;
     $price = isset($_POST['price']) ? floatval($_POST['price']) : 0;
-    $sizesCsv = trim($_POST['sizes'] ?? '');
     $subcategoryIds = isset($_POST['subcategory_ids']) && is_array($_POST['subcategory_ids']) ? $_POST['subcategory_ids'] : [];
 
-    if ($itemName === '' || $baseCode === '' || $sizesCsv === '') {
-        throw new Exception('item_name, base_item_code and sizes are required');
+    if ($itemName === '' || $baseCode === '') {
+        throw new Exception('item_name and base_item_code are required');
     }
 
     $imagePath = null;
@@ -31,8 +43,8 @@ try {
         $imagePath = 'uploads/preorder/' . $fileName;
     }
 
-    $stmt = $conn->prepare('INSERT INTO preorder_items (base_item_code, item_name, category_id, price, sizes, image_path) VALUES (?, ?, ?, ?, ?, ?)');
-    $stmt->execute([$baseCode, $itemName, $categoryId, $price, $sizesCsv, $imagePath]);
+    $stmt = $conn->prepare('INSERT INTO preorder_items (base_item_code, item_name, category_id, price, image_path) VALUES (?, ?, ?, ?, ?)');
+    $stmt->execute([$baseCode, $itemName, $categoryId, $price, $imagePath]);
     $preId = intval($conn->lastInsertId());
 
     if (!empty($subcategoryIds)) {
@@ -46,10 +58,40 @@ try {
     // Audit trail: log pre-order creation
     try {
         $userId = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : null;
-        $desc = sprintf('Pre-order created → base_code=%s, name=%s, price=%.2f, sizes=%s', $baseCode, $itemName, $price, $sizesCsv);
-        $log = $conn->prepare('INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES (?,?,?,?, NOW())');
-        $log->execute(['PreOrder Created', $desc, $baseCode, $userId]);
-    } catch (Throwable $e) { /* best-effort logging */ }
+        
+        $categoryName = null;
+        if (!empty($categoryId)) {
+            $catStmt = $conn->prepare('SELECT name FROM categories WHERE id = ?');
+            $catStmt->execute([$categoryId]);
+            $categoryName = $catStmt->fetchColumn();
+        }
+        
+        $desc = sprintf('New pre-order item created → Item: %s, Code: %s, Category: %s, Price: ₱%.2f', 
+                       $itemName, $baseCode, $categoryName ?: 'None', $price);
+        
+        $log = $conn->prepare('INSERT INTO activities (action_type, description, item_code, user_id) VALUES (?, ?, ?, ?)');
+        $log->execute(['PreOrder Created', $desc, null, $userId]);
+    } catch (Throwable $e) { 
+        // Silent logging - don't break the process
+    }
+
+    // Send notification to all customers about new pre-order item
+    try {
+        // Check if notifications table exists and get customers
+        $customerStmt = $conn->prepare('SELECT id as user_id, CONCAT(first_name, " ", last_name) as name FROM account WHERE role_category = ? AND status = ?');
+        $customerStmt->execute(['COLLEGE STUDENT', 'active']);
+        $customers = $customerStmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (!empty($customers)) {
+            $notificationMessage = "🆕 New Pre-Order Available: {$itemName} - ₱{$price}! Place your pre-order now.";
+            
+            foreach ($customers as $customer) {
+                createNotification($conn, $customer['user_id'], $notificationMessage, $baseCode, 'preorder_available');
+            }
+        }
+    } catch (Throwable $e) { 
+        // Silent notification error - don't break the process
+    }
 
     echo json_encode(['success' => true, 'id' => $preId, 'image_path' => $imagePath]);
     exit;

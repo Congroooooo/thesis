@@ -66,10 +66,11 @@ include '../Includes/loader.php';
                     $imgPath = !empty($row['image_path']) ? '../' . $row['image_path'] : '../uploads/itemlist/default.png';
                     $title = htmlspecialchars($row['item_name']);
                     $price = number_format((float)$row['price'], 2);
-                    $sizes = htmlspecialchars($row['sizes']);
+                    // For pre-orders, make all standard sizes available
+                    $allSizes = 'XS,S,M,L,XL,XXL,3XL,4XL,5XL,6XL,7XL,One Size';
                     $preId = (int)$row['id'];
                     $requests = (int)$row['total_requests'];
-                    echo '<div class="product-container" data-preorder-id="' . $preId . '" data-sizes="' . $sizes . '" data-item-name="' . $title . '" data-price="' . $row['price'] . '">';
+                    echo '<div class="product-container" data-preorder-id="' . $preId . '" data-sizes="' . $allSizes . '" data-item-name="' . $title . '" data-price="' . $row['price'] . '">';
                     echo '  <img src="' . htmlspecialchars($imgPath) . '" alt="' . $title . '">';
                     echo '  <div class="product-overlay">';
                     echo '      <div class="items"></div>';
