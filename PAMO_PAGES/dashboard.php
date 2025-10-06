@@ -1,7 +1,30 @@
 <?php
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error.log');
+
 session_start();
-include 'includes/config_functions.php';
-include '../includes/connection.php';
+
+// Check if files exist before including them
+$config_file = 'includes/config_functions.php';
+$connection_file = '../includes/connection.php';
+$loader_file = 'includes/pamo_loader.php';
+
+if (!file_exists($config_file)) {
+    die("Error: Config functions file not found at: " . realpath($config_file));
+}
+if (!file_exists($connection_file)) {
+    die("Error: Connection file not found at: " . realpath($connection_file));
+}
+if (!file_exists($loader_file)) {
+    die("Error: Loader file not found at: " . realpath($loader_file));
+}
+
+include $config_file;
+include $connection_file;
+include $loader_file;
 
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (!isset($_SESSION['user_id'])) {
@@ -16,20 +39,54 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
 }
 
 
-$total_items_query = "SELECT SUM(actual_quantity) as total FROM inventory";
-$total_result = $conn->query($total_items_query);
-$total_items = $total_result->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+// Initialize default values
+$total_items = 0;
+$pending_orders = 0;
+$low_stock_items = 0;
 
-$pending_orders_query = "SELECT COUNT(*) as pending FROM orders WHERE status = 'pending'";
-$pending_result = $conn->query($pending_orders_query);
-$pending_orders = $pending_result->fetch(PDO::FETCH_ASSOC)['pending'] ?? 0;
+try {
+    // Check if database connection is working
+    if (!$conn) {
+        die("Database connection failed");
+    }
 
-$low_stock_query = "SELECT COUNT(*) as low_stock 
-                    FROM inventory 
-                    WHERE actual_quantity <= " . getLowStockThreshold($conn) . "
-                    AND actual_quantity > 0";
-$low_stock_result = $conn->query($low_stock_query);
-$low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
+    // Test database connection
+    $test_query = "SELECT 1";
+    $conn->query($test_query);
+
+    // Get total items
+    $total_items_query = "SELECT SUM(actual_quantity) as total FROM inventory";
+    $total_result = $conn->query($total_items_query);
+    if ($total_result) {
+        $row = $total_result->fetch(PDO::FETCH_ASSOC);
+        $total_items = $row['total'] ?? 0;
+    }
+
+    // Get pending orders
+    $pending_orders_query = "SELECT COUNT(*) as pending FROM orders WHERE status = 'pending'";
+    $pending_result = $conn->query($pending_orders_query);
+    if ($pending_result) {
+        $row = $pending_result->fetch(PDO::FETCH_ASSOC);
+        $pending_orders = $row['pending'] ?? 0;
+    }
+
+    // Get low stock items
+    $low_stock_threshold = getLowStockThreshold($conn);
+    $low_stock_query = "SELECT COUNT(*) as low_stock 
+                        FROM inventory 
+                        WHERE actual_quantity <= ? 
+                        AND actual_quantity > 0";
+    $low_stock_stmt = $conn->prepare($low_stock_query);
+    $low_stock_stmt->execute([$low_stock_threshold]);
+    $row = $low_stock_stmt->fetch(PDO::FETCH_ASSOC);
+    $low_stock_items = $row['low_stock'] ?? 0;
+
+} catch (Exception $e) {
+    // Log the error but continue with default values
+    error_log("Dashboard query error: " . $e->getMessage());
+    // Optionally display error for debugging (remove in production)
+    echo "<!-- Debug: Database error: " . htmlspecialchars($e->getMessage()) . " -->";
+}
 
 ?>
 
@@ -55,7 +112,6 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
 </head>
 
 <body>
-    <?php include 'includes/pamo_loader.php'; ?>
     <div class="container">
         <?php include 'includes/sidebar.php'; ?>
 
@@ -128,30 +184,50 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
                     </div>
                     <div class="activity-list">
                         <?php
-                        // Get current page number
-                        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-                        $items_per_page = 10;
-                        $offset = ($page - 1) * $items_per_page;
+                        try {
+                            // Get current page number
+                            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+                            $items_per_page = 10;
+                            $offset = ($page - 1) * $items_per_page;
 
-                        // Get total number of activities
-                        $total_query = "SELECT COUNT(*) as total FROM activities WHERE DATE(timestamp) = CURDATE()";
-                        $total_result = $conn->query($total_query);
-                        $total_activities = $total_result->fetch(PDO::FETCH_ASSOC)['total'];
-                        $total_pages = ceil($total_activities / $items_per_page);
+                            // Initialize default values
+                            $total_activities = 0;
+                            $total_pages = 1;
+                            $activities_result = null;
 
-                        // Modified query with pagination
-                        $activities_query = "SELECT * FROM activities 
-                        WHERE DATE(timestamp) = CURDATE()
-                        ORDER BY id DESC, timestamp DESC
-                        LIMIT :offset, :items_per_page";
-                        
-                        $stmt = $conn->prepare($activities_query);
-                        $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
-                        $stmt->bindParam(':items_per_page', $items_per_page, PDO::PARAM_INT);
-                        $stmt->execute();
-                        $activities_result = $stmt;
+                            // Check if activities table exists
+                            $table_check = $conn->query("SHOW TABLES LIKE 'activities'");
+                            if ($table_check->rowCount() > 0) {
+                                // Get total number of activities
+                                $total_query = "SELECT COUNT(*) as total FROM activities WHERE DATE(timestamp) = CURDATE()";
+                                $total_result = $conn->query($total_query);
+                                if ($total_result) {
+                                    $row = $total_result->fetch(PDO::FETCH_ASSOC);
+                                    $total_activities = $row['total'] ?? 0;
+                                }
+                                $total_pages = max(1, ceil($total_activities / $items_per_page));
 
-                        if ($activities_result->rowCount() > 0) {
+                                // Modified query with pagination
+                                $activities_query = "SELECT * FROM activities 
+                                WHERE DATE(timestamp) = CURDATE()
+                                ORDER BY id DESC, timestamp DESC
+                                LIMIT :offset, :items_per_page";
+                                
+                                $stmt = $conn->prepare($activities_query);
+                                $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+                                $stmt->bindParam(':items_per_page', $items_per_page, PDO::PARAM_INT);
+                                $stmt->execute();
+                                $activities_result = $stmt;
+                            }
+                        } catch (Exception $e) {
+                            error_log("Activities query error: " . $e->getMessage());
+                            echo "<!-- Debug: Activities error: " . htmlspecialchars($e->getMessage()) . " -->";
+                            $total_activities = 0;
+                            $total_pages = 1;
+                            $activities_result = null;
+                        }
+
+                        if ($activities_result && $activities_result->rowCount() > 0) {
                             while ($activity = $activities_result->fetch(PDO::FETCH_ASSOC)) {
                                 $icon = '';
                                 switch ($activity['action_type']) {
@@ -193,6 +269,10 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
                         }
                         ?>
                     </div>
+                    
+                    <!-- Debug information (remove after fixing) -->
+                    <!-- PHP execution completed successfully -->
+                    
                     <?php if ($total_pages > 1): ?>
                     <div class="pagination">
                         <?php if ($page > 1): ?>
@@ -218,5 +298,27 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
             </div>
         </main>
     </div>
+    
+    <!-- Debug script to check page loading -->
+    <script>
+        console.log('Dashboard page loaded successfully');
+        
+        // Check if main content is visible
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            const mainContent = document.querySelector('.main-content');
+            if (mainContent) {
+                console.log('Main content found:', mainContent);
+            } else {
+                console.error('Main content not found!');
+            }
+            
+            // Check if loader is still visible
+            const loader = document.getElementById('pamo-loader');
+            if (loader) {
+                console.log('Loader element found:', loader.style.display);
+            }
+        });
+    </script>
 </body>
 </html>
