@@ -7,19 +7,42 @@ ini_set('error_log', __DIR__ . '/error.log');
 
 session_start();
 
-// Check if files exist before including them
-$config_file = 'includes/config_functions.php';
-$connection_file = '../includes/connection.php';
-$loader_file = 'includes/pamo_loader.php';
+// Use absolute paths for better compatibility
+$base_dir = dirname(__DIR__); // Go up one directory from PAMO_PAGES
+$config_file = __DIR__ . '/includes/config_functions.php';
+$connection_file = $base_dir . '/includes/connection.php';
+$loader_file = __DIR__ . '/includes/pamo_loader.php';
 
+// Alternative connection file paths to try
+$connection_alternatives = [
+    $base_dir . '/includes/connection.php',
+    $base_dir . '/Includes/connection.php',  // Capital I
+    dirname(__DIR__) . '/includes/connection.php',
+    __DIR__ . '/../includes/connection.php'
+];
+
+// Check config file
 if (!file_exists($config_file)) {
-    die("Error: Config functions file not found at: " . realpath($config_file));
+    die("Error: Config functions file not found at: " . $config_file . " (Real path: " . realpath(dirname($config_file)) . ")");
 }
-if (!file_exists($connection_file)) {
-    die("Error: Connection file not found at: " . realpath($connection_file));
+
+// Try different paths for connection file
+$connection_found = false;
+foreach ($connection_alternatives as $alt_path) {
+    if (file_exists($alt_path)) {
+        $connection_file = $alt_path;
+        $connection_found = true;
+        break;
+    }
 }
+
+if (!$connection_found) {
+    die("Error: Connection file not found. Tried paths: " . implode(', ', $connection_alternatives) . " | Base dir: " . $base_dir);
+}
+
+// Check loader file
 if (!file_exists($loader_file)) {
-    die("Error: Loader file not found at: " . realpath($loader_file));
+    die("Error: Loader file not found at: " . $loader_file . " (Real path: " . realpath(dirname($loader_file)) . ")");
 }
 
 include $config_file;
