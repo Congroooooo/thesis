@@ -2,7 +2,6 @@
 session_start();
 include 'includes/config_functions.php';
 include '../includes/connection.php';
-include 'includes/pamo_loader.php';
 
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (!isset($_SESSION['user_id'])) {
@@ -56,6 +55,7 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
 </head>
 
 <body>
+    <?php include 'includes/pamo_loader.php'; ?>
     <div class="container">
         <?php include 'includes/sidebar.php'; ?>
 
