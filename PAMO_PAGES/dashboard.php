@@ -1,48 +1,23 @@
 <?php
-// Enable error reporting for debugging
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/error.log');
-
 session_start();
 
-// Use absolute paths for better compatibility
-$base_dir = dirname(__DIR__); // Go up one directory from PAMO_PAGES
+// Use absolute paths for better compatibility across environments
+$base_dir = dirname(__DIR__);
 $config_file = __DIR__ . '/includes/config_functions.php';
-$connection_file = $base_dir . '/includes/connection.php';
 $loader_file = __DIR__ . '/includes/pamo_loader.php';
 
-// Alternative connection file paths to try
+// Try different possible paths for the connection file
 $connection_alternatives = [
     $base_dir . '/includes/connection.php',
-    $base_dir . '/Includes/connection.php',  // Capital I
-    dirname(__DIR__) . '/includes/connection.php',
-    __DIR__ . '/../includes/connection.php'
+    $base_dir . '/Includes/connection.php'
 ];
 
-// Check config file
-if (!file_exists($config_file)) {
-    die("Error: Config functions file not found at: " . $config_file . " (Real path: " . realpath(dirname($config_file)) . ")");
-}
-
-// Try different paths for connection file
-$connection_found = false;
+$connection_file = null;
 foreach ($connection_alternatives as $alt_path) {
     if (file_exists($alt_path)) {
         $connection_file = $alt_path;
-        $connection_found = true;
         break;
     }
-}
-
-if (!$connection_found) {
-    die("Error: Connection file not found. Tried paths: " . implode(', ', $connection_alternatives) . " | Base dir: " . $base_dir);
-}
-
-// Check loader file
-if (!file_exists($loader_file)) {
-    die("Error: Loader file not found at: " . $loader_file . " (Real path: " . realpath(dirname($loader_file)) . ")");
 }
 
 include $config_file;
@@ -62,54 +37,20 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
 }
 
 
-// Initialize default values
-$total_items = 0;
-$pending_orders = 0;
-$low_stock_items = 0;
+$total_items_query = "SELECT SUM(actual_quantity) as total FROM inventory";
+$total_result = $conn->query($total_items_query);
+$total_items = $total_result->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 
-try {
-    // Check if database connection is working
-    if (!$conn) {
-        die("Database connection failed");
-    }
+$pending_orders_query = "SELECT COUNT(*) as pending FROM orders WHERE status = 'pending'";
+$pending_result = $conn->query($pending_orders_query);
+$pending_orders = $pending_result->fetch(PDO::FETCH_ASSOC)['pending'] ?? 0;
 
-    // Test database connection
-    $test_query = "SELECT 1";
-    $conn->query($test_query);
-
-    // Get total items
-    $total_items_query = "SELECT SUM(actual_quantity) as total FROM inventory";
-    $total_result = $conn->query($total_items_query);
-    if ($total_result) {
-        $row = $total_result->fetch(PDO::FETCH_ASSOC);
-        $total_items = $row['total'] ?? 0;
-    }
-
-    // Get pending orders
-    $pending_orders_query = "SELECT COUNT(*) as pending FROM orders WHERE status = 'pending'";
-    $pending_result = $conn->query($pending_orders_query);
-    if ($pending_result) {
-        $row = $pending_result->fetch(PDO::FETCH_ASSOC);
-        $pending_orders = $row['pending'] ?? 0;
-    }
-
-    // Get low stock items
-    $low_stock_threshold = getLowStockThreshold($conn);
-    $low_stock_query = "SELECT COUNT(*) as low_stock 
-                        FROM inventory 
-                        WHERE actual_quantity <= ? 
-                        AND actual_quantity > 0";
-    $low_stock_stmt = $conn->prepare($low_stock_query);
-    $low_stock_stmt->execute([$low_stock_threshold]);
-    $row = $low_stock_stmt->fetch(PDO::FETCH_ASSOC);
-    $low_stock_items = $row['low_stock'] ?? 0;
-
-} catch (Exception $e) {
-    // Log the error but continue with default values
-    error_log("Dashboard query error: " . $e->getMessage());
-    // Optionally display error for debugging (remove in production)
-    echo "<!-- Debug: Database error: " . htmlspecialchars($e->getMessage()) . " -->";
-}
+$low_stock_query = "SELECT COUNT(*) as low_stock 
+                    FROM inventory 
+                    WHERE actual_quantity <= " . getLowStockThreshold($conn) . "
+                    AND actual_quantity > 0";
+$low_stock_result = $conn->query($low_stock_query);
+$low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
 
 ?>
 
@@ -207,50 +148,30 @@ try {
                     </div>
                     <div class="activity-list">
                         <?php
-                        try {
-                            // Get current page number
-                            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-                            $items_per_page = 10;
-                            $offset = ($page - 1) * $items_per_page;
+                        // Get current page number
+                        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+                        $items_per_page = 10;
+                        $offset = ($page - 1) * $items_per_page;
 
-                            // Initialize default values
-                            $total_activities = 0;
-                            $total_pages = 1;
-                            $activities_result = null;
+                        // Get total number of activities
+                        $total_query = "SELECT COUNT(*) as total FROM activities WHERE DATE(timestamp) = CURDATE()";
+                        $total_result = $conn->query($total_query);
+                        $total_activities = $total_result->fetch(PDO::FETCH_ASSOC)['total'];
+                        $total_pages = ceil($total_activities / $items_per_page);
 
-                            // Check if activities table exists
-                            $table_check = $conn->query("SHOW TABLES LIKE 'activities'");
-                            if ($table_check->rowCount() > 0) {
-                                // Get total number of activities
-                                $total_query = "SELECT COUNT(*) as total FROM activities WHERE DATE(timestamp) = CURDATE()";
-                                $total_result = $conn->query($total_query);
-                                if ($total_result) {
-                                    $row = $total_result->fetch(PDO::FETCH_ASSOC);
-                                    $total_activities = $row['total'] ?? 0;
-                                }
-                                $total_pages = max(1, ceil($total_activities / $items_per_page));
+                        // Modified query with pagination
+                        $activities_query = "SELECT * FROM activities 
+                        WHERE DATE(timestamp) = CURDATE()
+                        ORDER BY id DESC, timestamp DESC
+                        LIMIT :offset, :items_per_page";
+                        
+                        $stmt = $conn->prepare($activities_query);
+                        $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+                        $stmt->bindParam(':items_per_page', $items_per_page, PDO::PARAM_INT);
+                        $stmt->execute();
+                        $activities_result = $stmt;
 
-                                // Modified query with pagination
-                                $activities_query = "SELECT * FROM activities 
-                                WHERE DATE(timestamp) = CURDATE()
-                                ORDER BY id DESC, timestamp DESC
-                                LIMIT :offset, :items_per_page";
-                                
-                                $stmt = $conn->prepare($activities_query);
-                                $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
-                                $stmt->bindParam(':items_per_page', $items_per_page, PDO::PARAM_INT);
-                                $stmt->execute();
-                                $activities_result = $stmt;
-                            }
-                        } catch (Exception $e) {
-                            error_log("Activities query error: " . $e->getMessage());
-                            echo "<!-- Debug: Activities error: " . htmlspecialchars($e->getMessage()) . " -->";
-                            $total_activities = 0;
-                            $total_pages = 1;
-                            $activities_result = null;
-                        }
-
-                        if ($activities_result && $activities_result->rowCount() > 0) {
+                        if ($activities_result->rowCount() > 0) {
                             while ($activity = $activities_result->fetch(PDO::FETCH_ASSOC)) {
                                 $icon = '';
                                 switch ($activity['action_type']) {
@@ -292,10 +213,6 @@ try {
                         }
                         ?>
                     </div>
-                    
-                    <!-- Debug information (remove after fixing) -->
-                    <!-- PHP execution completed successfully -->
-                    
                     <?php if ($total_pages > 1): ?>
                     <div class="pagination">
                         <?php if ($page > 1): ?>
@@ -321,27 +238,5 @@ try {
             </div>
         </main>
     </div>
-    
-    <!-- Debug script to check page loading -->
-    <script>
-        console.log('Dashboard page loaded successfully');
-        
-        // Check if main content is visible
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded');
-            const mainContent = document.querySelector('.main-content');
-            if (mainContent) {
-                console.log('Main content found:', mainContent);
-            } else {
-                console.error('Main content not found!');
-            }
-            
-            // Check if loader is still visible
-            const loader = document.getElementById('pamo-loader');
-            if (loader) {
-                console.log('Loader element found:', loader.style.display);
-            }
-        });
-    </script>
 </body>
 </html>
