@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare("INSERT INTO homepage_content (section, image_path, title, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())");
                 $stmt->execute([$section, $dbFilePath, $title]);
             }
-            header('Location: ../PAMO PAGES/content-edit.php?success=1');
+            header('Location: ../PAMO_PAGES/content-edit.php?success=1');
             exit();
         } else {
             die('Failed to upload image. Check directory permissions and path.');

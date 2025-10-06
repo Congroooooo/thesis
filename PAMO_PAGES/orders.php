@@ -5,7 +5,7 @@ require_once '../Includes/connection.php';
 
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../Pages/login.php?redirect=../PAMO PAGES/orders.php");
+    header("Location: ../Pages/login.php?redirect=../PAMO_PAGES/orders.php");
     exit();
 }
 $role = strtoupper($_SESSION['role_category'] ?? '');

@@ -165,7 +165,7 @@ http://localhost/Proware/
 
 ### PAMO Dashboard
 
-- **URL**: `http://localhost/Proware/PAMO PAGES/dashboard.php`
+- **URL**: `http://localhost/Proware/PAMO_PAGES/dashboard.php`
 - **Access**: PAMO role required
 - **Functions**:
   - Monitor inventory levels
@@ -207,7 +207,7 @@ Proware/
 │   ├── login.php              # Authentication
 │   ├── MyCart.php             # Shopping cart
 │   └── profile.php            # User profile
-├── PAMO PAGES/                # PAMO dashboard pages
+├── PAMO_PAGES/                # PAMO dashboard pages
 ├── PAMO_DASHBOARD_BACKEND/    # PAMO API endpoints
 ├── PAMO_PREORDER_BACKEND/     # Pre-order API handlers
 ├── PAMO ORDER BACKEND/        # Order management APIs

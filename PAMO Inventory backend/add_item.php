@@ -106,7 +106,7 @@ try {
             $course_ids = isset($productData['course_id']) ? (is_array($productData['course_id']) ? $productData['course_id'] : [$productData['course_id']]) : [];
             $RTW = (count($course_ids) > 1) ? 1 : 0;
 
-            include_once '../PAMO PAGES/includes/config_functions.php';
+            include_once '../PAMO_PAGES/includes/config_functions.php';
             $lowStockThreshold = getLowStockThreshold($conn);
 
             $product_inserted_items = [];
@@ -276,7 +276,7 @@ try {
         $course_ids = isset($_POST['course_id']) ? (is_array($_POST['course_id']) ? $_POST['course_id'] : [$_POST['course_id']]) : [];
         $RTW = (count($course_ids) > 1) ? 1 : 0;
 
-        include_once '../PAMO PAGES/includes/config_functions.php';
+        include_once '../PAMO_PAGES/includes/config_functions.php';
         $lowStockThreshold = getLowStockThreshold($conn);
 
         $inserted_items = [];
@@ -403,7 +403,7 @@ try {
         $new_delivery = $quantity;
         $actual_quantity = $beginning_quantity + $new_delivery - $damage;
         $sold_quantity = 0;
-        include_once '../PAMO PAGES/includes/config_functions.php';
+        include_once '../PAMO_PAGES/includes/config_functions.php';
         $lowStockThreshold = getLowStockThreshold($conn);
         $status = ($actual_quantity <= 0) ? 'Out of Stock' : (($actual_quantity <= $lowStockThreshold) ? 'Low Stock' : 'In Stock');
 

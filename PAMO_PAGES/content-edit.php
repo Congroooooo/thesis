@@ -4,7 +4,7 @@ include '../Includes/connection.php';
 
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../Pages/login.php?redirect=../PAMO PAGES/content-edit.php");
+    header("Location: ../Pages/login.php?redirect=../PAMO_PAGES/content-edit.php");
     exit();
 }
 $role = strtoupper($_SESSION['role_category'] ?? '');
@@ -62,7 +62,7 @@ include 'includes/pamo_loader.php';
 
 <body>
     <div class="container">
-        <?php include '../PAMO PAGES/includes/sidebar.php'; ?>
+        <?php include '../PAMO_PAGES/includes/sidebar.php'; ?>
         <main class="main-content">
             <header>
                 <h1>Content Management</h1>

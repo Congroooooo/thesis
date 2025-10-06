@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit();
             }
             if ($isPamoPosition) {
-                header("Location: ../PAMO PAGES/dashboard.php");
+                header("Location: ../PAMO_PAGES/dashboard.php");
                 exit();
             }
 

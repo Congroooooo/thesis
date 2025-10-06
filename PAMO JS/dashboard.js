@@ -4,7 +4,7 @@ function logout() {
 
 function clearActivities() {
   if (confirm("Are you sure you want to clear all activities?")) {
-    fetch("../PAMO PAGES/clear_activities.php", {
+    fetch("../PAMO_PAGES/clear_activities.php", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

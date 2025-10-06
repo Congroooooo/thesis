@@ -73,7 +73,7 @@ function ajaxLoadReport(type, page = 1, extraParams = {}) {
   const filters = getCurrentReportFilters();
   const params = { ...filters, ...extraParams, type, page };
   const query = new URLSearchParams(params).toString();
-  fetch("../PAMO PAGES/includes/fetch_reports.php?" + query)
+  fetch("../PAMO_PAGES/includes/fetch_reports.php?" + query)
     .then((res) => res.json())
     .then((data) => {
       // Insert table HTML
@@ -259,11 +259,11 @@ function exportToExcel() {
   const params = new URLSearchParams(filters).toString();
   let exportUrl = "";
   if (reportType === "sales") {
-    exportUrl = "../PAMO PAGES/includes/export_sales_report.php?" + params;
+    exportUrl = "../PAMO_PAGES/includes/export_sales_report.php?" + params;
   } else if (reportType === "inventory") {
-    exportUrl = "../PAMO PAGES/includes/export_inventory_report.php?" + params;
+    exportUrl = "../PAMO_PAGES/includes/export_inventory_report.php?" + params;
   } else if (reportType === "audit") {
-    exportUrl = "../PAMO PAGES/includes/export_audit_report.php?" + params;
+    exportUrl = "../PAMO_PAGES/includes/export_audit_report.php?" + params;
   } else {
     alert("Excel export is not available for this report type.");
     return;

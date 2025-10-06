@@ -3,7 +3,7 @@ session_start();
 include 'includes/config_functions.php';
 include '../includes/connection.php';
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../Pages/login.php?redirect=../PAMO PAGES/settings.php");
+    header("Location: ../Pages/login.php?redirect=../PAMO_PAGES/settings.php");
     exit();
 }
 $role = strtoupper($_SESSION['role_category'] ?? '');

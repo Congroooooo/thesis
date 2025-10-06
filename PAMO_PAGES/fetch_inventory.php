@@ -5,7 +5,7 @@ header('Cache-Control: no-cache, must-revalidate');
 
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../Pages/login.php?redirect=../PAMO PAGES/fetch_inventory.php");
+    header("Location: ../Pages/login.php?redirect=../PAMO_PAGES/fetch_inventory.php");
     exit();
 }
 $role = strtoupper($_SESSION['role_category'] ?? '');
