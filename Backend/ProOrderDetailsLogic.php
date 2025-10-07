@@ -56,8 +56,8 @@ try {
     }
     unset($item);
     $stmt = $conn->prepare("
-        INSERT INTO orders (order_number, user_id, items, phone, total_amount, status, payment_date) 
-        VALUES (?, ?, ?, ?, ?, 'pending', NULL)
+        INSERT INTO orders (order_number, user_id, items, phone, total_amount, status, payment_date, created_at) 
+        VALUES (?, ?, ?, ?, ?, 'pending', NULL, NOW())
     ");
     $stmt->execute([
         $order_number,

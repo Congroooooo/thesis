@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Asia/Manila');
 // Prevent any output before headers
 ob_start();
 error_reporting(E_ERROR | E_PARSE);

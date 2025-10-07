@@ -1,9 +1,10 @@
 <?php
+date_default_timezone_set('Asia/Manila');
 function createNotification($conn, $user_id, $message, $order_number, $type) {
     try {
         $stmt = $conn->prepare("
-            INSERT INTO notifications (user_id, message, order_number, type)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO notifications (user_id, message, order_number, type, created_at)
+            VALUES (?, ?, ?, ?, NOW())
         ");
         return $stmt->execute([$user_id, $message, $order_number, $type]);
     } catch (PDOException $e) {
