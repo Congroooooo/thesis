@@ -1,6 +1,22 @@
 <?php
 session_start();
-include '../Includes/connection.php';
+
+// Use absolute paths for better compatibility across environments
+$base_dir = dirname(__DIR__);
+$connection_alternatives = [
+    $base_dir . '/includes/connection.php',
+    $base_dir . '/Includes/connection.php'
+];
+
+$connection_file = null;
+foreach ($connection_alternatives as $alt_path) {
+    if (file_exists($alt_path)) {
+        $connection_file = $alt_path;
+        break;
+    }
+}
+
+include $connection_file;
 
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (!isset($_SESSION['user_id'])) {

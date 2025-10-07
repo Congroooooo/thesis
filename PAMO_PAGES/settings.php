@@ -1,7 +1,26 @@
 <?php
 session_start();
-include 'includes/config_functions.php';
-include '../includes/connection.php';
+
+// Use absolute paths for better compatibility across environments
+$base_dir = dirname(__DIR__);
+$config_file = __DIR__ . '/includes/config_functions.php';
+
+// Try different possible paths for the connection file
+$connection_alternatives = [
+    $base_dir . '/includes/connection.php',
+    $base_dir . '/Includes/connection.php'
+];
+
+$connection_file = null;
+foreach ($connection_alternatives as $alt_path) {
+    if (file_exists($alt_path)) {
+        $connection_file = $alt_path;
+        break;
+    }
+}
+
+include $config_file;
+include $connection_file;
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../Pages/login.php?redirect=../PAMO_PAGES/settings.php");
     exit();
@@ -17,14 +36,33 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_threshold'])) {
     $newThreshold = intval($_POST['low_stock_threshold']);
     $oldThreshold = getLowStockThreshold($conn);
+    
     if ($newThreshold > 0) {
-        if (updateLowStockThreshold($conn, $newThreshold)) {
-            $success_message = "Low stock threshold updated successfully!";
-            $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
-            $desc = "Low stock threshold changed from $oldThreshold to $newThreshold.";
-            logActivity($conn, 'Low Stock Update', $desc, $user_id);
-        } else {
-            $error_message = "Failed to update low stock threshold.";
+        try {
+            // Check if system_config table exists
+            $tableCheck = $conn->query("SHOW TABLES LIKE 'system_config'");
+            if ($tableCheck->rowCount() == 0) {
+                // Create table if it doesn't exist
+                $createTable = "CREATE TABLE IF NOT EXISTS system_config (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    config_key VARCHAR(50) UNIQUE NOT NULL,
+                    config_value VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                )";
+                $conn->exec($createTable);
+            }
+            
+            if (updateLowStockThreshold($conn, $newThreshold)) {
+                $success_message = "Low stock threshold updated successfully!";
+                $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+                $desc = "Low stock threshold changed from $oldThreshold to $newThreshold.";
+                logActivity($conn, 'Low Stock Update', $desc, $user_id);
+            } else {
+                $error_message = "Failed to update low stock threshold. Please check database permissions.";
+            }
+        } catch (Exception $e) {
+            $error_message = "Database error: " . $e->getMessage();
         }
     } else {
         $error_message = "Threshold must be greater than 0.";
