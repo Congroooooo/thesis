@@ -8,6 +8,10 @@ try {
     $userId = intval($_SESSION['user_id'] ?? 0);
     if ($userId <= 0) throw new Exception('Login required');
 
+    // Check if user is blocked (has strikes or cooldown restrictions)
+    require_once __DIR__ . '/../Includes/strike_management.php';
+    checkUserStrikeStatus($conn, $userId, false);
+
     $preId = intval($_POST['preorder_item_id'] ?? 0);
     $size = trim($_POST['size'] ?? '');
     $qty = max(1, intval($_POST['quantity'] ?? 1));

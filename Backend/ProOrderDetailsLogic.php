@@ -3,6 +3,22 @@ date_default_timezone_set('Asia/Manila');
 session_start();
 require_once '../Includes/connection.php';
 
+// Check if user is blocked (has strikes or cooldown restrictions)
+if (isset($_SESSION['user_id'])) {
+    require_once '../Includes/strike_management.php';
+    
+    try {
+        checkUserStrikeStatus($conn, $_SESSION['user_id'], false);
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => $e->getMessage()
+        ]);
+        exit;
+    }
+}
+
 $firstName = $_POST['firstName'] ?? '';
 $lastName = $_POST['lastName'] ?? '';
 $course = $_POST['course'] ?? '';
