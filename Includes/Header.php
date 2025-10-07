@@ -262,6 +262,10 @@ if (isset($_SESSION['user_id'])) {
                 'Restock': 'Restock',
                 'Add Item Size': 'Add Item Size',
                 'New Item': 'New Item',
+                // Preorder notification types
+                'preorder_available': 'New Pre-Order',
+                'preorder_delivered': 'Pre-Order Ready',
+                'item_available': 'Item Available',
                 // Legacy mappings for compatibility
                 'new_item': 'New Item',
                 'low_stock': 'Low Stock Alert',
@@ -286,6 +290,10 @@ if (isset($_SESSION['user_id'])) {
                 'Restock': 'inventory',
                 'Add Item Size': 'straighten',
                 'New Item': 'add_shopping_cart',
+                // Preorder notification types
+                'preorder_available': 'shopping_cart',
+                'preorder_delivered': 'local_shipping',
+                'item_available': 'inventory_2',
                 // Legacy mappings for compatibility
                 'new_item': 'add_shopping_cart',
                 'low_stock': 'warning',
@@ -1839,6 +1847,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     .notification-icon-wrapper.new_item {
         background: linear-gradient(135deg, #00BCD4, #0097a7);
+    }
+
+    /* Preorder notification types */
+    .notification-icon-wrapper.preorder_available {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+    }
+
+    .notification-icon-wrapper.preorder_delivered {
+        background: linear-gradient(135deg, #FF9800, #f57c00);
+    }
+
+    .notification-icon-wrapper.item_available {
+        background: linear-gradient(135deg, #2196F3, #1976d2);
     }
 
     .notification-content {
