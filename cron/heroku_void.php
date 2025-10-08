@@ -1,29 +1,27 @@
-#!/usr/bin/env php
 <?php
-/**
- * Heroku Scheduler Script for Voiding Unpaid Orders
- * Run with: php cron/heroku_void.php
- * 
- * This script is designed to run on Heroku Scheduler every minute
- * It processes unpaid orders that are older than 5 minutes
- */
 
-// Set timezone
 date_default_timezone_set('Asia/Manila');
 
-// Include required files
 require_once __DIR__ . '/../Includes/connection.php';
 require_once __DIR__ . '/../Includes/notifications.php';
 
-// Start execution
 $startTime = microtime(true);
 $timestamp = date('Y-m-d H:i:s');
 
-echo "=== Heroku Void Cron Job Started ===\n";
-echo "Timestamp: $timestamp\n";
+function logToFile($message, $level = 'INFO') {
+    $logTimestamp = date('Y-m-d H:i:s');
+    $logEntry = "[$logTimestamp] [$level] $message\n";
+    file_put_contents(__DIR__ . '/heroku_execution.log', $logEntry, FILE_APPEND | LOCK_EX);
+    echo $logEntry;
+}
+
+logToFile("=== HEROKU SCHEDULER EXECUTION STARTED ===");
+logToFile("Execution ID: " . uniqid('exec_'));
+logToFile("Server Time: $timestamp");
+logToFile("PHP Version: " . phpversion());
+logToFile("Memory Limit: " . ini_get('memory_limit'));
 
 try {
-    // Query for unpaid approved orders older than 5 minutes
     $query = "
         SELECT 
             o.id, o.order_number, o.user_id, o.items, o.total_amount,
@@ -42,11 +40,26 @@ try {
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $count = count($orders);
-    echo "Found $count unpaid orders to process\n";
+    logToFile("Database query completed successfully");
+    logToFile("Found $count unpaid orders to process");
 
     if ($count === 0) {
-        echo "No orders to void at this time.\n";
-        echo "=== Cron Job Completed Successfully ===\n";
+        logToFile("No orders require voiding at this time", 'SUCCESS');
+        
+        // Show recent order activity for context
+        $recentQuery = "
+            SELECT COUNT(*) as total, 
+                   SUM(CASE WHEN status = 'approved' AND payment_date IS NULL THEN 1 ELSE 0 END) as unpaid_approved,
+                   SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+            FROM orders 
+            WHERE created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+        ";
+        $recentStmt = $conn->prepare($recentQuery);
+        $recentStmt->execute();
+        $stats = $recentStmt->fetch(PDO::FETCH_ASSOC);
+        
+        logToFile("Recent activity (last hour): {$stats['total']} total orders, {$stats['unpaid_approved']} unpaid approved, {$stats['pending']} pending");
+        logToFile("=== EXECUTION COMPLETED SUCCESSFULLY ===", 'SUCCESS');
         return;
     }
 
@@ -62,11 +75,12 @@ try {
             $orderNumber = $order['order_number'];
             $customerName = $order['first_name'] . ' ' . $order['last_name'];
 
-            echo "Processing Order #$orderNumber ($customerName)... ";
+            logToFile("Processing Order #$orderNumber (Customer: $customerName, ID: $orderId)");
 
             // 1. Update order status to 'voided'
             $conn->prepare("UPDATE orders SET status = 'voided' WHERE id = ?")
                 ->execute([$orderId]);
+            logToFile("Order status updated to 'voided'");
 
             // 2. Increment strikes
             $conn->prepare("
@@ -89,7 +103,9 @@ try {
             if ($strikeCount >= 3) {
                 $conn->prepare("UPDATE account SET is_strike = 1 WHERE id = ?")
                     ->execute([$userId]);
-                echo "[BLOCKED] ";
+                logToFile("Account BLOCKED due to 3 strikes (User ID: $userId)", 'WARNING');
+            } else {
+                logToFile("Strike added. User now has $strikeCount/3 strikes");
             }
 
             // 5. Create notification
@@ -108,29 +124,33 @@ try {
 
             $conn->commit();
             $voided++;
-            echo "VOIDED (Strikes: $strikeCount)\n";
+            logToFile("✅ Order #$orderNumber successfully voided (Strikes: $strikeCount)", 'SUCCESS');
 
         } catch (Exception $e) {
             if ($conn->inTransaction()) {
                 $conn->rollBack();
             }
             $errors++;
-            echo "ERROR: " . $e->getMessage() . "\n";
+            logToFile("❌ ERROR processing order #$orderNumber: " . $e->getMessage(), 'ERROR');
+            logToFile("Stack trace: " . $e->getTraceAsString(), 'DEBUG');
         }
     }
 
     $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+    $memoryUsed = memory_get_peak_usage(true) / 1024 / 1024; // MB
     
-    echo "\n=== Results ===\n";
-    echo "✅ Successfully voided: $voided orders\n";
-    echo "❌ Errors: $errors orders\n";
-    echo "⏱️  Execution time: {$executionTime}ms\n";
-    echo "=== Cron Job Completed ===\n";
+    logToFile("=== EXECUTION SUMMARY ===", 'SUCCESS');
+    logToFile("✅ Orders voided: $voided");
+    logToFile("❌ Errors encountered: $errors");
+    logToFile("⏱️ Execution time: {$executionTime}ms");
+    logToFile("🧠 Peak memory usage: " . round($memoryUsed, 2) . "MB");
+    logToFile("=== EXECUTION COMPLETED ===", 'SUCCESS');
 
 } catch (Exception $e) {
     $executionTime = round((microtime(true) - $startTime) * 1000, 2);
-    echo "FATAL ERROR: " . $e->getMessage() . "\n";
-    echo "Execution time: {$executionTime}ms\n";
+    logToFile("💥 FATAL ERROR: " . $e->getMessage(), 'FATAL');
+    logToFile("Stack trace: " . $e->getTraceAsString(), 'FATAL');
+    logToFile("Execution time before failure: {$executionTime}ms", 'FATAL');
     exit(1);
 }
 ?>
