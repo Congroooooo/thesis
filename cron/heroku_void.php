@@ -1,25 +1,32 @@
+#!/usr/bin/env php
 <?php
 /**
- * Manual Test Script for Void Unpaid Orders
- * Use this to test the void functionality manually
- * Run: php test_void_manual.php
+ * Heroku Scheduler Script for Voiding Unpaid Orders
+ * Run with: php cron/heroku_void.php
+ * 
+ * This script is designed to run on Heroku Scheduler every minute
+ * It processes unpaid orders that are older than 5 minutes
  */
 
+// Set timezone
 date_default_timezone_set('Asia/Manila');
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 
+// Include required files
 require_once __DIR__ . '/../Includes/connection.php';
 require_once __DIR__ . '/../Includes/notifications.php';
 
-echo "=== Manual Void Test Script ===\n";
-echo "Current time: " . date('Y-m-d H:i:s') . "\n\n";
+// Start execution
+$startTime = microtime(true);
+$timestamp = date('Y-m-d H:i:s');
+
+echo "=== Heroku Void Cron Job Started ===\n";
+echo "Timestamp: $timestamp\n";
 
 try {
-    // Check for unpaid approved orders (5 minutes)
+    // Query for unpaid approved orders older than 5 minutes
     $query = "
         SELECT 
-            o.id, o.order_number, o.user_id, o.items, o.total_amount, o.created_at,
+            o.id, o.order_number, o.user_id, o.items, o.total_amount,
             a.first_name, a.last_name, a.email, a.pre_order_strikes 
         FROM orders o
         JOIN account a ON o.user_id = a.id
@@ -27,6 +34,7 @@ try {
           AND o.payment_date IS NULL
           AND o.created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
         ORDER BY o.created_at ASC
+        LIMIT 10
     ";
 
     $stmt = $conn->prepare($query);
@@ -34,47 +42,11 @@ try {
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $count = count($orders);
-    echo "Found {$count} unpaid approved orders to void:\n";
+    echo "Found $count unpaid orders to process\n";
 
     if ($count === 0) {
-        echo "✅ No orders to void at this time.\n";
-        
-        // Show recent orders for context
-        echo "\n--- Recent Orders (Last 10) ---\n";
-        $recentQuery = "
-            SELECT o.id, o.order_number, o.status, o.payment_date, o.created_at, 
-                   CONCAT(a.first_name, ' ', a.last_name) as customer_name,
-                   TIMESTAMPDIFF(MINUTE, o.created_at, NOW()) as minutes_ago
-            FROM orders o
-            JOIN account a ON o.user_id = a.id
-            ORDER BY o.created_at DESC
-            LIMIT 10
-        ";
-        $recentStmt = $conn->prepare($recentQuery);
-        $recentStmt->execute();
-        $recent = $recentStmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        foreach ($recent as $order) {
-            $status = $order['status'];
-            $paymentStatus = $order['payment_date'] ? 'PAID' : 'UNPAID';
-            echo "  #{$order['order_number']} - {$order['customer_name']} - {$status} - {$paymentStatus} - {$order['minutes_ago']}min ago\n";
-        }
-        return;
-    }
-
-    echo "\n";
-    foreach ($orders as $order) {
-        $minutesElapsed = (time() - strtotime($order['created_at'])) / 60;
-        echo "Order #{$order['order_number']} - {$order['first_name']} {$order['last_name']} - Created: {$order['created_at']} ({$minutesElapsed} min ago)\n";
-    }
-
-    echo "\nProceed with voiding these orders? (y/N): ";
-    $handle = fopen("php://stdin", "r");
-    $confirm = trim(fgets($handle));
-    fclose($handle);
-
-    if (strtolower($confirm) !== 'y') {
-        echo "❌ Cancelled by user.\n";
+        echo "No orders to void at this time.\n";
+        echo "=== Cron Job Completed Successfully ===\n";
         return;
     }
 
@@ -88,8 +60,9 @@ try {
             $orderId = $order['id'];
             $userId = $order['user_id'];
             $orderNumber = $order['order_number'];
+            $customerName = $order['first_name'] . ' ' . $order['last_name'];
 
-            echo "\nProcessing Order #{$orderNumber}...";
+            echo "Processing Order #$orderNumber ($customerName)... ";
 
             // 1. Update order status to 'voided'
             $conn->prepare("UPDATE orders SET status = 'voided' WHERE id = ?")
@@ -112,21 +85,21 @@ try {
                 ? " Your account has been blocked due to 3 strikes."
                 : " You now have {$strikeCount} strike(s). 3 strikes will result in account blocking.";
 
-            // Block if 3 strikes
+            // 4. Block account if 3 strikes
             if ($strikeCount >= 3) {
                 $conn->prepare("UPDATE account SET is_strike = 1 WHERE id = ?")
                     ->execute([$userId]);
-                echo " [BLOCKED]";
+                echo "[BLOCKED] ";
             }
 
-            // 4. Create notification
+            // 5. Create notification
             $notif = "Your order #{$orderNumber} has been voided because payment was not made within 5 minutes.{$strikeMessage}";
             createNotification($conn, $userId, $notif, $orderNumber, 'voided');
 
-            // 5. Activity log
+            // 6. Log activity
             $items = json_decode($order['items'], true);
             if (is_array($items) && count($items) > 0) {
-                $desc = "Voided - Order #: {$orderNumber}, Items: " . count($items) . ", Total: ₱" . number_format($order['total_amount'] ?? 0, 2);
+                $desc = "Voided - Order #: {$orderNumber}, Items: " . count($items) . ", Customer: {$customerName}";
                 $conn->prepare("
                     INSERT INTO activities (action_type, description, user_id, timestamp)
                     VALUES (?, ?, ?, NOW())
@@ -135,25 +108,29 @@ try {
 
             $conn->commit();
             $voided++;
-            echo " ✅ VOIDED (Strikes: {$strikeCount})";
+            echo "VOIDED (Strikes: $strikeCount)\n";
 
-        } catch (Throwable $e) {
+        } catch (Exception $e) {
             if ($conn->inTransaction()) {
                 $conn->rollBack();
             }
             $errors++;
-            echo " ❌ ERROR: " . $e->getMessage();
+            echo "ERROR: " . $e->getMessage() . "\n";
         }
     }
 
-    echo "\n\n=== RESULTS ===\n";
-    echo "✅ Successfully voided: {$voided} orders\n";
-    echo "❌ Errors: {$errors} orders\n";
-    echo "Total processed: " . ($voided + $errors) . " orders\n";
+    $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+    
+    echo "\n=== Results ===\n";
+    echo "✅ Successfully voided: $voided orders\n";
+    echo "❌ Errors: $errors orders\n";
+    echo "⏱️  Execution time: {$executionTime}ms\n";
+    echo "=== Cron Job Completed ===\n";
 
-} catch (Throwable $e) {
+} catch (Exception $e) {
+    $executionTime = round((microtime(true) - $startTime) * 1000, 2);
     echo "FATAL ERROR: " . $e->getMessage() . "\n";
+    echo "Execution time: {$executionTime}ms\n";
+    exit(1);
 }
-
-echo "\n=== Test Complete ===\n";
 ?>
