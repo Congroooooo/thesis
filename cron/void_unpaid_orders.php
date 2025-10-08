@@ -15,7 +15,7 @@ ini_set('display_errors', 1);
 require_once __DIR__ . '/../Includes/connection.php';
 require_once __DIR__ . '/../Includes/notifications.php';
 
-// Log function for better debugging
+// Logging function for cron execution monitoring
 function logMessage($message, $level = 'INFO') {
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] [$level] $message\n";
@@ -43,8 +43,8 @@ try {
     logMessage("Found " . count($unpaid_orders) . " unpaid approved orders to void");
 
     if (empty($unpaid_orders)) {
-        logMessage("No orders to void, exiting");
-        exit(0);
+        logMessage("No orders to void, returning");
+        return;
     }
 
     $voided_count = 0;
@@ -144,8 +144,8 @@ try {
 } catch (Exception $e) {
     logMessage("Fatal error in cron job: " . $e->getMessage(), "FATAL");
     error_log("Fatal error in void_unpaid_orders cron: " . $e->getMessage());
-    exit(1);
+    // Don't exit when called from web endpoint
 }
 
-exit(0);
+// Script completed successfully
 ?>
