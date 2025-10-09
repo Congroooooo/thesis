@@ -689,74 +689,81 @@ function page_link($page, $query_string) {
             </div>
             <div class="modal-body">
                 <form id="addItemSizeForm" onsubmit="submitNewItemSize(event)">
-                    <div class="order-section">
+                    <div class="delivery-order-section">
+                        <h3>Delivery Information</h3>
                         <div class="input-group">
-                            <label for="deliveryOrderNumber">Delivery Order #:</label>
-                            <input type="text" id="deliveryOrderNumber" name="deliveryOrderNumber" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="existingItem">Select Item:</label>
-                            <select id="existingItem" name="existingItem" required onchange="updateItemCodePrefix()">
-                                <option value="">Select Item</option>
-                                <?php
-                                $sql = "SELECT DISTINCT 
-                                        SUBSTRING_INDEX(item_code, '-', 1) as prefix,
-                                        item_name,
-                                        category
-                                        FROM inventory 
-                                        ORDER BY item_name";
-                                $stmt = $conn->query($sql);
-
-                                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                                    echo "<option value='" . htmlspecialchars($row['prefix']) . "' data-name='" . htmlspecialchars($row['item_name']) . "' data-category='" . htmlspecialchars($row['category']) . "'>" . 
-                                         htmlspecialchars($row['item_name']) . " (" . htmlspecialchars($row['prefix']) . ")</option>";
-                                }
-                                ?>
-                            </select>
+                            <label for="deliveryOrderNumberSize">Delivery Order #:</label>
+                            <input type="text" id="deliveryOrderNumberSize" name="deliveryOrderNumber" required>
                         </div>
                     </div>
 
-                    <div id="itemSizeEntries">
-                        <div class="item-size-entry">
-                            <div class="item-close">&times;</div>
-                            <div class="item-content">
+                    <div id="itemsContainer">
+                        <div class="item-entry" data-item-index="0">
+                            <div class="item-header">
+                                <h3>Item #1</h3>
+                                <span class="remove-item-btn" onclick="removeItemEntry(0)" style="display: none;">&times;</span>
+                            </div>
+                            
+                            <div class="order-section">
+                                <h4>Item Information</h4>
                                 <div class="input-group">
-                                    <label for="newSize">Size:</label>
-                                    <select name="newSize[]" required>
-                                        <option value="">Select Size</option>
-                                        <option value="XS">XS</option>
-                                        <option value="S">S</option>
-                                        <option value="M">M</option>
-                                        <option value="L">L</option>
-                                        <option value="XL">XL</option>
-                                        <option value="XXL">XXL</option>
-                                        <option value="3XL">3XL</option>
-                                        <option value="4XL">4XL</option>
-                                        <option value="5XL">5XL</option>
-                                        <option value="6XL">6XL</option>
-                                        <option value="7XL">7XL</option>
-                                        <option value="One Size">One Size</option>
+                                    <label for="existingItem_0">Select Item:</label>
+                                    <select id="existingItem_0" name="items[0][existingItem]" required onchange="fetchAndUpdateSizesForItem(0)">
+                                        <option value="">Select Item</option>
+                                        <?php
+                                        $sql = "SELECT DISTINCT 
+                                                SUBSTRING_INDEX(item_code, '-', 1) as prefix,
+                                                item_name,
+                                                category
+                                                FROM inventory 
+                                                ORDER BY item_name";
+                                        $stmt = $conn->query($sql);
+
+                                        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                            echo "<option value='" . htmlspecialchars($row['prefix']) . "' data-name='" . htmlspecialchars($row['item_name']) . "' data-category='" . htmlspecialchars($row['category']) . "'>" . 
+                                                 htmlspecialchars($row['item_name']) . " (" . htmlspecialchars($row['prefix']) . ")</option>";
+                                        }
+                                        ?>
                                     </select>
                                 </div>
+                            </div>
+
+                            <div class="size-selection-section" id="sizeSelectionSection_0" style="display: none;">
+                                <h4>Size Selection</h4>
                                 <div class="input-group">
-                                    <label for="newItemCode">Item Code:</label>
-                                    <input type="text" name="newItemCode[]" required readonly>
+                                    <label>Select Available Sizes to Add:</label>
+                                    <div class="size-checkboxes" id="sizeCheckboxesContainer_0">
+                                        <label class="checkbox-label"><input type="checkbox" value="XS" onchange="toggleSizeDetailsForItemSize(this, 0)"> XS</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="S" onchange="toggleSizeDetailsForItemSize(this, 0)"> S</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="M" onchange="toggleSizeDetailsForItemSize(this, 0)"> M</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="L" onchange="toggleSizeDetailsForItemSize(this, 0)"> L</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="XL" onchange="toggleSizeDetailsForItemSize(this, 0)"> XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="XXL" onchange="toggleSizeDetailsForItemSize(this, 0)"> XXL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="3XL" onchange="toggleSizeDetailsForItemSize(this, 0)"> 3XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="4XL" onchange="toggleSizeDetailsForItemSize(this, 0)"> 4XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="5XL" onchange="toggleSizeDetailsForItemSize(this, 0)"> 5XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="6XL" onchange="toggleSizeDetailsForItemSize(this, 0)"> 6XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="7XL" onchange="toggleSizeDetailsForItemSize(this, 0)"> 7XL</label>
+                                        <label class="checkbox-label"><input type="checkbox" value="One Size" onchange="toggleSizeDetailsForItemSize(this, 0)"> One Size</label>
+                                    </div>
                                 </div>
-                                <div class="input-group">
-                                    <label for="newQuantity">Initial Stock:</label>
-                                    <input type="number" name="newQuantity[]" min="1" required>
-                                </div>
-                                <div class="input-group">
-                                    <label for="newDamage">Damaged Items:</label>
-                                    <input type="number" name="newDamage[]" min="0" value="0">
+                            </div>
+
+                            <div id="itemSizeDetailsContainer_0" class="size-details-container">
+                                <h4>Size Details</h4>
+                                <div id="itemSizeDetailsList_0">
+                                    <!-- Size detail entries will be inserted here dynamically -->
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <button type="button" class="add-item-btn" onclick="addItemSizeEntry()">
-                        <i class="material-icons">add_circle</i> Add Another Size
-                    </button>
+                    <div class="add-item-section">
+                        <button type="button" class="add-item-btn" onclick="addAnotherItemEntry()">
+                            <i class="material-icons">add_circle</i> Add Another Item
+                        </button>
+                        <small>Add sizes for multiple items under the same delivery order</small>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -894,8 +901,52 @@ function page_link($page, $query_string) {
                 const form = document.getElementById('addItemSizeForm');
                 if (form) form.reset();
 
-                if (window.jQuery && $('#existingItem').length) {
-                    $('#existingItem').val(null).trigger('change');
+                // Reset to single item entry
+                const itemsContainer = document.getElementById('itemsContainer');
+                const itemEntries = itemsContainer.querySelectorAll('.item-entry');
+                
+                // Remove all entries except the first one
+                for (let i = 1; i < itemEntries.length; i++) {
+                    itemEntries[i].remove();
+                }
+
+                // Reset the first entry if it exists
+                if (itemEntries.length > 0) {
+                    const firstEntry = itemEntries[0];
+                    
+                    // Reset checkboxes
+                    const sizeCheckboxes = firstEntry.querySelectorAll('input[type="checkbox"]');
+                    sizeCheckboxes.forEach(checkbox => {
+                        checkbox.checked = false;
+                        checkbox.disabled = false;
+                        checkbox.parentElement.style.opacity = '1';
+                        checkbox.parentElement.title = '';
+                    });
+
+                    // Hide sections
+                    const sizeSelectionSection = firstEntry.querySelector('[id^="sizeSelectionSection_"]');
+                    const sizeDetailsContainer = firstEntry.querySelector('[id^="sizeDetailsContainer_"]');
+                    const sizeDetailsList = firstEntry.querySelector('[id^="sizeDetailsList_"]');
+                    
+                    if (sizeSelectionSection) sizeSelectionSection.style.display = 'none';
+                    if (sizeDetailsContainer) sizeDetailsContainer.style.display = 'none';
+                    if (sizeDetailsList) sizeDetailsList.innerHTML = '';
+
+                    // Reset select
+                    const existingItemSelect = firstEntry.querySelector('[id^="existingItem_"]');
+                    if (existingItemSelect) existingItemSelect.selectedIndex = 0;
+                }
+
+                // Hide remove button
+                const removeBtn = document.querySelector('.remove-item-btn');
+                if (removeBtn) removeBtn.style.display = 'none';
+
+                // Reset global variables if they exist
+                if (typeof inventoryUsedSizes !== 'undefined') {
+                    window.inventoryUsedSizes = {};
+                }
+                if (typeof itemCounter !== 'undefined') {
+                    window.itemCounter = 1;
                 }
             }
 
@@ -1112,6 +1163,113 @@ function page_link($page, $query_string) {
 }
     .item-size-entry:not(:first-child) .item-close {
         display: block;
+    }
+
+    /* Add New Item Size Modal Styling */
+    .item-entry {
+        background: #fff;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        position: relative;
+    }
+
+    .item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .item-header h3 {
+        margin: 0;
+        color: #495057;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .remove-item-btn {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        font-size: 24px;
+        cursor: pointer;
+        color: #dc3545;
+        font-weight: bold;
+        background: #fff;
+        border: 2px solid #dc3545;
+        border-radius: 50%;
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .remove-item-btn:hover {
+        background: #dc3545;
+        color: #fff;
+    }
+
+    .order-section {
+        background: #f8f9fa;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .order-section h4 {
+        margin: 0 0 20px 0;
+        color: #495057;
+        font-size: 16px;
+        font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .add-item-section {
+        background: #f0f8ff;
+        padding: 25px;
+        border-radius: 10px;
+        margin: 25px 0;
+        border: 1px solid #b3d9ff;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+    }
+
+    .add-item-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 24px;
+        background-color: #28a745;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+    }
+
+    .add-item-btn:hover {
+        background-color: #218838;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    }
+
+    .add-item-section small {
+        display: block;
+        margin-top: 10px;
+        color: #6c757d;
+        font-style: italic;
     }
 
     .input-group textarea {
@@ -1354,7 +1512,30 @@ function page_link($page, $query_string) {
     }
 
     .size-details-container.show {
+        display: block !important;
+        height: auto !important;
+        min-height: 50px !important;
+    }
+
+    /* Ensure size details container displays when forced by JavaScript */
+    .size-details-container[style*="display: block"] {
+        display: block !important;
+        height: auto !important;
+        min-height: 50px !important;
+    }
+
+    /* Ensure size details list has proper styling */
+    div[id^="sizeDetailsList_"] {
         display: block;
+        height: auto;
+        min-height: 30px;
+    }
+
+    /* Force display for size details list when it has content */
+    div[id^="sizeDetailsList_"]:not(:empty) {
+        display: block !important;
+        height: auto !important;
+        min-height: 30px !important;
     }
 
     .size-details-container h4 {
@@ -1535,6 +1716,232 @@ function page_link($page, $query_string) {
         color: #666;
         font-style: italic;
         padding: 12px;
+    }
+
+    /* New styles for Add Item Size modal */
+    .size-selection-section {
+        background: #f8f9fa;
+        padding: 25px;
+        border-radius: 10px;
+        margin: 25px 0;
+        border: 1px solid #e9ecef;
+    }
+
+    .size-selection-section h4 {
+        margin: 0 0 20px 0;
+        color: #495057;
+        font-size: 16px;
+        font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .size-checkboxes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+
+    .size-checkboxes .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        cursor: pointer;
+        background: #fff;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        user-select: none;
+    }
+
+    .size-checkboxes .checkbox-label:hover:not([style*="opacity: 0.5"]) {
+        border-color: #007bff;
+        background: #f8f9ff;
+    }
+
+    .size-checkboxes .checkbox-label input[type="checkbox"] {
+        margin: 0;
+        cursor: pointer;
+    }
+
+    .size-checkboxes .checkbox-label input[type="checkbox"]:checked + span,
+    .size-checkboxes .checkbox-label:has(input[type="checkbox"]:checked) {
+        color: #007bff;
+        font-weight: 600;
+    }
+
+    .size-checkboxes .checkbox-label:has(input[type="checkbox"]:checked) {
+        border-color: #007bff;
+        background: #e7f3ff;
+    }
+
+    .size-detail-entry {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 10px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+        position: relative;
+    }
+
+    .size-detail-header h4 {
+        margin: 0 0 15px 0;
+        color: #0066cc;
+        font-size: 16px;
+        font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #b3d9ff;
+    }
+
+    .size-detail-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        align-items: start;
+    }
+
+    .size-detail-content .input-group {
+        margin-bottom: 15px;
+    }
+
+    .generated-code {
+        font-family: 'Courier New', monospace;
+        background: #fff;
+        padding: 10px 15px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        font-size: 14px;
+        color: #666;
+        font-weight: 600;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+        margin-top: 5px;
+    }
+
+    #sizeDetailsContainer.show {
+        animation: fadeInSlide 0.3s ease-out;
+    }
+
+    @keyframes fadeInSlide {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Disabled checkbox styling */
+    .size-checkboxes .checkbox-label[style*="opacity: 0.5"] {
+        cursor: not-allowed;
+    }
+
+    .size-checkboxes .checkbox-label[style*="opacity: 0.5"] input[type="checkbox"] {
+        cursor: not-allowed;
+    }
+
+    /* Multiple item entry styles */
+    .item-entry {
+        background: #fff;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        position: relative;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .item-entry:hover {
+        border-color: #007bff;
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+    }
+
+    .item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .item-header h3 {
+        margin: 0;
+        color: #495057;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .remove-item-btn {
+        color: #dc3545;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #fff2f2;
+        border: 1px solid #f8d7da;
+        transition: all 0.2s ease;
+    }
+
+    .remove-item-btn:hover {
+        background: #dc3545;
+        color: white;
+        transform: scale(1.1);
+    }
+
+    .add-item-section {
+        text-align: center;
+        padding: 25px;
+        border: 2px dashed #28a745;
+        border-radius: 10px;
+        margin-top: 25px;
+        background: #f8fff9;
+        transition: all 0.3s ease;
+    }
+
+    .add-item-section:hover {
+        background: #f0fff4;
+        border-color: #20c997;
+    }
+
+    .add-item-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+    }
+
+    .add-item-btn:hover {
+        background: #218838;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    }
+
+    .add-item-section small {
+        display: block;
+        margin-top: 8px;
+        color: #6c757d;
+        font-size: 13px;
     }
     </style>
 </body>
