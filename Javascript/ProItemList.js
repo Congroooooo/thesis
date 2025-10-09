@@ -21,6 +21,82 @@ document.addEventListener("DOMContentLoaded", function () {
   let activeSubcategories = new Map();
   let currentSearchTerm = "";
 
+  // Check for URL parameters and auto-apply category filter
+  function checkAndApplyUrlCategory() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const categoryFromUrl = urlParams.get("category");
+
+    if (categoryFromUrl) {
+      // Normalize the category name to match the data-category attribute format
+      const normalizedCategory = categoryFromUrl
+        .toLowerCase()
+        .replace(/\s+/g, "-");
+
+      // Find and activate the matching category
+      const categoryHeaders = document.querySelectorAll(
+        ".main-category-header"
+      );
+      let categoryFound = false;
+
+      categoryHeaders.forEach((header) => {
+        const headerCategory = header.dataset.category;
+        const headerCategoryLower = headerCategory
+          ? headerCategory.toLowerCase()
+          : "";
+
+        // Try multiple matching strategies
+        let isMatch = false;
+        if (headerCategoryLower === normalizedCategory) {
+          isMatch = true;
+        } else if (headerCategoryLower === categoryFromUrl.toLowerCase()) {
+          isMatch = true;
+        } else if (
+          headerCategoryLower.replace(/[-_\s]/g, "") ===
+          normalizedCategory.replace(/[-_\s]/g, "")
+        ) {
+          isMatch = true;
+        }
+
+        if (isMatch) {
+          // Activate this category
+          header.classList.add("active");
+          activeMainCategories.add(headerCategory);
+
+          // Expand the subcategories
+          const subcategories = header.nextElementSibling;
+          const icon = header.querySelector("i");
+
+          if (subcategories) {
+            subcategories.classList.add("active");
+          }
+          if (icon) {
+            icon.style.transform = "rotate(180deg)";
+          }
+
+          categoryFound = true;
+
+          console.log(
+            `Auto-applied category filter: ${categoryFromUrl} -> ${headerCategory}`
+          );
+        }
+      });
+
+      if (categoryFound) {
+        // Apply the filter after DOM is fully ready
+        setTimeout(() => {
+          applyAllFilters();
+        }, 100);
+      } else {
+        console.log(
+          `Category not found: ${categoryFromUrl}. Available categories:`,
+          Array.from(document.querySelectorAll(".main-category-header")).map(
+            (h) => h.dataset.category
+          )
+        );
+      }
+    }
+  }
+
   // Add search functionality
   if (searchInput) {
     searchInput.addEventListener("input", function () {
@@ -176,6 +252,9 @@ document.addEventListener("DOMContentLoaded", function () {
       applyAllFilters();
     });
   });
+
+  // Check for URL category parameter and auto-apply filter
+  checkAndApplyUrlCategory();
 
   document.querySelectorAll(".size-btn").forEach((btn) => {
     btn.addEventListener("click", function () {
