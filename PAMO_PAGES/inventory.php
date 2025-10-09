@@ -159,7 +159,52 @@ function page_link($page, $query_string) {
                 });
             }
 
+            // Initialize Select2 for Add New Item Size modal dropdowns
+            initializeItemSizeSelect2();
         });
+
+        function initializeItemSizeSelect2() {
+            // Wait for jQuery and Select2 to be available
+            if (typeof $ === 'undefined') {
+                return;
+            }
+
+            // Initialize Select2 for item dropdowns in Add New Item Size modal
+            $('#addItemSizeModal .item-size-select').each(function() {
+                const $select = $(this);
+                
+                if (!$select.hasClass('select2-hidden-accessible')) {
+                    $select.select2({
+                        placeholder: "Search and select an item...",
+                        allowClear: true,
+                        width: "100%",
+                        dropdownParent: $('#addItemSizeModal'),
+                        templateResult: function(data) {
+                            if (data.loading) {
+                                return data.text;
+                            }
+                            
+                            // Enhanced display with category information
+                            var $container = $(
+                                '<div class="select2-result-item">' +
+                                    '<div class="item-name">' + data.text + '</div>' +
+                                '</div>'
+                            );
+                            return $container;
+                        }
+                    });
+
+                    // Attach the change event after Select2 initialization
+                    $select.on('change', function() {
+                        const itemIndex = this.id.split('_')[1];
+                        
+                        if (typeof fetchAndUpdateSizesForItem === 'function') {
+                            fetchAndUpdateSizesForItem(parseInt(itemIndex));
+                        }
+                    });
+                }
+            });
+        }
 
         function clearLowStockSessionAndReload() {
             sessionStorage.removeItem('applyLowStockFilter');
@@ -708,7 +753,7 @@ function page_link($page, $query_string) {
                                 <h4>Item Information</h4>
                                 <div class="input-group">
                                     <label for="existingItem_0">Select Item:</label>
-                                    <select id="existingItem_0" name="items[0][existingItem]" required onchange="fetchAndUpdateSizesForItem(0)">
+                                    <select id="existingItem_0" name="items[0][existingItem]" class="item-size-select" required>
                                         <option value="">Select Item</option>
                                         <?php
                                         $sql = "SELECT DISTINCT 
@@ -900,6 +945,13 @@ function page_link($page, $query_string) {
             if (modalId === 'addItemSizeModal') {
                 const form = document.getElementById('addItemSizeForm');
                 if (form) form.reset();
+
+                // Destroy all Select2 instances in this modal
+                $('#addItemSizeModal select').each(function() {
+                    if ($(this).hasClass('select2-hidden-accessible')) {
+                        $(this).select2('destroy');
+                    }
+                });
 
                 // Reset to single item entry
                 const itemsContainer = document.getElementById('itemsContainer');
@@ -1665,6 +1717,49 @@ function page_link($page, $query_string) {
     
     .select2-result-student:last-child {
         border-bottom: none;
+    }
+
+    /* Item Size Select2 Custom Styling */
+    .select2-result-item {
+        padding: 8px 12px;
+    }
+
+    .select2-result-item .item-name {
+        font-weight: 500;
+        color: #333;
+        font-size: 14px;
+    }
+
+    /* Ensure Select2 dropdown appears above modal */
+    .select2-container--open {
+        z-index: 9999 !important;
+    }
+
+    .select2-dropdown {
+        z-index: 9999 !important;
+    }
+
+    /* Custom styling for Add New Item Size modal Select2 */
+    #addItemSizeModal .select2-container {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+    }
+
+    #addItemSizeModal .select2-container--default .select2-selection--single {
+        border: none;
+        height: 40px;
+        padding: 6px 12px;
+    }
+
+    #addItemSizeModal .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 28px;
+        padding-left: 0;
+        color: #333;
+    }
+
+    #addItemSizeModal .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 38px;
+        right: 8px;
     }
     
     .select2-result-student .student-name {

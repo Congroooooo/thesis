@@ -32,6 +32,7 @@ const sizeSuffixMap = {
 
 let inventoryUsedSizes = {};
 let itemCounter = 1;
+let selectedItems = {}; // Track selected items across all entries
 
 function showAddItemSizeModal() {
   document.getElementById("addItemSizeModal").style.display = "flex";
@@ -39,6 +40,7 @@ function showAddItemSizeModal() {
   // Reset counter and data
   itemCounter = 1;
   inventoryUsedSizes = {};
+  selectedItems = {}; // Reset selected items tracking
 
   // Reset the form
   document.getElementById("addItemSizeForm").reset();
@@ -64,10 +66,25 @@ function showAddItemSizeModal() {
   if (firstItemSelect) {
     firstItemSelect.selectedIndex = 0;
   }
+
+  // Initialize Select2 for the modal
+  setTimeout(() => {
+    if (typeof initializeItemSizeSelect2 === "function") {
+      initializeItemSizeSelect2();
+    }
+    // Initialize dropdown states
+    updateAllDropdowns();
+  }, 200);
 }
 function resetItemEntry(itemIndex) {
   // Ensure itemIndex is treated as a number
   itemIndex = parseInt(itemIndex);
+
+  // Remove from selected items if it was selected
+  if (selectedItems[itemIndex]) {
+    delete selectedItems[itemIndex];
+    updateAllDropdowns();
+  }
 
   // Reset size checkboxes
   const sizeCheckboxes = document.querySelectorAll(
@@ -119,7 +136,24 @@ function fetchAndUpdateSizesForItem(itemIndex) {
 
   const prefix = select.value;
 
-  if (!prefix) {
+  // Handle item selection change
+  if (prefix) {
+    // Remove previous selection if it exists
+    const previousSelection = selectedItems[itemIndex];
+    if (previousSelection) {
+      delete selectedItems[itemIndex];
+      updateAllDropdowns();
+    }
+
+    // Add new selection
+    selectedItems[itemIndex] = prefix;
+    updateAllDropdowns();
+  } else {
+    // Remove selection if cleared
+    if (selectedItems[itemIndex]) {
+      delete selectedItems[itemIndex];
+      updateAllDropdowns();
+    }
     resetItemEntry(itemIndex);
     return;
   }
@@ -326,7 +360,7 @@ function addAnotherItemEntry() {
         <h4>Item Information</h4>
         <div class="input-group">
           <label for="existingItem_${itemIndex}">Select Item:</label>
-          <select id="existingItem_${itemIndex}" name="items[${itemIndex}][existingItem]" required onchange="fetchAndUpdateSizesForItem(${itemIndex})">
+          <select id="existingItem_${itemIndex}" name="items[${itemIndex}][existingItem]" class="item-size-select" required>
             ${optionsHtml}
           </select>
         </div>
@@ -369,15 +403,38 @@ function addAnotherItemEntry() {
 
   // Initialize inventoryUsedSizes for this item
   inventoryUsedSizes[itemIndex] = [];
+
+  // Initialize Select2 for the newly added select element
+  setTimeout(() => {
+    if (typeof initializeItemSizeSelect2 === "function") {
+      initializeItemSizeSelect2();
+    }
+    // Update all dropdowns to reflect current selections
+    updateAllDropdowns();
+  }, 100);
 }
 
 function removeItemEntry(itemIndex) {
   const itemEntry = document.querySelector(`[data-item-index="${itemIndex}"]`);
   if (itemEntry) {
+    // Remove the selected item from tracking
+    if (selectedItems[itemIndex]) {
+      delete selectedItems[itemIndex];
+    }
+
+    // Destroy Select2 instance before removing the element
+    const select = itemEntry.querySelector(`#existingItem_${itemIndex}`);
+    if (select && $(select).hasClass("select2-hidden-accessible")) {
+      $(select).select2("destroy");
+    }
+
     itemEntry.remove();
 
     // Clean up the inventoryUsedSizes for this item
     delete inventoryUsedSizes[itemIndex];
+
+    // Update all dropdowns to reflect the removed selection
+    updateAllDropdowns();
 
     // Update item numbers and remove buttons
     updateItemNumbers();
@@ -400,6 +457,79 @@ function updateItemNumbers() {
     const header = entry.querySelector(".item-header h3");
     if (header) {
       header.textContent = `Item #${index + 1}`;
+    }
+  });
+}
+
+function updateAllDropdowns() {
+  const itemEntries = document.querySelectorAll(".item-entry");
+
+  itemEntries.forEach((entry) => {
+    const itemIndex = parseInt(entry.dataset.itemIndex);
+    const select = document.getElementById(`existingItem_${itemIndex}`);
+
+    if (select && $(select).hasClass("select2-hidden-accessible")) {
+      const currentValue = select.value;
+      const $select = $(select);
+
+      // Get all original options
+      const allOptions = Array.from(select.querySelectorAll("option")).map(
+        (option) => ({
+          id: option.value,
+          text: option.textContent,
+          value: option.value,
+          selected: option.selected,
+          disabled: false,
+        })
+      );
+
+      // Filter out selected items from other entries
+      const availableOptions = allOptions.filter((option) => {
+        if (option.value === "") return true; // Keep empty option
+        if (option.value === currentValue) return true; // Keep current selection
+        return !Object.values(selectedItems).includes(option.value); // Remove items selected in other entries
+      });
+
+      // Clear and repopulate Select2
+      $select.empty();
+      availableOptions.forEach((option) => {
+        const newOption = new Option(
+          option.text,
+          option.value,
+          option.selected,
+          option.selected
+        );
+        $select.append(newOption);
+      });
+
+      // Refresh Select2 to show updated options
+      $select.trigger("change.select2");
+    } else if (select) {
+      // Fallback for regular select elements
+      const currentValue = select.value;
+      const options = select.querySelectorAll("option");
+
+      options.forEach((option) => {
+        const optionValue = option.value;
+
+        if (optionValue === "") {
+          // Keep empty option always available
+          option.style.display = "";
+          option.disabled = false;
+        } else if (optionValue === currentValue) {
+          // Keep current selection visible and enabled
+          option.style.display = "";
+          option.disabled = false;
+        } else if (Object.values(selectedItems).includes(optionValue)) {
+          // Hide/disable options that are selected in other entries
+          option.style.display = "none";
+          option.disabled = true;
+        } else {
+          // Show available options
+          option.style.display = "";
+          option.disabled = false;
+        }
+      });
     }
   });
 }
