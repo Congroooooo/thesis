@@ -71,11 +71,6 @@ try {
             <span class="active-bar"></span>
             <i class="material-icons">assessment</i>Reports
         </li>
-        <li <?php echo basename($_SERVER['PHP_SELF']) == 'content-edit.php' ? 'class="active"' : ''; ?>
-            onclick="window.location.href='<?php echo $basePath; ?>content-edit.php'">
-            <span class="active-bar"></span>
-            <i class="material-icons">inventory_2</i>Content Management
-        </li>
         <?php
             $isPamo = false;
             if (isset($_SESSION['program_abbreviation']) && strtoupper($_SESSION['program_abbreviation']) === 'PAMO') {
