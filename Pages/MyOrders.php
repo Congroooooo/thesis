@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
                         $items = json_decode($order['items'], true);
                         $total_amount = $order['total_amount'];
                     ?>
-                        <div class="order-card">
+                        <div class="order-card" data-order-id="<?php echo $order['id']; ?>">
                             <div class="order-header">
                                 <div class="order-info">
                                     <h3>Order #<?php echo htmlspecialchars($order['order_number']); ?></h3>
@@ -259,6 +259,339 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
         function filterOrders(status) {
             window.location.href = `MyOrders.php${status !== 'all' ? '?status=' + status : ''}`;
         }
+
+        // Real-time order updates
+        let lastOrderCheck = null;
+        let currentStatusFilter = '<?php echo $status_filter; ?>';
+
+        function formatTimeAgo(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            
+            const diffHours = Math.floor(diffMins / 60);
+            if (diffHours < 24) return `${diffHours}h ago`;
+            
+            const diffDays = Math.floor(diffHours / 24);
+            if (diffDays < 7) return `${diffDays}d ago`;
+            
+            return date.toLocaleDateString();
+        }
+
+        function getStatusBadgeClass(status) {
+            const statusClasses = {
+                'pending': 'pending',
+                'approved': 'approved', 
+                'rejected': 'rejected',
+                'completed': 'completed',
+                'cancelled': 'cancelled',
+                'voided': 'rejected' // Use rejected styling for voided
+            };
+            return statusClasses[status] || 'pending';
+        }
+
+        function createOrderCard(order) {
+            const items = order.items_decoded || [];
+            let itemsHtml = '';
+            
+            items.forEach(item => {
+                const cleanName = item.item_name ? item.item_name.replace(/\s[SMLX234567]+$/, '') : '';
+                itemsHtml += `
+                    <div class="order-item">
+                        <img src="../Images/${item.image_path || 'default.jpg'}" alt="${item.item_name || 'Item'}">
+                        <div class="item-details">
+                            <p class="item-name">${cleanName}</p>
+                            <p class="item-info">${item.size || 'N/A'} - Qty: ${item.quantity || 0}</p>
+                            <p class="item-price">₱${parseFloat(item.price || 0).toFixed(2)}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            const rejectionReason = order.rejection_reason ? 
+                `<div class="rejection-reason">Reason: ${order.rejection_reason}</div>` : '';
+
+            return `
+                <div class="order-card">
+                    <div class="order-header">
+                        <h2>Order #${order.order_number || 'N/A'}</h2>
+                        <div class="order-status">
+                            <span class="status-badge ${getStatusBadgeClass(order.status)}">${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="order-info">
+                        <p><i class="fas fa-calendar"></i> ${order.formatted_date || 'Unknown date'}</p>
+                        ${order.formatted_payment_date ? `<p><i class="fas fa-credit-card"></i> Paid: ${order.formatted_payment_date}</p>` : ''}
+                    </div>
+
+                    <div class="order-items">
+                        ${itemsHtml}
+                    </div>
+                    ${rejectionReason}
+                    
+                    <div class="order-footer">
+                        <div class="total-amount">
+                            <strong>Total: ₱${order.formatted_total || '0.00'}</strong>
+                        </div>
+                        ${order.status === 'pending' ? `
+                            <form method="POST" style="display: inline;">
+                                <input type="hidden" name="cancel_order_id" value="${order.id}">
+                                <button type="submit" class="cancel-btn" onclick="return confirm('Are you sure you want to cancel this order?')">
+                                    <i class="fas fa-times"></i> Cancel Order
+                                </button>
+                            </form>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function updateOrdersRealTime() {
+            try {
+                const formData = new FormData();
+                formData.append('action', 'get_user_orders');
+                formData.append('status', currentStatusFilter);
+                if (lastOrderCheck) {
+                    formData.append('last_check', lastOrderCheck);
+                }
+
+                const response = await fetch('../Includes/order_operations.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.orders && data.orders.length > 0) {
+                    if (!lastOrderCheck) {
+                        // First load - just update timestamp
+                        lastOrderCheck = data.last_update;
+                    } else {
+                        // Update only changed orders without page reload
+                        updateOrderElements(data.orders);
+                        lastOrderCheck = data.last_update;
+                    }
+                } else if (data.success) {
+                    // Update timestamp even if no orders
+                    lastOrderCheck = data.last_update;
+                }
+            } catch (error) {
+                // Silently handle polling errors to avoid console spam
+            }
+        }
+
+        function updateOrderElements(updatedOrders) {
+            const ordersGrid = document.querySelector('.orders-grid');
+            if (!ordersGrid) return;
+            
+            updatedOrders.forEach(order => {
+                const existingCard = document.querySelector(`[data-order-id="${order.id}"]`);
+                
+                if (existingCard) {
+                    // Update existing order card
+                    updateSingleOrderCard(existingCard, order);
+                }
+                // Note: We only update existing cards during real-time updates
+                // New orders are shown on page refresh to maintain data consistency
+            });
+
+            // Remove orders that no longer match the filter
+            if (currentStatusFilter !== 'all') {
+                const allCards = document.querySelectorAll('.order-card[data-order-id]');
+                allCards.forEach(card => {
+                    const orderId = parseInt(card.getAttribute('data-order-id'));
+                    const orderInUpdate = updatedOrders.find(o => o.id === orderId);
+                    
+                    if (orderInUpdate && orderInUpdate.status !== currentStatusFilter) {
+                        card.style.transition = 'all 0.3s ease';
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateY(-20px)';
+                        setTimeout(() => card.remove(), 300);
+                    }
+                });
+            }
+        }
+
+        function updateSingleOrderCard(cardElement, order) {
+            // Update status badge
+            const statusBadge = cardElement.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.className = `status-badge ${order.status}`;
+                statusBadge.textContent = order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown';
+                
+                // Add flash animation for status changes
+                statusBadge.style.animation = 'flash 0.5s ease-in-out';
+                setTimeout(() => statusBadge.style.animation = '', 500);
+            }
+
+            // Update rejection reason if exists
+            const orderHeader = cardElement.querySelector('.order-header');
+            const existingRejection = orderHeader.querySelector('.rejection-reason');
+            
+            if (order.rejection_reason) {
+                if (!existingRejection) {
+                    const rejectionSpan = document.createElement('span');
+                    rejectionSpan.className = 'rejection-reason';
+                    rejectionSpan.textContent = `Reason: ${order.rejection_reason}`;
+                    orderHeader.appendChild(rejectionSpan);
+                } else {
+                    existingRejection.textContent = `Reason: ${order.rejection_reason}`;
+                }
+            } else if (existingRejection) {
+                existingRejection.remove();
+            }
+
+            // Update payment date if completed
+            const orderDate = cardElement.querySelector('.order-date');
+            const paymentDate = orderDate.querySelector('.payment-date');
+            
+            if (order.status === 'completed' && order.formatted_payment_date) {
+                if (!paymentDate) {
+                    const paymentBr = document.createElement('br');
+                    const paymentIcon = document.createElement('i');
+                    paymentIcon.className = 'fas fa-money-bill';
+                    const paymentSpan = document.createElement('span');
+                    paymentSpan.className = 'payment-date';
+                    paymentSpan.textContent = `Paid: ${order.formatted_payment_date}`;
+                    
+                    orderDate.appendChild(paymentBr);
+                    orderDate.appendChild(paymentIcon);
+                    orderDate.appendChild(paymentSpan);
+                }
+            }
+
+            // Update cancel button visibility based on status
+            const existingForm = orderHeader.querySelector('form');
+            
+            if (order.status === 'pending' && !existingForm) {
+                // Add cancel button for pending orders
+                const cancelForm = document.createElement('form');
+                cancelForm.method = 'post';
+                cancelForm.onsubmit = function() { return confirm('Are you sure you want to cancel this order?'); };
+                cancelForm.style.display = 'inline';
+                cancelForm.innerHTML = `
+                    <input type="hidden" name="cancel_order_id" value="${order.id}">
+                    <button type="submit" class="cancel-btn">Cancel Order</button>
+                `;
+                orderHeader.appendChild(cancelForm);
+            } else if (order.status !== 'pending' && existingForm) {
+                // Remove cancel button for non-pending orders
+                existingForm.remove();
+            }
+
+            // Update receipt download button for approved/completed orders
+            const orderFooter = cardElement.querySelector('.order-footer');
+            const existingReceiptBtn = cardElement.querySelector('.download-receipt-btn');
+            
+            if ((order.status === 'approved' || order.status === 'completed') && !existingReceiptBtn) {
+                // Add receipt download button for approved/completed orders
+                const receiptDiv = document.createElement('div');
+                receiptDiv.style.marginTop = '1rem';
+                receiptDiv.style.textAlign = 'right';
+                receiptDiv.innerHTML = `
+                    <a href="../Backend/generate_receipt.php?order_id=${order.id}" 
+                       class="download-receipt-btn" 
+                       target="_blank" 
+                       style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
+                        <i class="fas fa-file-pdf"></i> Download Receipt
+                    </a>
+                `;
+                
+                // Insert after order-footer
+                orderFooter.parentNode.insertBefore(receiptDiv, orderFooter.nextSibling);
+            } else if (!(['approved', 'completed'].includes(order.status)) && existingReceiptBtn) {
+                // Remove receipt button for non-approved/completed orders
+                const receiptDiv = existingReceiptBtn.parentElement;
+                if (receiptDiv) {
+                    receiptDiv.remove();
+                }
+            }
+
+        }
+
+        function createOrderCardElement(order) {
+            const items = order.items_decoded || [];
+            let itemsHtml = '';
+            
+            items.forEach(item => {
+                const cleanName = item.item_name ? item.item_name.replace(/\s[SMLX234567]+$/, '') : '';
+                itemsHtml += `
+                    <div class="order-item">
+                        <img src="../Images/${item.image_path || 'default.jpg'}" alt="${item.item_name || 'Item'}">
+                        <div class="item-details">
+                            <p class="item-name">${cleanName}</p>
+                            <p class="item-info">${item.size || 'N/A'} - Qty: ${item.quantity || 0}</p>
+                            <p class="item-price">₱${parseFloat(item.price || 0).toFixed(2)}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            const rejectionReason = order.rejection_reason ? 
+                `<div class="rejection-reason">Reason: ${order.rejection_reason}</div>` : '';
+
+            const orderCard = document.createElement('div');
+            orderCard.className = 'order-card';
+            orderCard.setAttribute('data-order-id', order.id);
+            orderCard.innerHTML = `
+                <div class="order-header">
+                    <h2>Order #${order.order_number || 'N/A'}</h2>
+                    <div class="order-status">
+                        <span class="status-badge ${getStatusBadgeClass(order.status)}">${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}</span>
+                    </div>
+                </div>
+                
+                <div class="order-info">
+                    <p><i class="fas fa-calendar"></i> ${order.formatted_date || 'Unknown date'}</p>
+                    ${order.formatted_payment_date ? `<p class="payment-info"><i class="fas fa-credit-card"></i> Paid: ${order.formatted_payment_date}</p>` : ''}
+                </div>
+
+                <div class="order-items">
+                    ${itemsHtml}
+                </div>
+                ${rejectionReason}
+                
+                <div class="order-footer">
+                    <div class="total-amount">
+                        <strong>Total: ₱${order.formatted_total || '0.00'}</strong>
+                    </div>
+                    ${order.status === 'pending' ? `
+                        <form method="POST" style="display: inline;">
+                            <input type="hidden" name="cancel_order_id" value="${order.id}">
+                            <button type="submit" class="cancel-btn" onclick="return confirm('Are you sure you want to cancel this order?')">
+                                <i class="fas fa-times"></i> Cancel Order
+                            </button>
+                        </form>
+                    ` : ''}
+                </div>
+                ${(order.status === 'approved' || order.status === 'completed') ? `
+                    <div style="margin-top: 1rem; text-align: right;">
+                        <a href="../Backend/generate_receipt.php?order_id=${order.id}" 
+                           class="download-receipt-btn" 
+                           target="_blank" 
+                           style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
+                            <i class="fas fa-file-pdf"></i> Download Receipt
+                        </a>
+                    </div>
+                ` : ''}
+            `;
+            
+            return orderCard;
+        }
+
+        // Initialize real-time updates
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initial check
+            updateOrdersRealTime();
+            
+            // Check for updates every 15 seconds (more frequent than notifications since orders change less often)
+            setInterval(updateOrdersRealTime, 15000);
+        });
     </script>
 
     <style>
@@ -279,6 +612,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
         }
         .cancel-btn:hover {
             background: #c82333;
+        }
+        
+        /* Real-time update animations */
+        @keyframes flash {
+            0% { background-color: rgba(255, 193, 7, 0.3); }
+            50% { background-color: rgba(255, 193, 7, 0.8); }
+            100% { background-color: transparent; }
+        }
+        
+        .order-card {
+            transition: all 0.3s ease;
+        }
+        
+        .status-badge {
+            transition: all 0.3s ease;
+        }
+        
+        /* Smooth transitions for new elements */
+        .order-card[data-order-id] {
+            opacity: 1;
+            transform: translateY(0);
         }
     </style>
 </body>

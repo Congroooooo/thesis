@@ -115,7 +115,7 @@ include 'includes/pamo_loader.php';
                                 $total_amount += $item['price'] * $item['quantity'];
                             }
                         ?>
-                            <div class="order-card" data-status="<?php echo $order['status']; ?>">
+                            <div class="order-card" data-order-id="<?php echo $order['id']; ?>" data-status="<?php echo $order['status']; ?>">
                                 <div class="order-header">
                                     <h3>Order #<?php echo htmlspecialchars($order['order_number']); ?></h3>
                                     <span class="status-badge <?php echo $order['status']; ?>">
@@ -250,6 +250,293 @@ include 'includes/pamo_loader.php';
         function filterByStatus(status) {
             window.location.href = `orders.php?status=${status}`;
         }
+
+        // Real-time order updates for PAMO
+        let lastPamoOrderCheck = null;
+        let currentPamoStatusFilter = '<?php echo $status; ?>';
+
+        function updatePamoOrdersRealTime() {
+            const formData = new FormData();
+            formData.append('action', 'get_pamo_orders');
+            formData.append('status', currentPamoStatusFilter);
+            if (lastPamoOrderCheck) {
+                formData.append('last_check', lastPamoOrderCheck);
+            }
+
+            fetch('../Includes/order_operations.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.orders && data.orders.length > 0) {
+                    if (!lastPamoOrderCheck) {
+                        // First load - just update timestamp
+                        lastPamoOrderCheck = data.last_update;
+                    } else {
+                        // Update orders dynamically without page reload
+                        updatePamoOrderElements(data.orders);
+                        lastPamoOrderCheck = data.last_update;
+                    }
+                } else if (data.success) {
+                    // Update timestamp even if no orders
+                    lastPamoOrderCheck = data.last_update;
+                }
+            })
+            .catch(error => {
+                // Silently handle polling errors to avoid console spam
+            });
+        }
+
+        function updatePamoOrderElements(updatedOrders) {
+            const ordersGrid = document.querySelector('.orders-grid');
+            if (!ordersGrid) return;
+
+            updatedOrders.forEach(order => {
+                const existingCard = document.querySelector(`[data-order-id="${order.id}"]`);
+                
+                if (existingCard) {
+                    // Update existing order card
+                    updateSinglePamoOrderCard(existingCard, order);
+                } else {
+                    // Add new order card for newly placed orders
+                    const shouldShow = !currentPamoStatusFilter || currentPamoStatusFilter === order.status;
+                    
+                    if (shouldShow) {
+                        const newCard = createPamoOrderCardElement(order);
+                        newCard.classList.add('new-order');
+                        ordersGrid.insertBefore(newCard, ordersGrid.firstChild);
+                        
+                        // Animate new card
+                        newCard.style.opacity = '0';
+                        newCard.style.transform = 'translateY(-20px)';
+                        setTimeout(() => {
+                            newCard.style.transition = 'all 0.3s ease';
+                            newCard.style.opacity = '1';
+                            newCard.style.transform = 'translateY(0)';
+                        }, 100);
+                        
+                        showNewOrderNotification(order);
+                    }
+                }
+            });
+            
+            // Update the order count after processing
+            updateOrderCount();
+            
+            // Trigger badge update when orders are processed
+            if (typeof updatePendingOrdersBadge === 'function') {
+                updatePendingOrdersBadge();
+            }
+        }
+
+        function showNewOrderNotification(order) {
+            // Show a subtle notification for new orders
+            const notification = document.createElement('div');
+            notification.className = 'new-order-notification';
+            notification.innerHTML = `
+                <i class="fas fa-shopping-cart"></i>
+                New order #${order.order_number} from ${order.first_name} ${order.last_name}
+            `;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #28a745;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 9999;
+                animation: slideInRight 0.5s ease-out;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove notification after 5 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.5s ease-in';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 500);
+            }, 5000);
+        }
+
+        function updateSinglePamoOrderCard(cardElement, order) {
+            // Update status badge
+            const statusBadge = cardElement.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.className = `status-badge ${order.status}`;
+                statusBadge.textContent = order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown';
+                
+                // Flash animation for status changes
+                statusBadge.style.animation = 'flash 0.5s ease-in-out';
+                setTimeout(() => statusBadge.style.animation = '', 500);
+            }
+
+            // Update action buttons based on status
+            const actionButtons = cardElement.querySelector('.order-actions');
+            if (actionButtons) {
+                if (order.status === 'pending') {
+                    actionButtons.innerHTML = `
+                        <button class="accept-btn" onclick="updateOrderStatus(${order.id}, 'approved')">
+                            <i class="fas fa-check"></i> Accept
+                        </button>
+                        <button class="reject-btn" onclick="showRejectionModal(${order.id})">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                    `;
+                } else if (order.status === 'approved') {
+                    actionButtons.innerHTML = `
+                        <button class="complete-btn" data-order-id="${order.id}">
+                            <i class="fas fa-check-double"></i> Mark as Completed (After Payment)
+                        </button>
+                    `;
+                } else {
+                    actionButtons.innerHTML = '';
+                }
+            }
+
+            // Update payment date if completed
+            const orderFooter = cardElement.querySelector('.order-footer');
+            const paymentDate = orderFooter.querySelector('.payment-date');
+            if (order.status === 'completed' && order.formatted_payment_date) {
+                if (!paymentDate) {
+                    const dateSpan = document.createElement('span');
+                    dateSpan.className = 'payment-date';
+                    dateSpan.innerHTML = `<br>Paid: ${order.formatted_payment_date}`;
+                    orderFooter.querySelector('.order-date').appendChild(dateSpan);
+                }
+            }
+
+            // Set order ID for future updates
+            cardElement.setAttribute('data-order-id', order.id);
+        }
+
+        function createPamoOrderCardElement(order) {
+            const orderCard = document.createElement('div');
+            orderCard.className = 'order-card';
+            orderCard.setAttribute('data-order-id', order.id);
+            orderCard.setAttribute('data-status', order.status);
+
+            const orderItems = order.items_decoded || [];
+            let itemsTableHtml = '';
+            
+            orderItems.forEach(item => {
+                const cleanName = (item.item_name || '').replace(/\s[SMLX234567]+$/, '');
+                itemsTableHtml += `
+                    <div class="table-row">
+                        <span class="item-name">${cleanName}</span>
+                        <span class="item-size">${item.size || 'N/A'}</span>
+                        <span class="item-quantity">${item.quantity || 0}</span>
+                        <span class="item-price">₱${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</span>
+                    </div>
+                `;
+            });
+
+            let actionButtons = '';
+            if (order.status === 'pending') {
+                actionButtons = `
+                    <div class="order-actions">
+                        <button class="accept-btn" onclick="updateOrderStatus(${order.id}, 'approved')">
+                            <i class="fas fa-check"></i> Accept
+                        </button>
+                        <button class="reject-btn" onclick="showRejectionModal(${order.id})">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                    </div>
+                `;
+            } else if (order.status === 'approved') {
+                actionButtons = `
+                    <div class="order-actions">
+                        <button class="complete-btn" data-order-id="${order.id}">
+                            <i class="fas fa-check-double"></i> Mark as Completed (After Payment)
+                        </button>
+                    </div>
+                `;
+            }
+
+            orderCard.innerHTML = `
+                <div class="order-header">
+                    <h3>Order #${order.order_number || 'N/A'}</h3>
+                    <span class="status-badge ${order.status}">
+                        ${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}
+                    </span>
+                </div>
+                
+                <div class="order-details">
+                    <div class="customer-info">
+                        <p><strong>Customer:</strong> ${(order.first_name || '') + ' ' + (order.last_name || '')}</p>
+                        <p><strong>Student Number:</strong> ${order.id_number || 'N/A'}</p>
+                        <p><strong>Course/Strand:</strong> ${order.program_or_position || 'N/A'}</p>
+                        <p><strong>Email:</strong> ${order.email || 'N/A'}</p>
+                    </div>
+                    
+                    <div class="items-list">
+                        <h4>Ordered Items:</h4>
+                        <div class="items-table">
+                            <div class="table-header">
+                                <span class="item-name">Item</span>
+                                <span class="item-size">Size</span>
+                                <span class="item-quantity">Qty</span>
+                                <span class="item-price">Price</span>
+                            </div>
+                            ${itemsTableHtml}
+                        </div>
+                    </div>
+                    
+                    <div class="order-footer">
+                        <div class="total-amount">
+                            <strong>Total:</strong> ₱${order.formatted_total || '0.00'}
+                        </div>
+                        <div class="order-date">
+                            ${order.formatted_date || 'Unknown date'}
+                            ${order.status === 'completed' && order.formatted_payment_date ? 
+                                `<br><span class="payment-date">Paid: ${order.formatted_payment_date}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                ${actionButtons}
+            `;
+            
+            return orderCard;
+        }
+
+        // Function to update order count display
+        function updateOrderCount() {
+            const orderCards = document.querySelectorAll('.order-card[data-order-id]');
+            const currentFilter = currentPamoStatusFilter;
+            
+            let visibleCount = 0;
+            orderCards.forEach(card => {
+                if (!currentFilter || card.getAttribute('data-status') === currentFilter) {
+                    visibleCount++;
+                }
+            });
+            
+            // Update any count displays if they exist
+            const countDisplay = document.querySelector('.orders-count, .order-count');
+            if (countDisplay) {
+                countDisplay.textContent = `${visibleCount} orders`;
+            }
+            
+            // Remove title count update
+        }
+
+        // Initialize PAMO real-time updates
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initial check
+            updatePamoOrdersRealTime();
+            updateOrderCount();
+            
+            // Check for updates every 10 seconds for faster new order detection
+            setInterval(() => {
+                updatePamoOrdersRealTime();
+                updateOrderCount();
+            }, 10000);
+        });
 
         // Expose PHP $orders as a JS object for use in modal logic
         window.ORDERS = <?php echo json_encode($orders); ?>;

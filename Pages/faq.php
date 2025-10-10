@@ -160,7 +160,7 @@ include '../Includes/loader.php';
         // Form Submission
         document.getElementById('questionForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            console.log('Form submitted!'); // Debug log
+
             const form = this;
             const formData = new FormData(form);
 

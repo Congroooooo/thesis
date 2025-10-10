@@ -841,7 +841,7 @@ $cart_total = 0;
         let currentItemIdToRemove = null;
 
         function removeFromCart(itemId) {
-            console.log('Remove from cart called with ID:', itemId);
+
             currentItemIdToRemove = itemId;
             showRemoveModal();
         }

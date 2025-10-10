@@ -366,6 +366,11 @@ function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
     .then((response) => response.json())
     .then((data) => {
       if (data.success) {
+        // Update notification badge immediately after status change
+        if (typeof updatePendingOrdersBadge === "function") {
+          setTimeout(updatePendingOrdersBadge, 500); // Small delay to ensure DB is updated
+        }
+
         if (typeof callback === "function") {
           callback();
         } else {

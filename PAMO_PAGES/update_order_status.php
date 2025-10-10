@@ -200,17 +200,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Update order status
         if ($status === 'approved') {
             $staff_name = isset($_SESSION['first_name'], $_SESSION['last_name']) ? $_SESSION['first_name'] . ' ' . $_SESSION['last_name'] : '';
-            $updateStmt = $conn->prepare("UPDATE orders SET status = ?, approved_by = ? WHERE id = ?");
+            $updateStmt = $conn->prepare("UPDATE orders SET status = ?, approved_by = ?, updated_at = NOW() WHERE id = ?");
             if (!$updateStmt->execute([$status, $staff_name, $order_id])) {
                 throw new Exception('Failed to update order status with staff name');
             }
         } else if ($status === 'rejected' && $rejection_reason) {
-            $updateStmt = $conn->prepare("UPDATE orders SET status = ?, rejection_reason = ? WHERE id = ?");
+            $updateStmt = $conn->prepare("UPDATE orders SET status = ?, rejection_reason = ?, updated_at = NOW() WHERE id = ?");
             if (!$updateStmt->execute([$status, $rejection_reason, $order_id])) {
                 throw new Exception('Failed to update order status with rejection reason');
             }
         } else {
-            $updateStmt = $conn->prepare("UPDATE orders SET status = ? WHERE id = ?");
+            $updateStmt = $conn->prepare("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?");
             if (!$updateStmt->execute([$status, $order_id])) {
                 throw new Exception('Failed to update order status');
             }
@@ -218,7 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // If status is completed, record the payment date
         if ($status === 'completed') {
-            $paymentDateStmt = $conn->prepare("UPDATE orders SET payment_date = NOW() WHERE id = ?");
+            $paymentDateStmt = $conn->prepare("UPDATE orders SET payment_date = NOW(), updated_at = NOW() WHERE id = ?");
             if (!$paymentDateStmt->execute([$order_id])) {
                 throw new Exception('Failed to record payment date');
             }

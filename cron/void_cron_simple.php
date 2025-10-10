@@ -83,8 +83,8 @@ try {
 
             logMessage("Processing order ID: {$orderId}, Order #: {$orderNumber}");
 
-            // 1️⃣ Update order status to 'voided'
-            $conn->prepare("UPDATE orders SET status = 'voided' WHERE id = ?")
+            // 1️⃣ Update order status to 'voided' and update timestamp
+            $conn->prepare("UPDATE orders SET status = 'voided', updated_at = NOW() WHERE id = ?")
                 ->execute([$orderId]);
 
             // 2️⃣ Increment strikes

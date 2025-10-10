@@ -295,3 +295,6 @@ function logout() {
     showLogoutConfirmation();
 }
 </script>
+
+<!-- Real-time sidebar updates -->
+<script src="../PAMO JS/sidebar-realtime.js"></script>

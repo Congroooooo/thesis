@@ -986,7 +986,8 @@
   gap: 10px;
 }
 
-.save-btn, .cancel-btn {
+.save-btn,
+.cancel-btn {
   padding: 8px 16px;
   border: none;
   border-radius: 4px;
@@ -1021,4 +1022,94 @@
   overflow-x: auto;
   margin: 2% auto;
   box-sizing: border-box;
+}
+
+/* Real-time update animations */
+@keyframes flash {
+  0% {
+    background-color: rgba(255, 193, 7, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    background-color: rgba(255, 193, 7, 0.8);
+    transform: scale(1.05);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+.order-card {
+  transition: all 0.3s ease;
+}
+
+.order-card[data-order-id] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.status-badge {
+  transition: all 0.3s ease;
+}
+
+.order-actions {
+  transition: all 0.3s ease;
+}
+
+/* New order highlight animation */
+@keyframes newOrderGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+  }
+}
+
+.order-card.new-order {
+  animation: newOrderGlow 1s ease-out;
+  border-left: 4px solid #28a745;
+}
+
+/* Status update pulse */
+.status-badge.updated {
+  animation: flash 0.5s ease-in-out;
+}
+
+/* New order notification animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(300px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(300px);
+    opacity: 0;
+  }
+}
+
+.new-order-notification {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.new-order-notification i {
+  font-size: 1.2em;
 }
