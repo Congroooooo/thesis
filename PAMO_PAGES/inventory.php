@@ -122,17 +122,12 @@ function page_link($page, $query_string) {
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const applyLowStockFilter = sessionStorage.getItem('applyLowStockFilter');
-            console.log('Checking for low stock filter:', applyLowStockFilter);
             if (applyLowStockFilter === 'true') {
                 const urlParams = new URLSearchParams(window.location.search);
-                console.log('Current URL params:', urlParams.toString());
                 if (!urlParams.has('status')) {
                     urlParams.set('status', 'Low Stock');
                     const newUrl = 'inventory.php?' + urlParams.toString();
-                    console.log('Redirecting to:', newUrl);
                     window.location.href = newUrl;
-                } else {
-                    console.log('Status already set, removing session storage');
                 }
                 sessionStorage.removeItem('applyLowStockFilter');
             }
@@ -347,7 +342,7 @@ function page_link($page, $query_string) {
                                   $display_status = 'In Stock';
                                   $statusClass = 'status-in-stock';
                               }
-
+ 
                               echo "<tr data-item-code='" . htmlspecialchars($row['item_code']) . "' data-created-at='" . htmlspecialchars($row['created_at']) . "' data-category='" . strtolower(htmlspecialchars($row['category'])) . "' onclick='selectRow(this, \"" . htmlspecialchars($row['item_code']) . "\", " . $row['price'] . ")'>";
                               echo "<td>" . htmlspecialchars($row['item_code']) . "</td>";
                               echo "<td>" . htmlspecialchars($row['item_name']) . "</td>";

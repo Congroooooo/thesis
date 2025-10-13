@@ -241,7 +241,20 @@ include("../Includes/loader.php");
                             $imageResult = $fallbackStmt->fetch(PDO::FETCH_ASSOC);
                         }
                         
-                        $imagePath = 'uploads/itemlist/default.png'; // default fallback
+                        // Improved default fallback
+                        $imagePath = '';
+                        if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
+                            $imagePath = 'uploads/itemlist/default.png';
+                        } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
+                            $imagePath = 'uploads/itemlist/default.jpg';
+                        } else {
+                            $imagePath = 'data:image/svg+xml;base64,' . base64_encode(
+                                '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+                                    <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+                                    <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
+                                </svg>'
+                            );
+                        }
                         if ($imageResult) {
                             $rawPath = $imageResult['image_path'];
                             
@@ -260,7 +273,19 @@ include("../Includes/loader.php");
                                 if (file_exists('../' . $altPath)) {
                                     $imagePath = $altPath;
                                 } else {
-                                    $imagePath = 'uploads/itemlist/default.png';
+                                    // Use proper fallback logic
+                                    if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
+                                        $imagePath = 'uploads/itemlist/default.png';
+                                    } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
+                                        $imagePath = 'uploads/itemlist/default.jpg';
+                                    } else {
+                                        $imagePath = 'data:image/svg+xml;base64,' . base64_encode(
+                                            '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+                                                <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+                                                <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
+                                            </svg>'
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -352,11 +377,35 @@ include("../Includes/loader.php");
                                 if (file_exists('../' . $altPath)) {
                                     $resolvedPath = $altPath;
                                 } else {
-                                    $resolvedPath = 'uploads/itemlist/default.png';
+                                    // Use proper fallback logic
+                                    if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
+                                        $resolvedPath = 'uploads/itemlist/default.png';
+                                    } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
+                                        $resolvedPath = 'uploads/itemlist/default.jpg';
+                                    } else {
+                                        $resolvedPath = 'data:image/svg+xml;base64,' . base64_encode(
+                                            '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+                                                <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+                                                <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
+                                            </svg>'
+                                        );
+                                    }
                                 }
                             }
                         } else {
-                            $resolvedPath = 'uploads/itemlist/default.png';
+                            // Use proper fallback logic
+                            if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
+                                $resolvedPath = 'uploads/itemlist/default.png';
+                            } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
+                                $resolvedPath = 'uploads/itemlist/default.jpg';
+                            } else {
+                                $resolvedPath = 'data:image/svg+xml;base64,' . base64_encode(
+                                    '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+                                        <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+                                        <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
+                                    </svg>'
+                                );
+                            }
                         }
                         
                         $img = '../' . htmlspecialchars($resolvedPath);
@@ -448,7 +497,19 @@ include("../Includes/loader.php");
     while ($row = $preorderResult->fetch(PDO::FETCH_ASSOC)) {
         // Process image path
         $imagePath = $row['image_path'];
-        $resolvedPath = 'uploads/itemlist/default.png'; // default fallback
+        // Improved default fallback
+        if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
+            $resolvedPath = 'uploads/itemlist/default.png';
+        } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
+            $resolvedPath = 'uploads/itemlist/default.jpg';
+        } else {
+            $resolvedPath = 'data:image/svg+xml;base64,' . base64_encode(
+                '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+                    <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
+                </svg>'
+            );
+        }
         
         if (!empty($imagePath)) {
             if (strpos($imagePath, 'uploads/') === 0) {
@@ -476,7 +537,19 @@ include("../Includes/loader.php");
                 }
                 
                 if (!$found) {
-                    $resolvedPath = 'uploads/itemlist/default.png';
+                    // Use proper fallback logic
+                    if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
+                        $resolvedPath = 'uploads/itemlist/default.png';
+                    } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
+                        $resolvedPath = 'uploads/itemlist/default.jpg';
+                    } else {
+                        $resolvedPath = 'data:image/svg+xml;base64,' . base64_encode(
+                            '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+                                <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
+                            </svg>'
+                        );
+                    }
                 }
             }
         }

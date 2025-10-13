@@ -3,6 +3,17 @@ session_start();
 header('Content-Type: application/json');
 
 require_once '../Includes/connection.php'; // PDO $conn
+require_once '../Includes/MonthlyInventoryManager.php'; // Monthly inventory manager
+
+// Ensure autocommit is disabled for proper transaction handling
+$conn->setAttribute(PDO::ATTR_AUTOCOMMIT, FALSE);
+
+// Clear any existing transaction state that might be lingering
+if ($conn->inTransaction()) {
+    $conn->rollBack();
+}
+
+$monthlyInventory = new MonthlyInventoryManager($conn);
 
 $transactionNumber = (string)($_POST['transactionNumber'] ?? '');
 $itemIds = is_array($_POST['itemId'] ?? []) ? $_POST['itemId'] : [$_POST['itemId'] ?? ''];
@@ -19,6 +30,14 @@ if (count($itemIds) !== count($sizes) ||
     die(json_encode([
         'success' => false,
         'message' => 'Mismatched item data'
+    ]));
+}
+
+// Check if there's already an active transaction
+if ($conn->inTransaction()) {
+    die(json_encode([
+        'success' => false,
+        'message' => 'Database transaction is already active. Please try again.'
     ]));
 }
 
@@ -52,24 +71,23 @@ try {
             throw new Exception("Insufficient stock for item $itemId. Current stock: " . $item['actual_quantity']);
         }
 
-        $new_actual_quantity = $item['actual_quantity'] - $quantityToDeduct;
-        $updateSql = "UPDATE inventory 
-            SET actual_quantity = ?,
-                status = CASE 
-                    WHEN ? <= 0 THEN 'Out of Stock'
-                    WHEN ? <= 10 THEN 'Low Stock'
-                    ELSE 'In Stock'
-                END
-            WHERE item_code = ? AND actual_quantity = ?";
-        $updateStockStmt = $conn->prepare($updateSql);
-        if (!$updateStockStmt->execute([$new_actual_quantity, $new_actual_quantity, $new_actual_quantity, $itemId, $item['actual_quantity']])) {
-            throw new Exception("Error updating item $itemId");
+        // Record the sale in the monthly inventory system
+        $user_id = $_SESSION['user_id'] ?? null;
+        if ($user_id === null) {
+            throw new Exception("User not logged in");
         }
+        
+        $monthlyInventory->recordSale(
+            $transactionNumber,
+            $itemId,
+            $quantityToDeduct,
+            $pricePerItem,
+            $itemTotal,
+            $user_id,
+            false  // Don't use internal transaction since we're already in one
+        );
 
-    if ($updateStockStmt->rowCount() === 0) {
-            throw new Exception("Item $itemId was modified by another transaction. Please try again.");
-        }
-
+        // Also record in the existing sales table for compatibility
         $sql = "INSERT INTO sales (transaction_number, item_code, size, quantity, price_per_item, total_amount, sale_date) 
                 VALUES (?, ?, ?, ?, ?, ?, NOW())";
         $stmt = $conn->prepare($sql);
@@ -77,10 +95,15 @@ try {
             throw new Exception("Error recording sale for item $itemId");
         }
 
+        // Get updated stock for logging
+        $stmt = $conn->prepare("SELECT actual_quantity FROM inventory WHERE item_code = ?");
+        $stmt->execute([$itemId]);
+        $updatedItem = $stmt->fetch(PDO::FETCH_ASSOC);
+        $new_actual_quantity = $updatedItem['actual_quantity'];
+        
         $activity_description = "Sale recorded - Transaction #: $transactionNumber, Item: $itemId, Size: $size, Quantity: $quantityToDeduct, Total: $itemTotal, Previous stock: {$item['actual_quantity']}, New stock: $new_actual_quantity";
         $log_activity_query = "INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES ('Sales', ?, ?, ?, NOW())";
         $stmt = $conn->prepare($log_activity_query);
-        $user_id = $_SESSION['user_id'] ?? null;
         if (!$stmt->execute([$activity_description, $itemId, $user_id])) {
             throw new Exception("Error logging activity for item $itemId");
         }

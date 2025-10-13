@@ -1,0 +1,150 @@
+{
+    "timestamp": "2025-10-12 11:44:56",
+    "total_items": 24,
+    "assignments": [
+        {
+            "id": 1,
+            "item_code": "USHPWV001-001",
+            "item_name": "SH Polo with Vest",
+            "image_path": "uploads\/itemlist\/img_68ea5f02304652.18040012."
+        },
+        {
+            "id": 2,
+            "item_code": "USHPWV001-002",
+            "item_name": "SH Polo with Vest",
+            "image_path": "uploads\/itemlist\/img_68ea5f02304652.18040012."
+        },
+        {
+            "id": 3,
+            "item_code": "USHPWV001-003",
+            "item_name": "SH Polo with Vest",
+            "image_path": "uploads\/itemlist\/img_68ea5f02304652.18040012."
+        },
+        {
+            "id": 4,
+            "item_code": "USHPWV001-004",
+            "item_name": "SH Polo with Vest",
+            "image_path": "uploads\/itemlist\/img_68ea5f02304652.18040012."
+        },
+        {
+            "id": 5,
+            "item_code": "USHPWV001-005",
+            "item_name": "SH Polo with Vest",
+            "image_path": "uploads\/itemlist\/img_68ea5f02304652.18040012."
+        },
+        {
+            "id": 6,
+            "item_code": "USHPWV001-006",
+            "item_name": "SH Polo with Vest",
+            "image_path": "uploads\/itemlist\/img_68ea5f02304652.18040012."
+        },
+        {
+            "id": 7,
+            "item_code": "USHPWV001-007",
+            "item_name": "SH Polo with Vest",
+            "image_path": "uploads\/itemlist\/img_68ea5f02304652.18040012."
+        },
+        {
+            "id": 8,
+            "item_code": "UBF001-001",
+            "item_name": "Female Blazer",
+            "image_path": "uploads\/itemlist\/img_68ea5ee25e03a3.08233709."
+        },
+        {
+            "id": 9,
+            "item_code": "UBF001-002",
+            "item_name": "Female Blazer",
+            "image_path": "uploads\/itemlist\/img_68ea5ee25e03a3.08233709."
+        },
+        {
+            "id": 10,
+            "item_code": "UBF001-003",
+            "item_name": "Female Blazer",
+            "image_path": "uploads\/itemlist\/img_68ea5ee25e03a3.08233709."
+        },
+        {
+            "id": 11,
+            "item_code": "PIDGVH001-000",
+            "item_name": "ID LACE WITH GEL TYPE VERTICAL HOLDER SHS",
+            "image_path": "uploads\/itemlist\/img_68ea5eb6607a73.85160236."
+        },
+        {
+            "id": 12,
+            "item_code": "PTAM039-001",
+            "item_name": "39TH ANNIVERSARY T-SHIRT BLUE",
+            "image_path": "uploads\/itemlist\/img_68ea5e7f4a7b58.21454512."
+        },
+        {
+            "id": 13,
+            "item_code": "PTAM039-002",
+            "item_name": "39TH ANNIVERSARY T-SHIRT BLUE",
+            "image_path": "uploads\/itemlist\/img_68ea5e7f4a7b58.21454512."
+        },
+        {
+            "id": 14,
+            "item_code": "PTAM039-003",
+            "item_name": "39TH ANNIVERSARY T-SHIRT BLUE",
+            "image_path": "uploads\/itemlist\/img_68ea5e7f4a7b58.21454512."
+        },
+        {
+            "id": 15,
+            "item_code": "PTAM039-004",
+            "item_name": "39TH ANNIVERSARY T-SHIRT BLUE",
+            "image_path": "uploads\/itemlist\/img_68ea5e7f4a7b58.21454512."
+        },
+        {
+            "id": 16,
+            "item_code": "USHBWV001-001",
+            "item_name": "SH Blouse with Vest",
+            "image_path": "uploads\/itemlist\/img_68ea5e9d7be521.09419951."
+        },
+        {
+            "id": 17,
+            "item_code": "USHBWV001-002",
+            "item_name": "SH Blouse with Vest",
+            "image_path": "uploads\/itemlist\/img_68ea5e9d7be521.09419951."
+        },
+        {
+            "id": 18,
+            "item_code": "USHBWV001-003",
+            "item_name": "SH Blouse with Vest",
+            "image_path": "uploads\/itemlist\/img_68ea5e9d7be521.09419951."
+        },
+        {
+            "id": 19,
+            "item_code": "UITB001-002",
+            "item_name": "IT 3\/4 Blouse",
+            "image_path": "uploads\/itemlist\/img_68e9c0e8d10836.05410421."
+        },
+        {
+            "id": 20,
+            "item_code": "UITB001-003",
+            "item_name": "IT 3\/4 Blouse",
+            "image_path": "uploads\/itemlist\/img_68e9c0e8d10836.05410421."
+        },
+        {
+            "id": 21,
+            "item_code": "UITB001-009",
+            "item_name": "IT 3\/4 Blouse",
+            "image_path": "uploads\/itemlist\/img_68e9c0e8d10836.05410421."
+        },
+        {
+            "id": 22,
+            "item_code": "UTMBF001-001",
+            "item_name": "TM Blazer Female",
+            "image_path": "uploads\/itemlist\/img_68eb6ea24d3e77.46095987."
+        },
+        {
+            "id": 23,
+            "item_code": "UTMBF001-002",
+            "item_name": "TM Blazer Female",
+            "image_path": "uploads\/itemlist\/img_68eb6ea24d3e77.46095987."
+        },
+        {
+            "id": 24,
+            "item_code": "UTMBF001-003",
+            "item_name": "TM Blazer Female",
+            "image_path": "uploads\/itemlist\/img_68eb6ea24d3e77.46095987."
+        }
+    ]
+}

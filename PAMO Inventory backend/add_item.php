@@ -9,6 +9,9 @@ try {
     }
 
     require_once '../Includes/connection.php'; // PDO $conn
+    require_once '../Includes/MonthlyInventoryManager.php'; // Monthly inventory manager
+    
+    $monthlyInventory = new MonthlyInventoryManager($conn);
     $conn->beginTransaction();
 
     // Check if this is a multi-product request
@@ -91,7 +94,31 @@ try {
                     }
                 }
 
-                $imageExtension = pathinfo($imageName, PATHINFO_EXTENSION);
+                // Get extension from original filename, with fallback to MIME type
+                $imageExtension = strtolower(pathinfo($imageName, PATHINFO_EXTENSION));
+                
+                // If no extension found, determine from MIME type
+                if (empty($imageExtension)) {
+                    switch ($imageType) {
+                        case 'image/jpeg':
+                            $imageExtension = 'jpg';
+                            break;
+                        case 'image/png':
+                            $imageExtension = 'png';
+                            break;
+                        case 'image/gif':
+                            $imageExtension = 'gif';
+                            break;
+                        default:
+                            $imageExtension = 'jpg'; // fallback
+                    }
+                }
+                
+                // Ensure extension is valid
+                if (!in_array($imageExtension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                    $imageExtension = 'jpg'; // fallback
+                }
+                
                 $uniqueName = uniqid('img_', true) . '.' . $imageExtension;
                 $imagePath = $uploadDir . $uniqueName;
                 $dbFilePath = 'uploads/itemlist/' . $uniqueName;
@@ -127,6 +154,8 @@ try {
                 if ($quantity <= 0) throw new Exception("Initial stock must be 1 or more for size: $size in product " . ($productIndex + 1));
                 if ($damage < 0) throw new Exception("Damage count cannot be negative for size: $size in product " . ($productIndex + 1));
 
+                // For new items, beginning quantity is 0 for the current month
+                // New delivery represents the initial stock received
                 $beginning_quantity = 0;
                 $new_delivery = $quantity;
                 $actual_quantity = $beginning_quantity + $new_delivery - $damage;
@@ -137,8 +166,11 @@ try {
                 $stmt = $conn->prepare("INSERT INTO inventory (
                     item_code, category_id, category, item_name, sizes, price,
                     actual_quantity, new_delivery, beginning_quantity,
-                    damage, sold_quantity, status, image_path, RTW, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                    damage, sold_quantity, status, image_path, RTW, created_at,
+                    current_month_deliveries, current_month_sales, inventory_period_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)");
+                
+                $currentPeriodId = $monthlyInventory->getCurrentPeriodId();
                 $stmt->execute([
                     $item_code,
                     $category_id,
@@ -153,8 +185,14 @@ try {
                     $sold_quantity,
                     $status,
                     $dbFilePath,
-                    $RTW
+                    $RTW,
+                    $quantity, // current_month_deliveries
+                    0, // current_month_sales
+                    $currentPeriodId // inventory_period_id
                 ]);
+                
+                // Initialize the item in the monthly inventory system
+                $monthlyInventory->initializeNewItem($item_code, $quantity);
 
                 $new_inventory_id = (int)$conn->lastInsertId();
                 $product_inserted_items[] = $item_code;
@@ -261,7 +299,31 @@ try {
                 }
             }
 
-            $imageExtension = pathinfo($imageName, PATHINFO_EXTENSION);
+            // Get extension from original filename, with fallback to MIME type
+            $imageExtension = strtolower(pathinfo($imageName, PATHINFO_EXTENSION));
+            
+            // If no extension found, determine from MIME type
+            if (empty($imageExtension)) {
+                switch ($imageType) {
+                    case 'image/jpeg':
+                        $imageExtension = 'jpg';
+                        break;
+                    case 'image/png':
+                        $imageExtension = 'png';
+                        break;
+                    case 'image/gif':
+                        $imageExtension = 'gif';
+                        break;
+                    default:
+                        $imageExtension = 'jpg'; // fallback
+                }
+            }
+            
+            // Ensure extension is valid
+            if (!in_array($imageExtension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                $imageExtension = 'jpg'; // fallback
+            }
+            
             $uniqueName = uniqid('img_', true) . '.' . $imageExtension;
             $imagePath = $uploadDir . $uniqueName;
             $dbFilePath = 'uploads/itemlist/' . $uniqueName;
@@ -297,6 +359,8 @@ try {
             if ($quantity <= 0) throw new Exception("Initial stock must be 1 or more for size: $size");
             if ($damage < 0) throw new Exception("Damage count cannot be negative for size: $size");
 
+            // For new items, beginning quantity is 0 for the current month
+            // New delivery represents the initial stock received
             $beginning_quantity = 0;
             $new_delivery = $quantity;
             $actual_quantity = $beginning_quantity + $new_delivery - $damage;
@@ -307,8 +371,11 @@ try {
             $stmt = $conn->prepare("INSERT INTO inventory (
                 item_code, category_id, category, item_name, sizes, price,
                 actual_quantity, new_delivery, beginning_quantity,
-                damage, sold_quantity, status, image_path, RTW, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+                damage, sold_quantity, status, image_path, RTW, created_at,
+                current_month_deliveries, current_month_sales, inventory_period_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)");
+            
+            $currentPeriodId = $monthlyInventory->getCurrentPeriodId();
             $stmt->execute([
                 $item_code,
                 $category_id,
@@ -323,8 +390,14 @@ try {
                 $sold_quantity,
                 $status,
                 $dbFilePath,
-                $RTW
+                $RTW,
+                $quantity, // current_month_deliveries
+                0, // current_month_sales
+                $currentPeriodId // inventory_period_id
             ]);
+            
+            // Initialize the item in the monthly inventory system
+            $monthlyInventory->initializeNewItem($item_code, $quantity);
 
             $new_inventory_id = (int)$conn->lastInsertId();
             $inserted_items[] = $item_code;
@@ -425,7 +498,31 @@ try {
                 }
             }
 
-            $imageExtension = pathinfo($imageName, PATHINFO_EXTENSION);
+            // Get extension from original filename, with fallback to MIME type
+            $imageExtension = strtolower(pathinfo($imageName, PATHINFO_EXTENSION));
+            
+            // If no extension found, determine from MIME type
+            if (empty($imageExtension)) {
+                switch ($imageType) {
+                    case 'image/jpeg':
+                        $imageExtension = 'jpg';
+                        break;
+                    case 'image/png':
+                        $imageExtension = 'png';
+                        break;
+                    case 'image/gif':
+                        $imageExtension = 'gif';
+                        break;
+                    default:
+                        $imageExtension = 'jpg'; // fallback
+                }
+            }
+            
+            // Ensure extension is valid
+            if (!in_array($imageExtension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                $imageExtension = 'jpg'; // fallback
+            }
+            
             $uniqueName = uniqid('img_', true) . '.' . $imageExtension;
             $imagePath = $uploadDir . $uniqueName;
             $dbFilePath = 'uploads/itemlist/' . $uniqueName;

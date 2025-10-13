@@ -48,7 +48,31 @@ try {
     }
 
     // Generate unique filename (same as Add New Item)
-    $imageExtension = pathinfo($imageName, PATHINFO_EXTENSION);
+    // Get extension from original filename, with fallback to MIME type
+    $imageExtension = strtolower(pathinfo($imageName, PATHINFO_EXTENSION));
+    
+    // If no extension found, determine from MIME type
+    if (empty($imageExtension)) {
+        switch ($imageType) {
+            case 'image/jpeg':
+                $imageExtension = 'jpg';
+                break;
+            case 'image/png':
+                $imageExtension = 'png';
+                break;
+            case 'image/gif':
+                $imageExtension = 'gif';
+                break;
+            default:
+                $imageExtension = 'jpg'; // fallback
+        }
+    }
+    
+    // Ensure extension is valid
+    if (!in_array($imageExtension, ['jpg', 'jpeg', 'png', 'gif'])) {
+        $imageExtension = 'jpg'; // fallback
+    }
+    
     $uniqueName = uniqid('img_', true) . '.' . $imageExtension;
     $imagePath = $uploadDir . $uniqueName;
     $dbFilePath = 'uploads/itemlist/' . $uniqueName;

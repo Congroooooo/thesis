@@ -1,4 +1,9 @@
 <?php
+/**
+ * Process Add Quantity - Fixed Transaction Handling Version
+ * This version properly handles transaction conflicts
+ */
+
 // Disable error display in output
 error_reporting(0);
 ini_set('display_errors', 0);
@@ -8,12 +13,18 @@ header('Content-Type: application/json');
 
 try {
     require_once '../Includes/connection.php'; // PDO $conn
+    require_once '../Includes/MonthlyInventoryManager.php'; // Monthly inventory manager
 
     // Start session if not already started
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
-
+    
+    // Make sure we don't have any existing transactions
+    while ($conn->inTransaction()) {
+        $conn->rollBack();
+    }
+    
     // Get and validate form data
     $orderNumber = isset($_POST['orderNumber']) ? trim($_POST['orderNumber']) : '';
     if (empty($orderNumber)) {
@@ -50,7 +61,7 @@ try {
             throw new Exception("Invalid quantity for item $itemId: must be greater than 0");
         }
 
-        // Check if item exists
+        // Check if item exists (without starting a transaction)
         $stmt = $conn->prepare("SELECT item_code FROM inventory WHERE item_code = ?");
         if (!$stmt->execute([$itemId])) {
             throw new Exception("Database error");
@@ -67,7 +78,15 @@ try {
         ];
     }
 
-    // Start transaction after all validation is complete
+    // Create MonthlyInventoryManager instance (this might create periods if needed)
+    $monthlyInventory = new MonthlyInventoryManager($conn);
+    
+    // Make sure no transaction was accidentally started
+    if ($conn->inTransaction()) {
+        $conn->rollBack();
+    }
+
+    // Now start our main transaction
     $conn->beginTransaction();
 
     // Process each validated item
@@ -83,44 +102,36 @@ try {
             throw new Exception("Item not found: {$item['itemId']}");
         }
 
-        // Calculate new quantities
-        $new_delivery = $item['quantity'];
-        $beginning_quantity = $currentItem['actual_quantity'];
-        $actual_quantity = $beginning_quantity + $new_delivery;
-
-        // Update inventory
-        $updateSql = "UPDATE inventory 
-            SET actual_quantity = ?,
-                new_delivery = ?,
-                beginning_quantity = ?,
-                date_delivered = NOW(),
-                status = CASE 
-                    WHEN ? <= 0 THEN 'Out of Stock'
-                    WHEN ? <= 10 THEN 'Low Stock'
-                    ELSE 'In Stock'
-                END
-            WHERE item_code = ? AND actual_quantity = ?";
-        $updateStockStmt = $conn->prepare($updateSql);
-        if (!$updateStockStmt->execute([
-            $actual_quantity,
-            $new_delivery,
-            $beginning_quantity,
-            $actual_quantity,
-            $actual_quantity,
-            $item['itemId'],
-            $beginning_quantity
-        ])) {
-            throw new Exception("Failed to update inventory");
-        }
-
-        // Log the activity
-        $activity_description = "New delivery added - Order #: $orderNumber, Item: {$item['itemId']}, Quantity: {$item['quantity']}, Previous stock: $beginning_quantity, New total: $actual_quantity";
-        $log_activity_query = "INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES ('Restock Item', ?, ?, ?, NOW())";
-        $stmtLog = $conn->prepare($log_activity_query);
+        // Record the delivery in the monthly inventory system
         $user_id = $_SESSION['user_id'] ?? null;
         if ($user_id === null) {
             throw new Exception("User not logged in");
         }
+        
+        $monthlyInventory->recordDelivery(
+            $orderNumber, 
+            $item['itemId'], 
+            $item['quantity'], 
+            $user_id,
+            false  // Don't use internal transaction since we're already in one
+        );
+        
+        // Update the delivery date
+        $stmt = $conn->prepare("UPDATE inventory SET date_delivered = NOW() WHERE item_code = ?");
+        $stmt->execute([$item['itemId']]);
+
+        // Get updated quantities for logging
+        $stmt = $conn->prepare("SELECT beginning_quantity, actual_quantity FROM inventory WHERE item_code = ?");
+        $stmt->execute([$item['itemId']]);
+        $updatedItem = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        $beginning_quantity = $updatedItem['beginning_quantity'];
+        $actual_quantity = $updatedItem['actual_quantity'];
+        
+        // Log the activity
+        $activity_description = "New delivery added - Order #: $orderNumber, Item: {$item['itemId']}, Quantity: {$item['quantity']}, Month beginning: $beginning_quantity, Current total: $actual_quantity";
+        $log_activity_query = "INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES ('Restock Item', ?, ?, ?, NOW())";
+        $stmtLog = $conn->prepare($log_activity_query);
         if (!$stmtLog->execute([$activity_description, $item['itemId'], $user_id])) {
             throw new Exception("Failed to log activity");
         }
@@ -152,18 +163,18 @@ try {
 
     // If we got here, everything succeeded
     $conn->commit();
-    die(json_encode([
+    echo json_encode([
         'success' => true,
         'message' => 'All items in delivery recorded successfully'
-    ]));
+    ]);
 
 } catch (Exception $e) {
     if (isset($conn) && $conn instanceof PDO && $conn->inTransaction()) {
         $conn->rollBack();
     }
-    die(json_encode([
+    echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
-    ]));
+    ]);
 }
-?> 
+?>

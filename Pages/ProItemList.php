@@ -80,7 +80,7 @@ include("../Includes/loader.php");
                             $resolvedPath = '../uploads/itemlist/' . $imagePath;
                         }
                     } else {
-                        $candidateRaw = __DIR__ . '/../' . ltrim($imagePath, '/');
+                        $candidateRaw = __DIR__ . '/../' . ltrim($imagePath, '/');  
                         if (file_exists($candidateRaw)) {
                             $resolvedPath = '../' . ltrim($imagePath, '/');
                         }
@@ -113,9 +113,21 @@ include("../Includes/loader.php");
                     }
                 }
                 
-                // Final fallback to default image
+                // Final fallback to default image with proper validation
                 if (empty($itemImage)) {
-                    $itemImage = file_exists(__DIR__ . '/../uploads/itemlist/default.png') ? '../uploads/itemlist/default.png' : '../uploads/itemlist/default.jpg';
+                    if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
+                        $itemImage = '../uploads/itemlist/default.png';
+                    } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
+                        $itemImage = '../uploads/itemlist/default.jpg';
+                    } else {
+                        // Create a data URL for a simple placeholder if no default files exist
+                        $itemImage = 'data:image/svg+xml;base64,' . base64_encode(
+                            '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+                                <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
+                            </svg>'
+                        );
+                    }
                 }
 
                 if (!isset($products[$baseItemCode])) {
@@ -321,10 +333,22 @@ include("../Includes/loader.php");
                                 }
                             }
                             if (empty($productImage)) {
-                                $productImage = '../uploads/itemlist/default.png';
+                                if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
+                                    $productImage = '../uploads/itemlist/default.png';
+                                } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
+                                    $productImage = '../uploads/itemlist/default.jpg';
+                                } else {
+                                    $productImage = 'data:image/svg+xml;base64,' . base64_encode(
+                                        '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+                                            <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+                                            <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
+                                        </svg>'
+                                    );
+                                }
                             }
                         ?>
-                            <img src="<?php echo $productImage; ?>" alt="<?php echo $product['name']; ?>">
+                            <img src="<?php echo $productImage; ?>" alt="<?php echo $product['name']; ?>" 
+                                 onerror="this.onerror=null; this.src='data:image/svg+xml;base64,<?php echo base64_encode('<svg width=\'300\' height=\'300\' xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'300\' height=\'300\' fill=\'#f0f0f0\' stroke=\'#ddd\' stroke-width=\'2\'/><text x=\'150\' y=\'150\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-family=\'Arial\' font-size=\'16\' fill=\'#666\'>No Image</text></svg>'); ?>'">
                         <div class="product-overlay">
                             <div class="items"></div>
                             <div class="items head">

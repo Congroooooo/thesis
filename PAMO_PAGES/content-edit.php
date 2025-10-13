@@ -883,15 +883,11 @@ include 'includes/pamo_loader.php';
                             
                             // Compress if file is larger than 1MB
                             if (file.size > 1024 * 1024) {
-                                console.log(`Compressing image: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
-                                
                                 if (fileInfo) {
                                     fileInfo.innerHTML = '<span class="processing-images">Compressing image, please wait...</span>';
                                 }
                                 
                                 processedFile = await compressImage(file);
-                                
-                                console.log(`Compressed to: ${(processedFile.size / 1024 / 1024).toFixed(1)}MB`);
                                 
                                 // Update the file input with compressed file
                                 const dataTransfer = new DataTransfer();

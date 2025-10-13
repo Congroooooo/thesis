@@ -63,7 +63,46 @@ include '../Includes/loader.php';
                     ";
                     $result = $conn->query($sql);
                     while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-                    $imgPath = !empty($row['image_path']) ? '../' . $row['image_path'] : '../uploads/itemlist/default.png';
+                    // Improved image path handling
+                    if (!empty($row['image_path'])) {
+                        $imgPath = '../' . $row['image_path'];
+                        // Check if the file actually exists
+                        if (!file_exists(__DIR__ . '/' . $imgPath)) {
+                            // Try alternative path
+                            $altPath = '../uploads/itemlist/' . basename($row['image_path']);
+                            if (file_exists(__DIR__ . '/' . $altPath)) {
+                                $imgPath = $altPath;
+                            } else {
+                                // Use default fallback
+                                if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
+                                    $imgPath = '../uploads/itemlist/default.png';
+                                } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
+                                    $imgPath = '../uploads/itemlist/default.jpg';
+                                } else {
+                                    $imgPath = 'data:image/svg+xml;base64,' . base64_encode(
+                                        '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+                                            <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+                                            <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
+                                        </svg>'
+                                    );
+                                }
+                            }
+                        }
+                    } else {
+                        // Use default fallback when no image path is provided
+                        if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
+                            $imgPath = '../uploads/itemlist/default.png';
+                        } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
+                            $imgPath = '../uploads/itemlist/default.jpg';
+                        } else {
+                            $imgPath = 'data:image/svg+xml;base64,' . base64_encode(
+                                '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+                                    <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
+                                    <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
+                                </svg>'
+                            );
+                        }
+                    }
                     $title = htmlspecialchars($row['item_name']);
                     $price = number_format((float)$row['price'], 2);
                     // For pre-orders, make all standard sizes available
@@ -71,7 +110,7 @@ include '../Includes/loader.php';
                     $preId = (int)$row['id'];
                     $requests = (int)$row['total_requests'];
                     echo '<div class="product-container" data-preorder-id="' . $preId . '" data-sizes="' . $allSizes . '" data-item-name="' . $title . '" data-price="' . $row['price'] . '">';
-                    echo '  <img src="' . htmlspecialchars($imgPath) . '" alt="' . $title . '">';
+                    echo '  <img src="' . htmlspecialchars($imgPath) . '" alt="' . $title . '" onerror="this.onerror=null; this.src=\'data:image/svg+xml;base64,' . base64_encode('<svg width=\'300\' height=\'300\' xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'300\' height=\'300\' fill=\'#f0f0f0\' stroke=\'#ddd\' stroke-width=\'2\'/><text x=\'150\' y=\'150\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-family=\'Arial\' font-size=\'16\' fill=\'#666\'>No Image</text></svg>') . '\'">';
                     echo '  <div class="product-overlay">';
                     echo '      <div class="items"></div>';
                     echo '      <div class="items head">';

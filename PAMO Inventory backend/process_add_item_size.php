@@ -1,6 +1,5 @@
 <?php
 session_start();
-file_put_contents(__DIR__ . '/debug_add_item_size.txt', print_r($_POST, true));
 header('Content-Type: application/json');
 
 require_once '../Includes/connection.php'; // PDO $conn

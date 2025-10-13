@@ -323,3 +323,229 @@ function showNotification(message) {
 function logout() {
   showLogoutConfirmation();
 }
+
+// Monthly Inventory Report Functions
+function loadMonthlyReport(year, month) {
+  const monthlyReportDiv = document.getElementById("monthlyReport");
+  if (!monthlyReportDiv) return;
+
+  // Show loading indicator
+  monthlyReportDiv.innerHTML =
+    '<div style="text-align: center; padding: 40px;"><div class="loading-spinner"></div><p>Loading monthly report...</p></div>';
+
+  // Fetch monthly report data
+  fetch(
+    `../PAMO_DASHBOARD_BACKEND/monthly_reports_api.php?action=get_monthly_inventory&year=${year}&month=${month}`
+  )
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.success) {
+        displayMonthlyInventoryTable(data.data, data.pagination);
+      } else {
+        monthlyReportDiv.innerHTML = `<div style="text-align: center; padding: 40px; color: #dc3545;"><p>${
+          data.message || "Failed to load monthly report"
+        }</p></div>`;
+      }
+    })
+    .catch((error) => {
+      console.error("Error loading monthly report:", error);
+      monthlyReportDiv.innerHTML =
+        '<div style="text-align: center; padding: 40px; color: #dc3545;"><p>Error loading monthly report</p></div>';
+    });
+}
+
+function displayMonthlyInventoryTable(data, pagination) {
+  if (!data || data.length === 0) {
+    return '<div style="text-align: center; padding: 40px;"><p>No inventory data available for this period.</p></div>';
+  }
+
+  let html = `
+    <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="background: #f8f9fa;">
+            <th style="padding: 15px 12px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Item Code</th>
+            <th style="padding: 15px 12px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Item Name</th>
+            <th style="padding: 15px 12px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Category</th>
+            <th style="padding: 15px 12px; text-align: center; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Beginning</th>
+            <th style="padding: 15px 12px; text-align: center; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Deliveries</th>
+            <th style="padding: 15px 12px; text-align: center; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Sales</th>
+            <th style="padding: 15px 12px; text-align: center; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Ending</th>
+            <th style="padding: 15px 12px; text-align: right; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  let currentCategory = "";
+  data.forEach((item) => {
+    if (currentCategory !== item.category) {
+      currentCategory = item.category;
+      html += `
+        <tr style="background: #e9ecef;">
+          <td colspan="8" style="padding: 10px 12px; font-weight: 600; color: #495057;">
+            ${item.category}
+          </td>
+        </tr>
+      `;
+    }
+
+    html += `
+      <tr style="border-bottom: 1px solid #dee2e6;">
+        <td style="padding: 12px; color: #495057;">${item.item_code}</td>
+        <td style="padding: 12px; color: #495057;">${item.item_name}</td>
+        <td style="padding: 12px; color: #6c757d; font-size: 14px;"></td>
+        <td style="padding: 12px; text-align: center; color: #495057;">${Number(
+          item.beginning_quantity
+        ).toLocaleString()}</td>
+        <td style="padding: 12px; text-align: center; color: #28a745;">${Number(
+          item.new_delivery_total
+        ).toLocaleString()}</td>
+        <td style="padding: 12px; text-align: center; color: #dc3545;">${Number(
+          item.sales_total
+        ).toLocaleString()}</td>
+        <td style="padding: 12px; text-align: center; font-weight: 600; color: ${
+          item.ending_quantity > 0 ? "#28a745" : "#dc3545"
+        };">
+          ${Number(item.ending_quantity).toLocaleString()}
+        </td>
+        <td style="padding: 12px; text-align: right; color: #495057;">₱${Number(
+          item.ending_value
+        ).toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}</td>
+      </tr>
+    `;
+  });
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  // Add pagination if needed
+  if (pagination && pagination.total_pages > 1) {
+    html += generatePagination(pagination);
+  }
+
+  return html;
+}
+
+function generatePagination(pagination) {
+  let html = `
+    <div style="display: flex; justify-content: between; align-items: center; padding: 20px; background: white; border-top: 1px solid #dee2e6;">
+      <div>
+        Showing ${
+          (pagination.current_page - 1) * pagination.limit + 1
+        } to ${Math.min(
+    pagination.current_page * pagination.limit,
+    pagination.total_records
+  )} of ${pagination.total_records} entries
+      </div>
+      <div style="display: flex; gap: 5px;">
+  `;
+
+  // Previous button
+  if (pagination.current_page > 1) {
+    html += `<button onclick="loadMonthlyReportPage(${
+      pagination.current_page - 1
+    })" style="padding: 8px 12px; border: 1px solid #dee2e6; background: white; color: #495057; border-radius: 4px; cursor: pointer;">Previous</button>`;
+  }
+
+  // Page numbers
+  for (
+    let i = Math.max(1, pagination.current_page - 2);
+    i <= Math.min(pagination.total_pages, pagination.current_page + 2);
+    i++
+  ) {
+    const isActive = i === pagination.current_page;
+    html += `<button onclick="loadMonthlyReportPage(${i})" style="padding: 8px 12px; border: 1px solid #dee2e6; background: ${
+      isActive ? "#007bff" : "white"
+    }; color: ${
+      isActive ? "white" : "#495057"
+    }; border-radius: 4px; cursor: pointer;">${i}</button>`;
+  }
+
+  // Next button
+  if (pagination.current_page < pagination.total_pages) {
+    html += `<button onclick="loadMonthlyReportPage(${
+      pagination.current_page + 1
+    })" style="padding: 8px 12px; border: 1px solid #dee2e6; background: white; color: #495057; border-radius: 4px; cursor: pointer;">Next</button>`;
+  }
+
+  html += `
+      </div>
+    </div>
+  `;
+
+  return html;
+}
+
+function loadMonthlyReportPage(page) {
+  const monthSelector = document.getElementById("monthSelector");
+  const yearSelector = document.getElementById("yearSelector");
+
+  if (monthSelector && yearSelector) {
+    const month = monthSelector.value;
+    const year = yearSelector.value;
+
+    // Update URL and reload
+    window.location.href = `?type=monthly&month=${month}&year=${year}&page=${page}`;
+  }
+}
+
+// Export monthly report to Excel
+function exportMonthlyReport() {
+  const monthSelector = document.getElementById("monthSelector");
+  const yearSelector = document.getElementById("yearSelector");
+
+  if (monthSelector && yearSelector) {
+    const month = monthSelector.value;
+    const year = yearSelector.value;
+    const monthName = monthSelector.options[monthSelector.selectedIndex].text;
+
+    // Fetch full report data for export
+    fetch(
+      `../PAMO_DASHBOARD_BACKEND/monthly_reports_api.php?action=get_monthly_inventory&year=${year}&month=${month}&limit=1000`
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success && data.data.length > 0) {
+          exportToExcelFromData(
+            data.data,
+            `Monthly_Inventory_Report_${monthName}_${year}`
+          );
+        } else {
+          alert("No data available to export for the selected period.");
+        }
+      })
+      .catch((error) => {
+        console.error("Error exporting monthly report:", error);
+        alert("Error exporting monthly report");
+      });
+  }
+}
+
+function exportToExcelFromData(data, filename) {
+  // Create CSV content
+  let csv =
+    "Item Code,Item Name,Category,Beginning Quantity,Deliveries,Sales,Ending Quantity,Unit Price,Total Value\n";
+
+  data.forEach((item) => {
+    csv += `"${item.item_code}","${item.item_name}","${item.category}",${item.beginning_quantity},${item.new_delivery_total},${item.sales_total},${item.ending_quantity},${item.price},${item.ending_value}\n`;
+  });
+
+  // Create and download file
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.style.display = "none";
+  a.href = url;
+  a.download = filename + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}

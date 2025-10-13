@@ -1,5 +1,0 @@
-Array
-(
-    [deliveryOrderNumber] => 12
-    [itemsData] => [{"existingItem":"PTAM039","sizes":[{"size":"3XL","itemCode":"PTAM039-007","quantity":"1","damage":"0","price":"1"}]},{"existingItem":"USHS001","sizes":[{"size":"XS","itemCode":"USHS001-001","quantity":"1","damage":"0","price":"1"}]}]
-)

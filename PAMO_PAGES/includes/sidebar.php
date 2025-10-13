@@ -68,7 +68,7 @@ try {
         </li>
         <li <?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'class="active"' : ''; ?>
             onclick="window.location.href='<?php echo $basePath; ?>reports.php'">
-            <span class="active-bar"></span>
+            <span class="active-bar"></span> 
             <i class="material-icons">assessment</i>Reports
         </li>
         <?php

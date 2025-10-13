@@ -13,8 +13,7 @@ header('Content-Type: application/json');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $response = ['success' => false, 'message' => ''];
     
-    // Debug: Log incoming request
-    error_log("Received status update request: " . json_encode($_POST));
+
     
     // Validate input parameters
     if (!isset($_POST['order_id']) || !isset($_POST['status'])) {
@@ -32,8 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Start transaction
         $conn->beginTransaction();
 
-        // Debug: Log the query we're about to execute
-        error_log("Fetching order details for ID: " . $order_id);
+
 
         // Get order details first
         $stmt = $conn->prepare("SELECT * FROM orders WHERE id = ? FOR UPDATE");
@@ -44,8 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $order = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Debug: Log what we found
-        error_log("Order query result: " . json_encode($order));
+
 
         if (!$order) {
             throw new Exception('Order not found');
@@ -53,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // If status is being changed to completed, process inventory updates
         if ($status === 'completed') {
-            error_log("Processing completed order: " . $order_id);
+
             
             // Decode the items JSON
             $order_items = json_decode($order['items'], true);
@@ -62,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             foreach ($order_items as $item) {
-                error_log("Processing item: " . json_encode($item));
+
                 
                 // Get current inventory with lock
                 $stockStmt = $conn->prepare("SELECT * FROM inventory WHERE item_code = ? FOR UPDATE");
@@ -75,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception('Item no longer exists in inventory: ' . $item['item_code']);
                 }
                 
-                error_log("Current inventory state: " . json_encode($inventory));
+
                 
                 // Verify sufficient quantity
                 $new_quantity = $inventory['actual_quantity'] - $item['quantity'];
@@ -111,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception('Item ' . $inventory['item_name'] . ' was modified by another transaction. Please try again.');
                 }
                 
-                error_log("Updated inventory quantity for {$inventory['item_name']}: {$inventory['actual_quantity']} -> {$new_quantity}");
+
                 
                 // Record the sale
                 $saleStmt = $conn->prepare(
@@ -295,7 +292,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         try {
-            error_log("Creating notification for user: " . $order['user_id']);
+
             createNotification($conn, $order['user_id'], $message, $order['order_number'], $status);
         } catch (Exception $e) {
             error_log("Failed to create notification: " . $e->getMessage());
