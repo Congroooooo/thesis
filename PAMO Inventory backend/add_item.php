@@ -171,7 +171,7 @@ try {
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)");
                 
                 $currentPeriodId = $monthlyInventory->getCurrentPeriodId();
-                $stmt->execute([
+                $success = $stmt->execute([
                     $item_code,
                     $category_id,
                     $category,
@@ -190,11 +190,20 @@ try {
                     0, // current_month_sales
                     $currentPeriodId // inventory_period_id
                 ]);
-                
+
+
+                if (!$success) {
+                    throw new Exception("Failed to insert inventory item for $item_code");
+                }
+
+                $new_inventory_id = (int)$conn->lastInsertId();
+                if ($new_inventory_id === 0) {
+                    throw new Exception("Failed to get inventory ID for $item_code");
+                }
+
                 // Initialize the item in the monthly inventory system
                 $monthlyInventory->initializeNewItem($item_code, $quantity);
 
-                $new_inventory_id = (int)$conn->lastInsertId();
                 $product_inserted_items[] = $item_code;
                 $all_inserted_items[] = $item_code;
                 $product_items_added++;
@@ -203,7 +212,7 @@ try {
                 // Link subcategories, if provided
                 $subcategory_ids = isset($productData['subcategory_ids']) ? (array)$productData['subcategory_ids'] : [];
                 if (!empty($subcategory_ids)) {
-                    $pivot_stmt = $conn->prepare("INSERT IGNORE INTO inventory_subcategory (inventory_id, subcategory_id) VALUES (?, ?)");
+                    $pivot_stmt = $conn->prepare("INSERT IGNORE INTO inventory_subcategory (inventory_id, subcategory_id) VALUES (?, ?)" );
                     foreach ($subcategory_ids as $sid) {
                         $sid = intval($sid);
                         if ($sid > 0) {

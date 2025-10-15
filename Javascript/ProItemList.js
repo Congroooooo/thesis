@@ -489,7 +489,7 @@ document.addEventListener("DOMContentLoaded", function () {
             ) {
               // If subcategories are selected, product must match at least one subcategory
               for (const courseValue of activeSubcategories.get(mainCategory)) {
-                const cv = String(courseValue).toLowerCase();
+                const cv = String(courseValue); // Remove .toLowerCase() for numeric IDs
 
                 // Primary check: does the product have this subcategory ID?
                 if (productSubcats.includes(cv)) {
