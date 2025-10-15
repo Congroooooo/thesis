@@ -48,10 +48,16 @@ include("../Includes/loader.php");
             <?php
             require_once '../Includes/connection.php';
 
+            // Pagination parameters
+            $itemsPerPage = 10;
+            $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+            $offset = ($currentPage - 1) * $itemsPerPage;
+
             $sql = "SELECT inventory.* FROM inventory ORDER BY inventory.created_at DESC";
             $result = $conn->query($sql);
 
             $products = [];
+            $allProducts = [];
 
             while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $itemCode = $row['item_code'];
@@ -130,8 +136,8 @@ include("../Includes/loader.php");
                     }
                 }
 
-                if (!isset($products[$baseItemCode])) {
-                    $products[$baseItemCode] = [
+                if (!isset($allProducts[$baseItemCode])) {
+                    $allProducts[$baseItemCode] = [
                         'name' => $itemName,
                         'image' => $itemImage,
                         'prices' => [$itemPrice],
@@ -151,16 +157,16 @@ include("../Includes/loader.php");
                         ]
                     ];
                 } else {
-                    $products[$baseItemCode]['sizes'] = array_unique(array_merge($products[$baseItemCode]['sizes'], $sizes));
-                    $products[$baseItemCode]['prices'][] = $itemPrice;
-                    $products[$baseItemCode]['stock'] += $row['actual_quantity'];
-                    $products[$baseItemCode]['courses'] = array_unique(array_merge($products[$baseItemCode]['courses'], $courses));
-                    $products[$baseItemCode]['subcategories'] = array_unique(array_merge($products[$baseItemCode]['subcategories'], $subcats));
+                    $allProducts[$baseItemCode]['sizes'] = array_unique(array_merge($allProducts[$baseItemCode]['sizes'], $sizes));
+                    $allProducts[$baseItemCode]['prices'][] = $itemPrice;
+                    $allProducts[$baseItemCode]['stock'] += $row['actual_quantity'];
+                    $allProducts[$baseItemCode]['courses'] = array_unique(array_merge($allProducts[$baseItemCode]['courses'], $courses));
+                    $allProducts[$baseItemCode]['subcategories'] = array_unique(array_merge($allProducts[$baseItemCode]['subcategories'], $subcats));
                     
                     // Use the current variant's image if available, otherwise use the main product image
-                    $variantImage = !empty($itemImage) ? $itemImage : $products[$baseItemCode]['image'];
+                    $variantImage = !empty($itemImage) ? $itemImage : $allProducts[$baseItemCode]['image'];
                     
-                    $products[$baseItemCode]['variants'][] = [
+                    $allProducts[$baseItemCode]['variants'][] = [
                         'item_code' => $itemCode,
                         'size' => isset($sizes[0]) ? $sizes[0] : '',
                         'price' => $itemPrice,
@@ -169,16 +175,24 @@ include("../Includes/loader.php");
                     ];
                     
                     // Update the main product image if it was empty and we now have a valid image
-                    if (empty($products[$baseItemCode]['image']) && !empty($itemImage)) {
-                        $products[$baseItemCode]['image'] = $itemImage;
+                    if (empty($allProducts[$baseItemCode]['image']) && !empty($itemImage)) {
+                        $allProducts[$baseItemCode]['image'] = $itemImage;
                     }
                 }
             }
+            
+            // Apply pagination to products
+            $totalProducts = count($allProducts);
+            $totalPages = ceil($totalProducts / $itemsPerPage);
+            
+            // Get only the products for the current page
+            $productsForCurrentPage = array_slice($allProducts, $offset, $itemsPerPage, true);
+            $products = $productsForCurrentPage;
             ?>
             
             <?php
             $categoriesWithProducts = [];
-            foreach ($products as $product) {
+            foreach ($allProducts as $product) {
                 if ((int)($product['stock'] ?? 0) > 0) {
                     $cat = strtolower(str_replace(' ', '-', $product['category']));
                     $categoriesWithProducts[$cat] = true;
@@ -377,6 +391,79 @@ include("../Includes/loader.php");
                     <p>Try adjusting your search terms or filters to find what you're looking for.</p>
                 </div>
             </div>
+            
+            <!-- Pagination Controls -->
+            <?php if ($totalPages > 1): ?>
+            <?php
+            // Preserve any existing URL parameters for pagination links
+            $currentParams = $_GET;
+            unset($currentParams['page']); // Remove page parameter to avoid duplication
+            
+            function buildPaginationUrl($page, $params = []) {
+                $allParams = array_merge($_GET, $params);
+                $allParams['page'] = $page;
+                return '?' . http_build_query($allParams);
+            }
+            ?>
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    <span>Showing <?php echo ($offset + 1); ?> to <?php echo min($offset + $itemsPerPage, $totalProducts); ?> of <?php echo $totalProducts; ?> products</span>
+                </div>
+                <div class="pagination">
+                    <?php if ($currentPage > 1): ?>
+                        <a href="<?php echo buildPaginationUrl($currentPage - 1); ?>" class="pagination-btn prev-btn">
+                            <i class="fas fa-chevron-left"></i>
+                            Previous
+                        </a>
+                    <?php else: ?>
+                        <span class="pagination-btn prev-btn disabled">
+                            <i class="fas fa-chevron-left"></i>
+                            Previous
+                        </span>
+                    <?php endif; ?>
+                    
+                    <div class="pagination-numbers">
+                        <?php
+                        $startPage = max(1, $currentPage - 2);
+                        $endPage = min($totalPages, $currentPage + 2);
+                        
+                        if ($startPage > 1): ?>
+                            <a href="<?php echo buildPaginationUrl(1); ?>" class="pagination-number">1</a>
+                            <?php if ($startPage > 2): ?>
+                                <span class="pagination-dots">...</span>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                        
+                        <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                            <?php if ($i == $currentPage): ?>
+                                <span class="pagination-number active"><?php echo $i; ?></span>
+                            <?php else: ?>
+                                <a href="<?php echo buildPaginationUrl($i); ?>" class="pagination-number"><?php echo $i; ?></a>
+                            <?php endif; ?>
+                        <?php endfor; ?>
+                        
+                        <?php if ($endPage < $totalPages): ?>
+                            <?php if ($endPage < $totalPages - 1): ?>
+                                <span class="pagination-dots">...</span>
+                            <?php endif; ?>
+                            <a href="<?php echo buildPaginationUrl($totalPages); ?>" class="pagination-number"><?php echo $totalPages; ?></a>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <?php if ($currentPage < $totalPages): ?>
+                        <a href="<?php echo buildPaginationUrl($currentPage + 1); ?>" class="pagination-btn next-btn">
+                            Next
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    <?php else: ?>
+                        <span class="pagination-btn next-btn disabled">
+                            Next
+                            <i class="fas fa-chevron-right"></i>
+                        </span>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </main>
     </div>
 

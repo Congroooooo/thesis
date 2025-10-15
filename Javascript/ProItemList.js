@@ -435,6 +435,26 @@ document.addEventListener("DOMContentLoaded", function () {
     let visibleCount = 0;
     const normalizedSearchTerm = normalizeText(currentSearchTerm);
 
+    // Check if we have any active filters
+    const hasActiveFilters =
+      activeMainCategories.size > 0 ||
+      activeSubcategories.size > 0 ||
+      normalizedSearchTerm !== "";
+
+    // If no filters are active, show all products on current page
+    if (!hasActiveFilters) {
+      productContainers.forEach((container) => {
+        container.style.display = "block";
+        visibleCount++;
+      });
+
+      const noResultsMessage = document.getElementById("no-results-message");
+      if (noResultsMessage) {
+        noResultsMessage.style.display = "none";
+      }
+      return;
+    }
+
     // Debug logging
     console.log("Active subcategories:", activeSubcategories);
 
@@ -562,10 +582,40 @@ document.addEventListener("DOMContentLoaded", function () {
       // Reset search input if you have one
       if (searchInput) searchInput.value = "";
       currentSearchTerm = "";
+      // Reset to page 1 when clearing filters
+      resetToPage1();
       // Apply all filters
       applyAllFilters();
     });
   }
+
+  // Function to reset to page 1 when filters are applied
+  function resetToPage1() {
+    const currentUrl = new URL(window.location);
+    currentUrl.searchParams.set("page", "1");
+    window.location.href = currentUrl.toString();
+  }
+
+  // Override the applyAllFilters function to redirect to page 1 when filters change
+  const originalApplyAllFilters = applyAllFilters;
+  applyAllFilters = function () {
+    // Check if this is a filter change (not initial page load)
+    const hasActiveFilters =
+      activeMainCategories.size > 0 ||
+      activeSubcategories.size > 0 ||
+      currentSearchTerm !== "";
+    const currentUrl = new URL(window.location);
+    const currentPage = currentUrl.searchParams.get("page") || "1";
+
+    // If filters are applied and we're not on page 1, redirect to page 1
+    if (hasActiveFilters && currentPage !== "1") {
+      resetToPage1();
+      return;
+    }
+
+    // Otherwise, apply filters normally
+    originalApplyAllFilters();
+  };
 });
 
 // Handle cart interaction - ONLY processing cart icon clicks
