@@ -1,4 +1,11 @@
 <?php
+// Start output buffering to prevent chunked encoding issues
+ob_start();
+
+// Set proper headers for better loading performance
+header('Content-Type: text/html; charset=UTF-8');
+header('Cache-Control: public, max-age=300'); // Cache for 5 minutes
+
 include("../Includes/Header.php");
 if (session_status() === PHP_SESSION_NONE) session_start();
 $is_logged_in = isset($_SESSION['user_id']);
@@ -36,6 +43,14 @@ include("../Includes/loader.php");
         </div>
     </section>
 
+    <?php 
+    // Flush the buffer after header to show content progressively
+    if (ob_get_level()) {
+        ob_flush();
+        flush();
+    }
+    ?>
+
     <div class="container">
         <aside class="sidebar" id="sidebar" data-aos="fade-right">
             <span class="close-sidebar" id="closeSidebar">&times;</span>
@@ -48,12 +63,47 @@ include("../Includes/loader.php");
             <?php
             require_once '../Includes/connection.php';
 
-            // Pagination parameters
+            // Pagination parameters - moved here to be available for caching
             $itemsPerPage = 10;
             $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
             $offset = ($currentPage - 1) * $itemsPerPage;
 
-            $sql = "SELECT inventory.* FROM inventory ORDER BY inventory.created_at DESC";
+            // Simple caching mechanism using session
+            $cacheKey = 'products_cache_' . $currentPage;
+            $cacheTime = 300; // 5 minutes cache
+            
+            // Clear cache if requested
+            if (isset($_GET['clear_cache'])) {
+                unset($_SESSION[$cacheKey]);
+                unset($_SESSION[$cacheKey . '_time']);
+            }
+            
+            // Check if we have cached data
+            if (isset($_SESSION[$cacheKey]) && 
+                isset($_SESSION[$cacheKey . '_time']) && 
+                (time() - $_SESSION[$cacheKey . '_time']) < $cacheTime) {
+                
+                // Use cached data
+                $allProducts = $_SESSION[$cacheKey];
+                $totalProducts = count($allProducts);
+                $totalPages = ceil($totalProducts / $itemsPerPage);
+                $productsForCurrentPage = array_slice($allProducts, $offset, $itemsPerPage, true);
+                $products = $productsForCurrentPage;
+                
+            } else {
+                // Fetch fresh data and cache it
+
+            // Optimized single query with JOINs to reduce database calls
+            $sql = "
+                SELECT 
+                    i.*,
+                    GROUP_CONCAT(DISTINCT s.id ORDER BY s.id ASC SEPARATOR ',') as subcategory_ids
+                FROM inventory i
+                LEFT JOIN inventory_subcategory isub ON i.id = isub.inventory_id
+                LEFT JOIN subcategories s ON s.id = isub.subcategory_id
+                GROUP BY i.id
+                ORDER BY i.created_at DESC
+            ";
             $result = $conn->query($sql);
 
             $products = [];
@@ -69,71 +119,24 @@ include("../Includes/loader.php");
                 $baseItemCode = strtok($itemCode, '-');
                 $courses = isset($row['courses']) ? array_map('trim', explode(',', $row['courses'])) : [];
 
+                // Extract subcategories from the grouped result
                 $subcats = [];
-                $subSql = "SELECT s.id FROM inventory_subcategory isub JOIN subcategories s ON s.id = isub.subcategory_id WHERE isub.inventory_id = ?";
-                $subStmt = $conn->prepare($subSql);
-                $subStmt->execute([intval($row['id'])]);
-                while ($srow = $subStmt->fetch(PDO::FETCH_ASSOC)) { $subcats[] = (string)$srow['id']; }
+                if (!empty($row['subcategory_ids'])) {
+                    $subcats = explode(',', $row['subcategory_ids']);
+                }
 
-                // Enhanced image resolution logic
+                // Optimized image resolution logic
                 $itemImage = '';
                 if (!empty($imagePath)) {
-                    // Check if the image path points to an existing file
-                    $resolvedPath = '';
+                    // Quick path resolution without multiple file existence checks
                     if (strpos($imagePath, 'uploads/') === false) {
-                        $candidateItemlist = __DIR__ . '/../uploads/itemlist/' . $imagePath;
-                        if (file_exists($candidateItemlist)) {
-                            $resolvedPath = '../uploads/itemlist/' . $imagePath;
-                        }
+                        $itemImage = '../uploads/itemlist/' . $imagePath;
                     } else {
-                        $candidateRaw = __DIR__ . '/../' . ltrim($imagePath, '/');  
-                        if (file_exists($candidateRaw)) {
-                            $resolvedPath = '../' . ltrim($imagePath, '/');
-                        }
+                        $itemImage = '../' . ltrim($imagePath, '/');
                     }
-                    $itemImage = $resolvedPath;
-                }
-                
-                // Fallback: Try to find any image for this product prefix
-                if (empty($itemImage)) {
-                    try {
-                        $stmt = $conn->prepare("SELECT image_path FROM inventory WHERE item_code LIKE ? AND image_path IS NOT NULL AND image_path != '' LIMIT 1");
-                        $stmt->execute([$baseItemCode . '%']);
-                        $fallbackRow = $stmt->fetch(PDO::FETCH_ASSOC);
-                        if ($fallbackRow && !empty($fallbackRow['image_path'])) {
-                            $fbImagePath = $fallbackRow['image_path'];
-                            if (strpos($fbImagePath, 'uploads/') === false) {
-                                $candidateItemlist = __DIR__ . '/../uploads/itemlist/' . $fbImagePath;
-                                if (file_exists($candidateItemlist)) {
-                                    $itemImage = '../uploads/itemlist/' . $fbImagePath;
-                                }
-                            } else {
-                                $candidateRaw = __DIR__ . '/../' . ltrim($fbImagePath, '/');
-                                if (file_exists($candidateRaw)) {
-                                    $itemImage = '../' . ltrim($fbImagePath, '/');
-                                }
-                            }
-                        }
-                    } catch (Exception $e) {
-                        // Fallback failed, continue with empty image
-                    }
-                }
-                
-                // Final fallback to default image with proper validation
-                if (empty($itemImage)) {
-                    if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
-                        $itemImage = '../uploads/itemlist/default.png';
-                    } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
-                        $itemImage = '../uploads/itemlist/default.jpg';
-                    } else {
-                        // Create a data URL for a simple placeholder if no default files exist
-                        $itemImage = 'data:image/svg+xml;base64,' . base64_encode(
-                            '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
-                                <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
-                                <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
-                            </svg>'
-                        );
-                    }
+                } else {
+                    // Set default image path directly
+                    $itemImage = '../uploads/itemlist/default.png';
                 }
 
                 if (!isset($allProducts[$baseItemCode])) {
@@ -188,6 +191,11 @@ include("../Includes/loader.php");
             // Get only the products for the current page
             $productsForCurrentPage = array_slice($allProducts, $offset, $itemsPerPage, true);
             $products = $productsForCurrentPage;
+            
+                // Cache the results
+                $_SESSION[$cacheKey] = $allProducts;
+                $_SESSION[$cacheKey . '_time'] = time();
+            }
             ?>
             
             <?php
@@ -201,6 +209,7 @@ include("../Includes/loader.php");
 
             $dynamicCategories = [];
             
+            // Optimized categories query - combined with legacy categories
             $categoriesQuery = "
                 SELECT 
                     c.id, 
@@ -210,11 +219,25 @@ include("../Includes/loader.php");
                         CONCAT(s.id, ':', s.name) 
                         ORDER BY s.name ASC 
                         SEPARATOR '|'
-                    ) as subcategories
+                    ) as subcategories,
+                    'regular' as category_type
                 FROM categories c
                 LEFT JOIN subcategories s ON c.id = s.category_id
                 GROUP BY c.id, c.name, c.has_subcategories
-                ORDER BY c.name ASC
+                
+                UNION ALL
+                
+                SELECT 
+                    NULL as id,
+                    category as name,
+                    0 as has_subcategories,
+                    NULL as subcategories,
+                    'legacy' as category_type
+                FROM inventory 
+                WHERE category NOT IN (SELECT name FROM categories)
+                GROUP BY category
+                
+                ORDER BY name ASC
             ";
             
             $categoriesResult = $conn->query($categoriesQuery);
@@ -239,28 +262,8 @@ include("../Includes/loader.php");
                         'id' => $row['id'],
                         'name' => $row['name'],
                         'has_subcategories' => (bool)$row['has_subcategories'],
-                        'subcategories' => $subcategories
-                    ];
-                }
-            }
-            
-            $legacyCategoriesQuery = "
-                SELECT DISTINCT category 
-                FROM inventory 
-                WHERE category NOT IN (SELECT name FROM categories)
-                ORDER BY category ASC
-            ";
-            
-            $legacyResult = $conn->query($legacyCategoriesQuery);
-            
-            if ($legacyResult) {
-                while ($row = $legacyResult->fetch(PDO::FETCH_ASSOC)) {
-                    $dynamicCategories[] = [
-                        'id' => null,
-                        'name' => $row['category'],
-                        'has_subcategories' => false,
-                        'subcategories' => [],
-                        'is_legacy' => true
+                        'subcategories' => $subcategories,
+                        'is_legacy' => $row['category_type'] === 'legacy'
                     ];
                 }
             }
@@ -347,21 +350,14 @@ include("../Includes/loader.php");
                                 }
                             }
                             if (empty($productImage)) {
-                                if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
-                                    $productImage = '../uploads/itemlist/default.png';
-                                } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
-                                    $productImage = '../uploads/itemlist/default.jpg';
-                                } else {
-                                    $productImage = 'data:image/svg+xml;base64,' . base64_encode(
-                                        '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
-                                            <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
-                                            <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
-                                        </svg>'
-                                    );
-                                }
+                                $productImage = '../uploads/itemlist/default.png';
                             }
                         ?>
-                            <img src="<?php echo $productImage; ?>" alt="<?php echo $product['name']; ?>" 
+                            <img src="data:image/svg+xml;base64,<?php echo base64_encode('<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="300" height="300" fill="#f0f0f0"/></svg>'); ?>" 
+                                 data-src="<?php echo htmlspecialchars($productImage); ?>" 
+                                 alt="<?php echo htmlspecialchars($product['name']); ?>" 
+                                 class="lazy-load-image"
+                                 loading="lazy"
                                  onerror="this.onerror=null; this.src='data:image/svg+xml;base64,<?php echo base64_encode('<svg width=\'300\' height=\'300\' xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'300\' height=\'300\' fill=\'#f0f0f0\' stroke=\'#ddd\' stroke-width=\'2\'/><text x=\'150\' y=\'150\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-family=\'Arial\' font-size=\'16\' fill=\'#666\'>No Image</text></svg>'); ?>'">
                         <div class="product-overlay">
                             <div class="items"></div>
@@ -521,6 +517,40 @@ include("../Includes/loader.php");
 
     <script src="../Javascript/ProItemList.js" defer></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    
+    <!-- Lazy Loading Script -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Lazy loading implementation
+        const lazyImages = document.querySelectorAll('.lazy-load-image');
+        
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.classList.remove('lazy-load-image');
+                    observer.unobserve(img);
+                }
+            });
+        }, {
+            rootMargin: '50px 0px',
+            threshold: 0.01
+        });
+
+        lazyImages.forEach(img => {
+            imageObserver.observe(img);
+        });
+
+        // Initialize AOS with optimized settings
+        AOS.init({
+            duration: 600,
+            once: true,
+            disable: 'mobile'
+        });
+    });
+    </script>
+    
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const filterToggle = document.getElementById('filterToggle');
@@ -589,3 +619,7 @@ include("../Includes/loader.php");
 </body>
 
 </html>
+<?php
+// Flush the output buffer to prevent chunked encoding issues
+ob_end_flush();
+?>
