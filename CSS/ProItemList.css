@@ -1240,3 +1240,78 @@ input[type="number"] {
 .products-grid {
   contain: layout;
 }
+
+/* Filter active states */
+.main-category-header.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-radius: 4px;
+}
+
+.main-category-header.active i {
+  color: white;
+}
+
+/* Search functionality */
+.search-container {
+  position: relative;
+}
+
+.search-btn {
+  background: var(--primary-color);
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.search-btn:hover {
+  background: var(--secondary-color);
+}
+
+/* Loading state for filters */
+.sidebar.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.sidebar.loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes spin {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Search input loading state */
+.search-container.loading input {
+  background: linear-gradient(90deg, #f8f9fa 25%, #e9ecef 50%, #f8f9fa 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+.search-container.loading .search-btn {
+  background: #6c757d;
+  pointer-events: none;
+}
+
+.search-container.loading .search-btn i {
+  animation: spin 1s linear infinite;
+}

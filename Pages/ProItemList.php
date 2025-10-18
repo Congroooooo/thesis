@@ -63,37 +63,94 @@ include("../Includes/loader.php");
             <?php
             require_once '../Includes/connection.php';
 
-            // Pagination parameters - moved here to be available for caching
-            $itemsPerPage = 10;
+            // Get filter and search parameters
+            $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
+            $categoryFilter = isset($_GET['category']) ? $_GET['category'] : '';
+            $subcategoryFilter = isset($_GET['subcategory']) ? $_GET['subcategory'] : '';
+            $courseFilter = isset($_GET['course']) ? $_GET['course'] : '';
+            
+            // Debug: Uncomment to see active filters
+            // echo "<!-- DEBUG: Search: '$searchQuery', Category: '$categoryFilter', Subcategory: '$subcategoryFilter', Course: '$courseFilter' -->";
+            
+            // Pagination parameters
+            $itemsPerPage = 12;
             $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
             $offset = ($currentPage - 1) * $itemsPerPage;
 
-            // Simple caching mechanism using session
-            $cacheKey = 'products_cache_' . $currentPage;
+            // Create cache key based on all filter parameters
+            $filterParams = [
+                'search' => $searchQuery,
+                'category' => $categoryFilter,
+                'subcategory' => $subcategoryFilter,
+                'course' => $courseFilter,
+                'page' => $currentPage
+            ];
+            $cacheKey = 'products_cache_' . md5(serialize($filterParams));
             $cacheTime = 300; // 5 minutes cache
             
             // Clear cache if requested
             if (isset($_GET['clear_cache'])) {
-                unset($_SESSION[$cacheKey]);
-                unset($_SESSION[$cacheKey . '_time']);
+                // Clear all product caches
+                foreach ($_SESSION as $key => $value) {
+                    if (strpos($key, 'products_cache_') === 0) {
+                        unset($_SESSION[$key]);
+                    }
+                }
             }
-            
+
             // Check if we have cached data
             if (isset($_SESSION[$cacheKey]) && 
                 isset($_SESSION[$cacheKey . '_time']) && 
                 (time() - $_SESSION[$cacheKey . '_time']) < $cacheTime) {
                 
                 // Use cached data
-                $allProducts = $_SESSION[$cacheKey];
-                $totalProducts = count($allProducts);
-                $totalPages = ceil($totalProducts / $itemsPerPage);
+                $cachedData = $_SESSION[$cacheKey];
+                $allProducts = $cachedData['allProducts'];
+                $totalProducts = $cachedData['totalProducts'];
+                $totalPages = $cachedData['totalPages'];
+                
+                // Get only the products for the current page
                 $productsForCurrentPage = array_slice($allProducts, $offset, $itemsPerPage, true);
                 $products = $productsForCurrentPage;
                 
             } else {
-                // Fetch fresh data and cache it
+                // Fetch fresh data and process it
 
-            // Optimized single query with JOINs to reduce database calls
+            // Build SQL query with filters
+            $whereConditions = [];
+            $params = [];
+
+            // Add search condition
+            if (!empty($searchQuery)) {
+                $whereConditions[] = "(i.item_name LIKE ? OR i.item_code LIKE ? OR i.category LIKE ?)";
+                $searchParam = '%' . $searchQuery . '%';
+                $params[] = $searchParam;
+                $params[] = $searchParam;
+                $params[] = $searchParam;
+            }
+
+            // Add category filter
+            if (!empty($categoryFilter)) {
+                $whereConditions[] = "LOWER(REPLACE(i.category, ' ', '-')) = LOWER(?)";
+                $params[] = $categoryFilter;
+            }
+
+            // Add subcategory filter
+            if (!empty($subcategoryFilter)) {
+                $whereConditions[] = "EXISTS (SELECT 1 FROM inventory_subcategory isubf WHERE isubf.inventory_id = i.id AND isubf.subcategory_id = ?)";
+                $params[] = $subcategoryFilter;
+            }
+
+            // Add course filter
+            if (!empty($courseFilter)) {
+                $whereConditions[] = "FIND_IN_SET(?, REPLACE(i.courses, ' ', '')) > 0";
+                $params[] = $courseFilter;
+            }
+
+            // Build WHERE clause
+            $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
+
+            // Optimized query with filtering
             $sql = "
                 SELECT 
                     i.*,
@@ -101,10 +158,19 @@ include("../Includes/loader.php");
                 FROM inventory i
                 LEFT JOIN inventory_subcategory isub ON i.id = isub.inventory_id
                 LEFT JOIN subcategories s ON s.id = isub.subcategory_id
+                $whereClause
                 GROUP BY i.id
                 ORDER BY i.created_at DESC
             ";
-            $result = $conn->query($sql);
+
+            // Prepare and execute query
+            if (!empty($params)) {
+                $stmt = $conn->prepare($sql);
+                $stmt->execute($params);
+                $result = $stmt;
+            } else {
+                $result = $conn->query($sql);
+            }
 
             $products = [];
             $allProducts = [];
@@ -184,7 +250,7 @@ include("../Includes/loader.php");
                 }
             }
             
-            // Apply pagination to products
+            // Calculate pagination for filtered results
             $totalProducts = count($allProducts);
             $totalPages = ceil($totalProducts / $itemsPerPage);
             
@@ -192,9 +258,13 @@ include("../Includes/loader.php");
             $productsForCurrentPage = array_slice($allProducts, $offset, $itemsPerPage, true);
             $products = $productsForCurrentPage;
             
-                // Cache the results
-                $_SESSION[$cacheKey] = $allProducts;
-                $_SESSION[$cacheKey . '_time'] = time();
+            // Cache the filtered results
+            $_SESSION[$cacheKey] = [
+                'allProducts' => $allProducts,
+                'totalProducts' => $totalProducts,
+                'totalPages' => $totalPages
+            ];
+            $_SESSION[$cacheKey . '_time'] = time();
             }
             ?>
             
@@ -548,6 +618,175 @@ include("../Includes/loader.php");
             once: true,
             disable: 'mobile'
         });
+
+        // Search and Filter functionality
+        const searchInput = document.getElementById('search');
+        const searchBtn = document.querySelector('.search-btn');
+        const categoryFilters = document.querySelectorAll('.main-category-header');
+        const subcategoryFilters = document.querySelectorAll('.course-filter-checkbox');
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+
+        // Remove any existing event listeners from the external JS file
+        if (searchInput) {
+            // Clone the search input to remove all existing event listeners
+            const newSearchInput = searchInput.cloneNode(true);
+            searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+            
+            // Update our reference to the new element
+            const searchInputNew = document.getElementById('search');
+            
+            // Add our server-side search functionality
+            let searchTimeout;
+            searchInputNew.addEventListener('input', function() {
+                const searchContainer = document.querySelector('.search-container');
+                
+                // Clear any existing timeout
+                clearTimeout(searchTimeout);
+                
+                // Show loading state immediately
+                if (searchContainer && this.value.trim().length > 0) {
+                    searchContainer.classList.add('loading');
+                }
+                
+                // Set a new timeout to trigger search after user stops typing (300ms delay)
+                searchTimeout = setTimeout(function() {
+                    applyFilters();
+                }, 300);
+            });
+            
+            // Also trigger search on Enter key
+            searchInputNew.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const searchContainer = document.querySelector('.search-container');
+                    if (searchContainer) {
+                        searchContainer.classList.add('loading');
+                    }
+                    clearTimeout(searchTimeout);
+                    applyFilters();
+                }
+            });
+        }
+
+        // Function to build URL with current filters
+        function buildFilterUrl() {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Remove page parameter when filtering (always go to page 1)
+            params.delete('page');
+            
+            // Get current filter values
+            const searchValue = document.getElementById('search').value.trim();
+            const selectedCategories = [];
+            const selectedSubcategories = [];
+
+            // Get selected categories
+            document.querySelectorAll('.main-category-header.active').forEach(cat => {
+                selectedCategories.push(cat.dataset.category);
+            });
+
+            // Get selected subcategories
+            document.querySelectorAll('.course-filter-checkbox:checked').forEach(sub => {
+                selectedSubcategories.push(sub.value);
+            });
+
+            // Set parameters
+            if (searchValue) {
+                params.set('search', searchValue);
+            } else {
+                params.delete('search');
+            }
+
+            if (selectedCategories.length > 0) {
+                params.set('category', selectedCategories[0]); // For now, support single category
+            } else {
+                params.delete('category');
+            }
+
+            if (selectedSubcategories.length > 0) {
+                params.set('subcategory', selectedSubcategories[0]); // For now, support single subcategory
+            } else {
+                params.delete('subcategory');
+            }
+
+            return '?' + params.toString();
+        }
+
+        // Function to apply filters
+        function applyFilters() {
+            // Show loading state
+            const sidebar = document.querySelector('.sidebar');
+            const searchContainer = document.querySelector('.search-container');
+            
+            if (sidebar) {
+                sidebar.classList.add('loading');
+            }
+            if (searchContainer) {
+                searchContainer.classList.add('loading');
+            }
+            
+            window.location.href = buildFilterUrl();
+        }
+
+        // Search functionality
+        function handleSearch() {
+            applyFilters();
+        }
+
+        // Event listeners for search button
+        if (searchBtn) {
+            searchBtn.addEventListener('click', handleSearch);
+        }
+
+        // Category filter functionality
+        categoryFilters.forEach(category => {
+            category.addEventListener('click', function() {
+                // Toggle active state
+                this.classList.toggle('active');
+                applyFilters();
+            });
+        });
+
+        // Subcategory filter functionality
+        subcategoryFilters.forEach(subcategory => {
+            subcategory.addEventListener('change', function() {
+                applyFilters();
+            });
+        });
+
+        // Clear filters functionality
+        clearFiltersBtn.addEventListener('click', function() {
+            // Clear all filters and go back to page 1
+            window.location.href = window.location.pathname;
+        });
+
+        // Set initial filter states based on URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Set search input value
+        if (urlParams.has('search')) {
+            const searchInputElement = document.getElementById('search');
+            if (searchInputElement) {
+                searchInputElement.value = urlParams.get('search');
+            }
+        }
+
+        // Set active category
+        if (urlParams.has('category')) {
+            const categoryValue = urlParams.get('category');
+            const categoryElement = document.querySelector(`[data-category="${categoryValue}"]`);
+            if (categoryElement) {
+                categoryElement.classList.add('active');
+            }
+        }
+
+        // Set checked subcategories
+        if (urlParams.has('subcategory')) {
+            const subcategoryValue = urlParams.get('subcategory');
+            const subcategoryElement = document.querySelector(`input[value="${subcategoryValue}"]`);
+            if (subcategoryElement) {
+                subcategoryElement.checked = true;
+            }
+        }
     });
     </script>
     
