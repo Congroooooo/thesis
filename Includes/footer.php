@@ -65,12 +65,17 @@
                 <a href="privacy.php">Privacy Policy</a>
                 <a href="terms.php">Terms of Service</a>
                 <a href="sitemap.php">Sitemap</a>
+                <a href="#" id="developers-link">Developers</a>
             </div>
         </div>
     </div>
 </footer>
 
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link rel="stylesheet" href="../CSS/developers-modal.css">
+</style>
+<script src="../Javascript/developers-modal.js"></script>
 
 <style>
     .footer {

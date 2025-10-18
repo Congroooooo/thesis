@@ -1,0 +1,147 @@
+.developers-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(30, 32, 36, 0.75);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s;
+}
+.developers-modal {
+  background: #181a1b;
+  color: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  padding: 2.5rem 2rem 2rem 2rem;
+  max-width: 1400px;
+  width: 98vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: modalIn 0.3s cubic-bezier(0.4, 2, 0.6, 1) 1;
+}
+@keyframes modalIn {
+  from {
+    transform: translateY(40px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.developers-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.7rem;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  padding: 0.2em 0.5em;
+}
+.developers-modal-close:hover {
+  background: #23272b;
+  color: #fefbc7;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.developers-modal-title {
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 2rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.developers-list {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+.developer-card {
+  background: #23272b;
+  border-radius: 18px;
+  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.13);
+  padding: 2.2rem 1.5rem 2.2rem 1.5rem;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.developer-card:hover {
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+  transform: translateY(-4px) scale(1.03);
+}
+.developer-img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: #444
+    url("https://ui-avatars.com/api/?name=Dev&background=444&color=fff")
+    center/cover no-repeat;
+  margin-bottom: 1.3rem;
+  border: 4px solid #fefbc7;
+  object-fit: cover;
+}
+.developer-name {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 0.3rem;
+  text-align: center;
+}
+.developer-role {
+  font-size: 0.97rem;
+  color: #fefbc7;
+  margin-bottom: 0.7rem;
+  text-align: center;
+}
+.developer-socials {
+  display: flex;
+  justify-content: center;
+  gap: 0.7rem;
+  margin-top: 0.2rem;
+}
+.developer-socials a {
+  color: #fff;
+  font-size: 1.2rem;
+  transition: color 0.2s, transform 0.2s;
+  border-radius: 50%;
+  padding: 0.2em 0.4em;
+}
+.developer-socials a:hover {
+  color: #fefbc7;
+  background: #23272b;
+  transform: scale(1.18);
+}
+@media (max-width: 1400px) {
+  .developers-list {
+    gap: 1.2rem;
+    flex-wrap: wrap;
+  }
+  .developer-card {
+    width: 44vw;
+    min-width: 180px;
+    max-width: 320px;
+  }
+}
+@media (max-width: 600px) {
+  .developers-modal {
+    padding: 1.2rem 0.2rem 1.2rem 0.2rem;
+  }
+  .developers-list {
+    flex-direction: column;
+    align-items: center;
+    gap: 1.2rem;
+  }
+  .developer-card {
+    width: 90vw;
+  }
+}
