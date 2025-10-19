@@ -202,7 +202,8 @@ try {
                 }
 
                 // Initialize the item in the monthly inventory system
-                $monthlyInventory->initializeNewItem($item_code, $quantity);
+                // Pass the delivery order number so it gets recorded in delivery_records
+                $monthlyInventory->initializeNewItem($item_code, $quantity, $delivery_order);
 
                 $product_inserted_items[] = $item_code;
                 $all_inserted_items[] = $item_code;
@@ -406,7 +407,8 @@ try {
             ]);
             
             // Initialize the item in the monthly inventory system
-            $monthlyInventory->initializeNewItem($item_code, $quantity);
+            // Pass the delivery order number so it gets recorded in delivery_records
+            $monthlyInventory->initializeNewItem($item_code, $quantity, $delivery_order);
 
             $new_inventory_id = (int)$conn->lastInsertId();
             $inserted_items[] = $item_code;

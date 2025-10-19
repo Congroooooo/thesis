@@ -3,6 +3,7 @@ session_start();
 header('Content-Type: application/json');
 
 require_once '../Includes/connection.php'; // PDO $conn
+require_once '../Includes/MonthlyInventoryManager.php'; // Monthly inventory manager
 
 $deliveryOrderNumber = isset($_POST['deliveryOrderNumber']) ? $_POST['deliveryOrderNumber'] : '';
 $itemsDataJson = isset($_POST['itemsData']) ? $_POST['itemsData'] : '';
@@ -17,6 +18,9 @@ if (!$itemsData || !is_array($itemsData)) {
     echo json_encode(['success' => false, 'message' => 'Invalid items data format']);
     exit;
 }
+
+// Create MonthlyInventoryManager instance
+$monthlyInventory = new MonthlyInventoryManager($conn);
 
 $conn->beginTransaction();
 
@@ -34,8 +38,8 @@ try {
             continue;
         }
 
-        // Get original item data
-        $sql = "SELECT item_name, category, image_path FROM inventory WHERE item_code LIKE ? LIMIT 1";
+        // Get original item data including category_id, RTW and period info
+        $sql = "SELECT item_name, category, category_id, image_path, RTW, inventory_period_id FROM inventory WHERE item_code LIKE ? LIMIT 1";
         $stmt = $conn->prepare($sql);
         $prefix = $existingItem . '%';
         $stmt->execute([$prefix]);
@@ -45,6 +49,10 @@ try {
             $errors[] = "Original item not found for prefix: {$existingItem}";
             continue;
         }
+
+        include_once '../PAMO_PAGES/includes/config_functions.php';
+        $lowStockThreshold = getLowStockThreshold($conn);
+        $currentPeriodId = $monthlyInventory->getCurrentPeriodId();
 
         foreach ($sizes as $sizeData) {
             $newSize = $sizeData['size'] ?? '';
@@ -69,25 +77,50 @@ try {
                 continue;
             }
 
-            // Insert new size entry
-            $sql = "INSERT INTO inventory (item_code, item_name, category, sizes, actual_quantity, damage, price, image_path, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            // For new item sizes, beginning quantity is 0 for the current month
+            // New delivery represents the initial stock received
+            $beginning_quantity = 0;
+            $new_delivery = $newQuantity;
+            $actual_quantity = $beginning_quantity + $new_delivery - $newDamage;
+            $sold_quantity = 0;
+            $status = ($actual_quantity <= 0) ? 'Out of Stock' : (($actual_quantity <= $lowStockThreshold) ? 'Low Stock' : 'In Stock');
+
+            // Insert new size entry with monthly inventory tracking
+            $sql = "INSERT INTO inventory (
+                item_code, category_id, category, item_name, sizes, price,
+                actual_quantity, new_delivery, beginning_quantity,
+                damage, sold_quantity, status, image_path, RTW, created_at,
+                current_month_deliveries, current_month_sales, inventory_period_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)";
             $stmt = $conn->prepare($sql);
             if (!$stmt->execute([
                 $newItemCode,
-                $originalItem['item_name'],
+                $originalItem['category_id'],
                 $originalItem['category'],
+                $originalItem['item_name'],
                 $newSize,
-                $newQuantity,
-                $newDamage,
                 $newPrice,
-                $originalItem['image_path']
+                $actual_quantity,
+                $new_delivery,
+                $beginning_quantity,
+                $newDamage,
+                $sold_quantity,
+                $status,
+                $originalItem['image_path'],
+                $originalItem['RTW'],
+                $newQuantity, // current_month_deliveries
+                0, // current_month_sales
+                $currentPeriodId
             ])) {
                 $errors[] = "Error adding size {$newSize} for {$originalItem['item_name']}";
                 continue;
             }
 
             $new_inventory_id = (int)$conn->lastInsertId();
+
+            // Initialize the item in the monthly inventory system
+            // Pass the delivery order number so it gets recorded in delivery_records
+            $monthlyInventory->initializeNewItem($newItemCode, $newQuantity, $deliveryOrderNumber);
 
             // Get parent inventory ID for subcategory cloning
             $parent_sql = "SELECT id FROM inventory WHERE item_code LIKE ? ORDER BY id ASC LIMIT 1";
