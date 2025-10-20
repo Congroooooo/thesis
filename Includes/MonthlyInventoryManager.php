@@ -174,6 +174,38 @@ class MonthlyInventoryManager {
         }
     }
 
+    public function recordRemoval($itemCode, $quantityRemoved, $processedBy, $reason, $useTransaction = true) {
+        $periodId = $this->getCurrentPeriodId();
+        
+        $startedTransaction = false;
+        if ($useTransaction && !$this->conn->inTransaction()) {
+            $this->conn->beginTransaction();
+            $startedTransaction = true;
+        }
+        
+        try {
+            // Note: Removals are tracked in inventory_removals table by process_remove_item.php
+            // This method updates the monthly snapshot to reflect the removal as a form of adjustment
+            // The removal is essentially treated as reducing the ending quantity
+            
+            $this->updateMonthlySnapshot($itemCode, $periodId);
+            
+            // DO NOT call updateInventoryActualQuantity() here!
+            // The calling code (process_remove_item.php) already handles the inventory UPDATE
+            // Calling it here would overwrite the deduction with the snapshot's ending_quantity
+            
+            if ($startedTransaction && $this->conn->inTransaction()) {
+                $this->conn->commit();
+            }
+            return true;
+        } catch (Exception $e) {
+            if ($startedTransaction && $this->conn->inTransaction()) {
+                $this->conn->rollBack();
+            }
+            throw new Exception("Failed to record removal: " . $e->getMessage());
+        }
+    }
+
     private function updateMonthlySnapshot($itemCode, $periodId) {
         $stmt = $this->conn->prepare("
             SELECT 

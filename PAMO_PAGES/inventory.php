@@ -80,6 +80,7 @@ function page_link($page, $query_string) {
     <script src="../PAMO JS/backend/deductQuantity.js"></script>
     <script src="../PAMO JS/backend/addItemSize.js"></script>
     <script src="../PAMO JS/backend/exchangeItem.js"></script>
+    <script src="../PAMO JS/backend/removeItem.js"></script>
     <style>
         .file-info {
             color: #666 !important;
@@ -261,6 +262,9 @@ function page_link($page, $query_string) {
                     </button>
                     <button onclick="showExchangeItemModal()" class="action-btn">
                         <i class="material-icons">swap_horiz</i> Exchange Item
+                    </button>
+                    <button onclick="showRemoveItemModal()" class="action-btn" style="background-color: #dc3545;">
+                        <i class="material-icons">delete_sweep</i> Remove Item
                     </button>
                 </div>
 
@@ -937,6 +941,70 @@ function page_link($page, $query_string) {
         </div>
     </div>
 
+    <div id="removeItemModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Remove Item from Inventory</h2>
+                <span class="close" onclick="closeModal('removeItemModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="removeItemForm" onsubmit="submitRemoveItem(event)">
+                    <div class="order-section">
+                        <div class="input-group">
+                            <label for="pulloutOrderNumber">Pullout Order #:</label>
+                            <input type="text" id="pulloutOrderNumber" name="pulloutOrderNumber" placeholder="e.g., PO-2025-001" required>
+                            <small style="color: #6c757d; font-size: 12px; margin-top: 4px;">Enter a unique pullout reference number for tracking</small>
+                        </div>
+                    </div>
+                    
+                    <div id="removalItems">
+                        <div class="removal-item">
+                            <div class="item-close" onclick="removeRemovalItem(this)">&times;</div>
+                            <div class="item-content">
+                                <div class="input-group">
+                                    <label for="itemId">Product:</label>
+                                    <select name="itemId[]" required onchange="updateRemovalItemDetails(this)">
+                                        <option value="">Select Product</option>
+                                        <?php
+                                        $sql = "SELECT item_code, item_name, category, sizes, actual_quantity FROM inventory ORDER BY item_name";
+                                        $stmt = $conn->query($sql);
+
+                                        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                            $stockValue = intval($row['actual_quantity']);
+                                            echo "<option value='" . htmlspecialchars($row['item_code']) . "' data-stock='" . $stockValue . "'>" . 
+                                                 htmlspecialchars($row['item_name']) . " (" . htmlspecialchars($row['item_code']) . ") - Size: " . htmlspecialchars($row['sizes']) . " - Stock: " . $stockValue . "</option>";
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label for="currentStock">Current Stock:</label>
+                                    <input type="text" name="currentStock[]" readonly class="current-stock-display" value="0" style="background-color: #f8f9fa; border: 1px solid #ced4da; color: #495057;">
+                                </div>
+                                <div class="input-group">
+                                    <label for="quantityToRemove">Quantity to Remove:</label>
+                                    <input type="number" name="quantityToRemove[]" min="1" required placeholder="Enter quantity">
+                                </div>
+                                <div class="input-group">
+                                    <label for="removalReason">Reason for Removal:</label>
+                                    <textarea name="removalReason[]" rows="3" placeholder="e.g., Damaged due to water exposure, Deteriorated from long storage, Lost during inventory count..." required></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="add-item-btn" onclick="addRemovalItem()">
+                        <i class="material-icons">add_circle</i> Add Another Item
+                    </button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" form="removeItemForm" class="save-btn" style="background-color: #dc3545;">Remove Items</button>
+                <button onclick="closeModal('removeItemModal')" class="cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         function showAddQuantityModal() {
             document.getElementById('addQuantityModal').style.display = 'block';
@@ -1060,6 +1128,48 @@ function page_link($page, $query_string) {
 
     .delivery-item:not(:first-child) .item-close {
         display: block;
+    }
+
+    .removal-item {
+        position: relative;
+        background: #fff5f5;
+        border: 1px solid #ffcccb;
+        border-radius: 5px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+
+    .removal-item .item-close {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        font-size: 20px;
+        cursor: pointer;
+        color: #dc3545;
+        font-weight: bold;
+        display: none;
+    }
+
+    .removal-item:not(:first-child) .item-close {
+        display: block;
+    }
+
+    .removal-item .item-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        align-items: flex-start;
+    }
+
+    .removal-item textarea {
+        grid-column: 1 / -1;
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        resize: vertical;
+        min-height: 60px;
     }
 
     .item-content {
