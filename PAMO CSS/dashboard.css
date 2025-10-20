@@ -33,9 +33,13 @@
   font-size: 14px;
 }
 
-.card i {
+.card i:not(.low-stock) {
   font-size: 40px;
   color: #4caf50;
+}
+
+.card.low-stock i {
+  color: #f44336;
 }
 
 .card:hover {

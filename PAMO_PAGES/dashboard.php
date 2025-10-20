@@ -98,7 +98,7 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
                         </div>
                         <i class="material-icons">shopping_cart</i>
                     </div>
-                    <div class="card" onclick="redirectToLowStock()">
+                    <div class="card low-stock" onclick="redirectToLowStock()">
                         <div class="card-content">
                             <h3>Low Stock Items</h3>
                             <h2><?php echo number_format($low_stock_items); ?></h2>

@@ -101,8 +101,8 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     <button class="btn btn-success header-action-btn" onclick="window.location.href='manage_programs.php'">
                         <i class="fas fa-graduation-cap"></i> Manage Programs
                     </button>
-                    <button class="btn btn-secondary header-action-btn" onclick="changePassword()" id="changePasswordBtn" disabled title="Select a user row to change password">
-                        <i class="fas fa-key"></i> Change Password
+                    <button class="btn btn-secondary header-action-btn" onclick="resetPassword()" id="resetPasswordBtn" disabled title="Select a user row to reset password">
+                        <i class="fas fa-key"></i> Reset Password
                     </button>
                     <button class="btn btn-warning header-action-btn" onclick="updateStatus()" id="updateStatusBtn" disabled title="Select a user row to update status">
                         <i class="fas fa-sync"></i> Update Status
@@ -212,34 +212,20 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     </div>
 </div>
 
-<div class="modal" id="changePasswordModal">
+<div class="modal" id="resetPasswordModal">
     <div class="modal-content">
-        <h3>Change Password</h3>
-        <form id="changePasswordForm">
-            <input type="hidden" id="changePasswordUserId" name="id">
+        <h3>Reset Password</h3>
+        <form id="resetPasswordForm">
+            <input type="hidden" id="resetPasswordUserId" name="id">
             <div class="form-group">
-                <label for="newPassword">New Password</label>
-                <div class="password-input-wrapper">
-                    <input type="password" class="form-control" id="newPassword" name="newPassword" required>
-                    <button type="button" class="password-toggle-btn" onclick="togglePassword('newPassword')" title="Show password">
-                        <i class="fas fa-eye-slash" id="newPasswordToggleIcon"></i>
-                    </button>
-                </div>
-                <div class="error-feedback" id="newPasswordError"></div>
-            </div>
-            <div class="form-group">
-                <label for="confirmPassword">Confirm New Password</label>
-                <div class="password-input-wrapper">
-                    <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
-                    <button type="button" class="password-toggle-btn" onclick="togglePassword('confirmPassword')" title="Show password">
-                        <i class="fas fa-eye-slash" id="confirmPasswordToggleIcon"></i>
-                    </button>
-                </div>
-                <div class="error-feedback" id="confirmPasswordError"></div>
+                <p style="margin: 15px 0; color: #495057; line-height: 1.6;">
+                    <i class="fas fa-info-circle" style="color: #ff0000; margin-right: 8px;"></i>
+                    Are you sure you want to reset this user's password to their default password?
+                </p>
             </div>
             <div class="mt-3">
-                <button type="submit" class="btn btn-primary">Change Password</button>
-                <button type="button" class="btn btn-secondary" onclick="closeModal('changePasswordModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Reset Password</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('resetPasswordModal')">Cancel</button>
             </div>
         </form>
     </div>
@@ -553,6 +539,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                         roleSel.disabled = true;
                     }
                 } else {
+                    roleSel.value = 'all';
                     roleSel.disabled = false;
                 }
                 filterUsers();
@@ -568,21 +555,17 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             searchInput.addEventListener('input', filterUsers);
         }
         
-        const changePasswordForm = document.getElementById('changePasswordForm');
-        if (changePasswordForm) {
-            changePasswordForm.addEventListener('submit', function(e){
+        const resetPasswordForm = document.getElementById('resetPasswordForm');
+        if (resetPasswordForm) {
+            resetPasswordForm.addEventListener('submit', function(e){
                 e.preventDefault();
-                ['currentPasswordError','newPasswordError','confirmPasswordError'].forEach(id=>{
-                    const el = document.getElementById(id);
-                    if (el) el.textContent = '';
-                });
-                const formData = new FormData(changePasswordForm);
-                fetch('change_password.php', { method: 'POST', body: formData })
+                const formData = new FormData(resetPasswordForm);
+                fetch('reset_password.php', { method: 'POST', body: formData })
                     .then(r=>r.json())
                     .then(data=>{
                         if (data.success) {
                             const toast = document.createElement('div');
-                            toast.textContent = 'Password successfully updated';
+                            toast.textContent = data.message || 'Password successfully reset to default';
                             toast.style.position = 'fixed';
                             toast.style.top = '16px';
                             toast.style.right = '16px';
@@ -593,14 +576,38 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                             toast.style.zIndex = '10000';
                             document.body.appendChild(toast);
                             setTimeout(()=>toast.remove(), 2000);
-                            closeModal('changePasswordModal');
-                            changePasswordForm.reset();
-                        } else if (data.messages) {
-                            if (data.messages.newPassword) document.getElementById('newPasswordError').textContent = data.messages.newPassword;
-                            if (data.messages.confirmPassword) document.getElementById('confirmPasswordError').textContent = data.messages.confirmPassword;
+                            closeModal('resetPasswordModal');
+                            resetPasswordForm.reset();
+                        } else {
+                            const toast = document.createElement('div');
+                            toast.textContent = data.message || 'Failed to reset password';
+                            toast.style.position = 'fixed';
+                            toast.style.top = '16px';
+                            toast.style.right = '16px';
+                            toast.style.background = '#dc3545';
+                            toast.style.color = '#fff';
+                            toast.style.padding = '10px 14px';
+                            toast.style.borderRadius = '6px';
+                            toast.style.zIndex = '10000';
+                            document.body.appendChild(toast);
+                            setTimeout(()=>toast.remove(), 3000);
                         }
                     })
-                    .catch(err=>console.error(err));
+                    .catch(err=>{
+                        console.error(err);
+                        const toast = document.createElement('div');
+                        toast.textContent = 'An error occurred. Please try again.';
+                        toast.style.position = 'fixed';
+                        toast.style.top = '16px';
+                        toast.style.right = '16px';
+                        toast.style.background = '#dc3545';
+                        toast.style.color = '#fff';
+                        toast.style.padding = '10px 14px';
+                        toast.style.borderRadius = '6px';
+                        toast.style.zIndex = '10000';
+                        document.body.appendChild(toast);
+                        setTimeout(()=>toast.remove(), 3000);
+                    });
             });
         }
 
@@ -756,7 +763,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                     if (isSelected) {
                                         this.classList.remove('selected');
                                         selectedUserId = null;
-                                        document.getElementById('changePasswordBtn').disabled = true;
+                                        document.getElementById('resetPasswordBtn').disabled = true;
                                         document.getElementById('updateStatusBtn').disabled = true;
 
                                         setBulkCheckboxesEnabled(true);
@@ -764,7 +771,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                     } else {
                                         this.classList.add('selected');
                                         selectedUserId = this.dataset.id;
-                                        document.getElementById('changePasswordBtn').disabled = false;
+                                        document.getElementById('resetPasswordBtn').disabled = false;
                                         document.getElementById('updateStatusBtn').disabled = false;
 
                                         setBulkCheckboxesEnabled(false);
@@ -882,14 +889,14 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                     if (isSelected) {
                                         this.classList.remove('selected');
                                         selectedUserId = null;
-                                        document.getElementById('changePasswordBtn').disabled = true;
+                                        document.getElementById('resetPasswordBtn').disabled = true;
                                         document.getElementById('updateStatusBtn').disabled = true;
                                         setBulkCheckboxesEnabled(true);
                                         updateSelectionStatus('row', 0);
                                     } else {
                                         this.classList.add('selected');
                                         selectedUserId = this.dataset.id;
-                                        document.getElementById('changePasswordBtn').disabled = false;
+                                        document.getElementById('resetPasswordBtn').disabled = false;
                                         document.getElementById('updateStatusBtn').disabled = false;
                                         setBulkCheckboxesEnabled(false);
                                         updateSelectionStatus('row', 1);
@@ -956,13 +963,13 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         setRowSelectionEnabled(true);
         
         // Update button states
-        const changePasswordBtn = document.getElementById('changePasswordBtn');
+        const resetPasswordBtn = document.getElementById('resetPasswordBtn');
         const updateStatusBtn = document.getElementById('updateStatusBtn');
         const bulkUpdateBtn = document.getElementById('bulkUpdateStatusBtn');
         
-        if (changePasswordBtn) {
-            changePasswordBtn.disabled = true;
-            changePasswordBtn.title = 'Select a user row to change password';
+        if (resetPasswordBtn) {
+            resetPasswordBtn.disabled = true;
+            resetPasswordBtn.title = 'Select a user row to reset password';
         }
         if (updateStatusBtn) {
             updateStatusBtn.disabled = true;
@@ -1157,11 +1164,11 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
         if (!enabled) {
             selectedUserId = null;
-            const changePasswordBtn = document.getElementById('changePasswordBtn');
+            const resetPasswordBtn = document.getElementById('resetPasswordBtn');
             const updateStatusBtn = document.getElementById('updateStatusBtn');
-            changePasswordBtn.disabled = true;
+            resetPasswordBtn.disabled = true;
             updateStatusBtn.disabled = true;
-            changePasswordBtn.title = 'Select a user row to change password';
+            resetPasswordBtn.title = 'Select a user row to reset password';
             updateStatusBtn.title = 'Select a user row to update status';
         }
     }
@@ -1369,22 +1376,22 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             if (isSelected) {
                 this.classList.remove('selected');
                 selectedUserId = null;
-                const changePasswordBtn = document.getElementById('changePasswordBtn');
+                const resetPasswordBtn = document.getElementById('resetPasswordBtn');
                 const updateStatusBtn = document.getElementById('updateStatusBtn');
-                changePasswordBtn.disabled = true;
+                resetPasswordBtn.disabled = true;
                 updateStatusBtn.disabled = true;
-                changePasswordBtn.title = 'Select a user row to change password';
+                resetPasswordBtn.title = 'Select a user row to reset password';
                 updateStatusBtn.title = 'Select a user row to update status';
                 setBulkCheckboxesEnabled(true);
                 updateSelectionStatus('row', 0);
             } else {
                 this.classList.add('selected');
                 selectedUserId = this.dataset.id;
-                const changePasswordBtn = document.getElementById('changePasswordBtn');
+                const resetPasswordBtn = document.getElementById('resetPasswordBtn');
                 const updateStatusBtn = document.getElementById('updateStatusBtn');
-                changePasswordBtn.disabled = false;
+                resetPasswordBtn.disabled = false;
                 updateStatusBtn.disabled = false;
-                changePasswordBtn.title = 'Change password for selected user';
+                resetPasswordBtn.title = 'Reset password for selected user';
                 updateStatusBtn.title = 'Update status for selected user';
                 setBulkCheckboxesEnabled(false);
                 updateSelectionStatus('row', 1);
@@ -1396,30 +1403,30 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     document.addEventListener('DOMContentLoaded', function() {
         // Close modal when clicking outside of it
         document.addEventListener('click', function(event) {
-            const changePasswordModal = document.getElementById('changePasswordModal');
-            if (changePasswordModal && event.target === changePasswordModal) {
-                closeModal('changePasswordModal');
+            const resetPasswordModal = document.getElementById('resetPasswordModal');
+            if (resetPasswordModal && event.target === resetPasswordModal) {
+                closeModal('resetPasswordModal');
             }
         });
 
         // Close modal when pressing Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
-                const changePasswordModal = document.getElementById('changePasswordModal');
-                if (changePasswordModal && changePasswordModal.style.display === 'flex') {
-                    closeModal('changePasswordModal');
+                const resetPasswordModal = document.getElementById('resetPasswordModal');
+                if (resetPasswordModal && resetPasswordModal.style.display === 'flex') {
+                    closeModal('resetPasswordModal');
                 }
             }
         });
     });
 
-    function changePassword() {
+    function resetPassword() {
         if (!selectedUserId) {
             alert('Please select an account first.');
             return;
         }
-        document.getElementById('changePasswordUserId').value = selectedUserId;
-        const modal = document.getElementById('changePasswordModal');
+        document.getElementById('resetPasswordUserId').value = selectedUserId;
+        const modal = document.getElementById('resetPasswordModal');
         modal.style.display = 'flex';
     }
 
@@ -2670,69 +2677,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 font-weight: 400;
             }
             
-            /* Password input wrapper styling */
-            .password-input-wrapper {
-                position: relative;
-                display: flex;
-                align-items: center;
-            }
-            
-            .password-input-wrapper .form-control {
-                padding-right: 50px !important;
-            }
-            
-            .password-toggle-btn {
-                position: absolute;
-                right: 15px;
-                background: none !important;
-                border: none !important;
-                cursor: pointer;
-                color: #6c757d !important;
-                font-size: 18px;
-                padding: 8px !important;
-                width: 32px;
-                height: 32px;
-                display: flex !important;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.3s ease;
-                z-index: 10 !important;
-                border-radius: 4px;
-            }
-            
-            .password-toggle-btn:hover {
-                color: #0072bc !important;
-                background-color: rgba(0, 114, 188, 0.1) !important;
-            }
-            
-            .password-toggle-btn:focus {
-                outline: none !important;
-                color: #0072bc !important;
-                background-color: rgba(0, 114, 188, 0.1) !important;
-                box-shadow: 0 0 0 2px rgba(0, 114, 188, 0.25) !important;
-            }
-            
-            .password-toggle-btn:active {
-                transform: scale(0.95);
-            }
-            
-            .password-toggle-btn i {
-                font-size: 16px !important;
-                line-height: 1 !important;
-                display: block !important;
-                font-weight: 400 !important;
-                font-family: "Font Awesome 6 Free" !important;
-            }
-            
-            /* Ensure FontAwesome icons are loaded */
-            .password-toggle-btn .fas,
-            .password-toggle-btn .fa-eye,
-            .password-toggle-btn .fa-eye-slash {
-                font-family: "Font Awesome 6 Free" !important;
-                font-weight: 900 !important;
-                display: inline-block !important;
-            }
-            
             .status-badge {
                 padding: 6px 12px;
                 border-radius: 20px;
@@ -3118,32 +3062,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             });
         });
     }
-
-    function togglePassword(inputId) {
-        try {
-            const passwordInput = document.getElementById(inputId);
-            const toggleIcon = document.getElementById(inputId + 'ToggleIcon');
-            
-            if (!passwordInput || !toggleIcon) {
-                console.error('Password toggle elements not found:', inputId);
-                return;
-            }
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleIcon.className = 'fas fa-eye';
-                toggleIcon.setAttribute('title', 'Hide password');
-            } else {
-                passwordInput.type = 'password';
-                toggleIcon.className = 'fas fa-eye-slash';
-                toggleIcon.setAttribute('title', 'Show password');
-            }
-        } catch (error) {
-            console.error('Error toggling password visibility:', error);
-        }
-    }
-
-    window.togglePassword = togglePassword;
 
     document.addEventListener('DOMContentLoaded', initBirthdayFields);
 

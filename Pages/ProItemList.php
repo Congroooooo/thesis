@@ -1,10 +1,8 @@
 <?php
-// Start output buffering to prevent chunked encoding issues
 ob_start();
 
-// Set proper headers for better loading performance
 header('Content-Type: text/html; charset=UTF-8');
-header('Cache-Control: public, max-age=300'); // Cache for 5 minutes
+header('Cache-Control: public, max-age=300');
 
 include("../Includes/Header.php");
 if (session_status() === PHP_SESSION_NONE) session_start();
@@ -44,7 +42,6 @@ include("../Includes/loader.php");
     </section>
 
     <?php 
-    // Flush the buffer after header to show content progressively
     if (ob_get_level()) {
         ob_flush();
         flush();
@@ -63,34 +60,35 @@ include("../Includes/loader.php");
             <?php
             require_once '../Includes/connection.php';
 
-            // Get filter and search parameters
             $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
-            $categoryFilter = isset($_GET['category']) ? $_GET['category'] : '';
-            $subcategoryFilter = isset($_GET['subcategory']) ? $_GET['subcategory'] : '';
+            
+            // Support both single and multiple category/subcategory filters
+            $categoriesParam = isset($_GET['categories']) ? $_GET['categories'] : (isset($_GET['category']) ? $_GET['category'] : '');
+            $subcategoriesParam = isset($_GET['subcategories']) ? $_GET['subcategories'] : (isset($_GET['subcategory']) ? $_GET['subcategory'] : '');
+            
+            // Convert comma-separated strings to arrays and filter out empty values
+            $categoryFilters = !empty($categoriesParam) ? array_filter(array_map('trim', explode(',', $categoriesParam))) : [];
+            $subcategoryFilters = !empty($subcategoriesParam) ? array_filter(array_map('trim', explode(',', $subcategoriesParam))) : [];
+            
+            // Re-index arrays after filtering to avoid gaps in array keys
+            $categoryFilters = array_values($categoryFilters);
+            $subcategoryFilters = array_values($subcategoryFilters);
+            
             $courseFilter = isset($_GET['course']) ? $_GET['course'] : '';
-            
-            // Debug: Uncomment to see active filters
-            // echo "<!-- DEBUG: Search: '$searchQuery', Category: '$categoryFilter', Subcategory: '$subcategoryFilter', Course: '$courseFilter' -->";
-            
-            // Pagination parameters
             $itemsPerPage = 12;
             $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
             $offset = ($currentPage - 1) * $itemsPerPage;
-
-            // Create cache key based on all filter parameters
             $filterParams = [
                 'search' => $searchQuery,
-                'category' => $categoryFilter,
-                'subcategory' => $subcategoryFilter,
+                'categories' => $categoriesParam,
+                'subcategories' => $subcategoriesParam,
                 'course' => $courseFilter,
                 'page' => $currentPage
             ];
             $cacheKey = 'products_cache_' . md5(serialize($filterParams));
-            $cacheTime = 300; // 5 minutes cache
-            
-            // Clear cache if requested
+            $cacheTime = 300;
+
             if (isset($_GET['clear_cache'])) {
-                // Clear all product caches
                 foreach ($_SESSION as $key => $value) {
                     if (strpos($key, 'products_cache_') === 0) {
                         unset($_SESSION[$key]);
@@ -98,29 +96,22 @@ include("../Includes/loader.php");
                 }
             }
 
-            // Check if we have cached data
             if (isset($_SESSION[$cacheKey]) && 
                 isset($_SESSION[$cacheKey . '_time']) && 
                 (time() - $_SESSION[$cacheKey . '_time']) < $cacheTime) {
-                
-                // Use cached data
+
                 $cachedData = $_SESSION[$cacheKey];
                 $allProducts = $cachedData['allProducts'];
                 $totalProducts = $cachedData['totalProducts'];
                 $totalPages = $cachedData['totalPages'];
-                
-                // Get only the products for the current page
+
                 $productsForCurrentPage = array_slice($allProducts, $offset, $itemsPerPage, true);
                 $products = $productsForCurrentPage;
                 
             } else {
-                // Fetch fresh data and process it
-
-            // Build SQL query with filters
             $whereConditions = [];
             $params = [];
 
-            // Add search condition
             if (!empty($searchQuery)) {
                 $whereConditions[] = "(i.item_name LIKE ? OR i.item_code LIKE ? OR i.category LIKE ?)";
                 $searchParam = '%' . $searchQuery . '%';
@@ -129,28 +120,100 @@ include("../Includes/loader.php");
                 $params[] = $searchParam;
             }
 
-            // Add category filter
-            if (!empty($categoryFilter)) {
-                $whereConditions[] = "LOWER(REPLACE(i.category, ' ', '-')) = LOWER(?)";
-                $params[] = $categoryFilter;
+            // Handle category and subcategory filters with smart logic
+            if (!empty($categoryFilters) || !empty($subcategoryFilters)) {
+                // Get the parent category for each selected subcategory
+                $subcategoryParents = [];
+                if (!empty($subcategoryFilters)) {
+                    $subcatPlaceholders = implode(',', array_fill(0, count($subcategoryFilters), '?'));
+                    $subcatStmt = $conn->prepare("
+                        SELECT s.id as subcat_id, c.name as parent_category 
+                        FROM subcategories s 
+                        JOIN categories c ON s.category_id = c.id 
+                        WHERE s.id IN ($subcatPlaceholders)
+                    ");
+                    $subcatStmt->execute($subcategoryFilters);
+                    while ($row = $subcatStmt->fetch(PDO::FETCH_ASSOC)) {
+                        $normalizedParent = strtolower(str_replace(' ', '-', $row['parent_category']));
+                        $subcategoryParents[$row['subcat_id']] = $normalizedParent;
+                    }
+                }
+                
+                // Build filter logic:
+                // For each category:
+                //   - If it has subcategories selected: show items with those subcategories
+                //   - If it has NO subcategories selected: show ALL items from that category
+                
+                $categoriesWithSubcategories = [];
+                $categoriesWithoutSubcategories = [];
+                
+                foreach ($categoryFilters as $cat) {
+                    $hasSubcategory = false;
+                    foreach ($subcategoryParents as $subcatId => $parentCat) {
+                        if ($parentCat === $cat) {
+                            $hasSubcategory = true;
+                            $categoriesWithSubcategories[$cat][] = $subcatId;
+                        }
+                    }
+                    if (!$hasSubcategory) {
+                        $categoriesWithoutSubcategories[] = $cat;
+                    }
+                }
+                
+                $filterParts = [];
+                
+                // Add filters for categories WITH subcategory selections (narrow down)
+                foreach ($categoriesWithSubcategories as $cat => $subcatIds) {
+                    $subcatPlaceholders = [];
+                    $params[] = $cat;
+                    foreach ($subcatIds as $subcatId) {
+                        $subcatPlaceholders[] = "?";
+                        $params[] = $subcatId;
+                    }
+                    $filterParts[] = "(LOWER(REPLACE(i.category, ' ', '-')) = LOWER(?) AND EXISTS (SELECT 1 FROM inventory_subcategory isubf WHERE isubf.inventory_id = i.id AND isubf.subcategory_id IN (" . implode(',', $subcatPlaceholders) . ")))";
+                }
+                
+                // Add filters for categories WITHOUT subcategory selections (show all)
+                if (!empty($categoriesWithoutSubcategories)) {
+                    $catPlaceholders = [];
+                    foreach ($categoriesWithoutSubcategories as $cat) {
+                        $catPlaceholders[] = "LOWER(REPLACE(i.category, ' ', '-')) = LOWER(?)";
+                        $params[] = $cat;
+                    }
+                    $filterParts[] = "(" . implode(' OR ', $catPlaceholders) . ")";
+                }
+                
+                // If subcategories selected but their parent categories are NOT in categoryFilters
+                // (user selected subcategory without clicking parent category)
+                $orphanSubcategories = [];
+                foreach ($subcategoryParents as $subcatId => $parentCat) {
+                    if (!in_array($parentCat, $categoryFilters)) {
+                        $orphanSubcategories[] = $subcatId;
+                    }
+                }
+                
+                if (!empty($orphanSubcategories)) {
+                    $subcatPlaceholders = [];
+                    foreach ($orphanSubcategories as $subcatId) {
+                        $subcatPlaceholders[] = "?";
+                        $params[] = $subcatId;
+                    }
+                    $filterParts[] = "EXISTS (SELECT 1 FROM inventory_subcategory isubf WHERE isubf.inventory_id = i.id AND isubf.subcategory_id IN (" . implode(',', $subcatPlaceholders) . "))";
+                }
+                
+                // Combine all parts with OR
+                if (!empty($filterParts)) {
+                    $whereConditions[] = "(" . implode(' OR ', $filterParts) . ")";
+                }
             }
 
-            // Add subcategory filter
-            if (!empty($subcategoryFilter)) {
-                $whereConditions[] = "EXISTS (SELECT 1 FROM inventory_subcategory isubf WHERE isubf.inventory_id = i.id AND isubf.subcategory_id = ?)";
-                $params[] = $subcategoryFilter;
-            }
-
-            // Add course filter
             if (!empty($courseFilter)) {
                 $whereConditions[] = "FIND_IN_SET(?, REPLACE(i.courses, ' ', '')) > 0";
                 $params[] = $courseFilter;
             }
 
-            // Build WHERE clause
             $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
 
-            // Optimized query with filtering
             $sql = "
                 SELECT 
                     i.*,
@@ -163,7 +226,6 @@ include("../Includes/loader.php");
                 ORDER BY i.created_at DESC
             ";
 
-            // Prepare and execute query
             if (!empty($params)) {
                 $stmt = $conn->prepare($sql);
                 $stmt->execute($params);
@@ -185,23 +247,19 @@ include("../Includes/loader.php");
                 $baseItemCode = strtok($itemCode, '-');
                 $courses = isset($row['courses']) ? array_map('trim', explode(',', $row['courses'])) : [];
 
-                // Extract subcategories from the grouped result
                 $subcats = [];
                 if (!empty($row['subcategory_ids'])) {
                     $subcats = explode(',', $row['subcategory_ids']);
                 }
 
-                // Optimized image resolution logic
                 $itemImage = '';
                 if (!empty($imagePath)) {
-                    // Quick path resolution without multiple file existence checks
                     if (strpos($imagePath, 'uploads/') === false) {
                         $itemImage = '../uploads/itemlist/' . $imagePath;
                     } else {
                         $itemImage = '../' . ltrim($imagePath, '/');
                     }
                 } else {
-                    // Set default image path directly
                     $itemImage = '../uploads/itemlist/default.png';
                 }
 
@@ -231,10 +289,7 @@ include("../Includes/loader.php");
                     $allProducts[$baseItemCode]['stock'] += $row['actual_quantity'];
                     $allProducts[$baseItemCode]['courses'] = array_unique(array_merge($allProducts[$baseItemCode]['courses'], $courses));
                     $allProducts[$baseItemCode]['subcategories'] = array_unique(array_merge($allProducts[$baseItemCode]['subcategories'], $subcats));
-                    
-                    // Use the current variant's image if available, otherwise use the main product image
                     $variantImage = !empty($itemImage) ? $itemImage : $allProducts[$baseItemCode]['image'];
-                    
                     $allProducts[$baseItemCode]['variants'][] = [
                         'item_code' => $itemCode,
                         'size' => isset($sizes[0]) ? $sizes[0] : '',
@@ -242,23 +297,18 @@ include("../Includes/loader.php");
                         'stock' => $row['actual_quantity'],
                         'image' => $variantImage
                     ];
-                    
-                    // Update the main product image if it was empty and we now have a valid image
+
                     if (empty($allProducts[$baseItemCode]['image']) && !empty($itemImage)) {
                         $allProducts[$baseItemCode]['image'] = $itemImage;
                     }
                 }
             }
-            
-            // Calculate pagination for filtered results
+
             $totalProducts = count($allProducts);
             $totalPages = ceil($totalProducts / $itemsPerPage);
-            
-            // Get only the products for the current page
             $productsForCurrentPage = array_slice($allProducts, $offset, $itemsPerPage, true);
             $products = $productsForCurrentPage;
-            
-            // Cache the filtered results
+
             $_SESSION[$cacheKey] = [
                 'allProducts' => $allProducts,
                 'totalProducts' => $totalProducts,
@@ -278,8 +328,7 @@ include("../Includes/loader.php");
             }
 
             $dynamicCategories = [];
-            
-            // Optimized categories query - combined with legacy categories
+
             $categoriesQuery = "
                 SELECT 
                     c.id, 
@@ -443,7 +492,7 @@ include("../Includes/loader.php");
                             <div class="items stock">
                                 <p>Stock: <?php echo $product['stock']; ?></p>
                             </div>
-                            <div class="items cart" onclick="handleAddToCart(this)" data-item-code="<?php echo htmlspecialchars($baseItemCode); ?>">
+                            <div class="items cart" data-item-code="<?php echo htmlspecialchars($baseItemCode); ?>">
                                 <i class="fa fa-shopping-cart"></i>
                                 <span>ADD TO CART</span>
                             </div>
@@ -457,13 +506,11 @@ include("../Includes/loader.php");
                     <p>Try adjusting your search terms or filters to find what you're looking for.</p>
                 </div>
             </div>
-            
-            <!-- Pagination Controls -->
+
             <?php if ($totalPages > 1): ?>
             <?php
-            // Preserve any existing URL parameters for pagination links
             $currentParams = $_GET;
-            unset($currentParams['page']); // Remove page parameter to avoid duplication
+            unset($currentParams['page']);
             
             function buildPaginationUrl($page, $params = []) {
                 $allParams = array_merge($_GET, $params);
@@ -585,32 +632,38 @@ include("../Includes/loader.php");
 
     <?php include("../Includes/Footer.php"); ?>
 
-    <script src="../Javascript/ProItemList.js" defer></script>
+    <!-- ProItemList.js removed - conflicts with inline AJAX implementation -->
+    <!-- <script src="../Javascript/ProItemList.js" defer></script> -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     
-    <!-- Lazy Loading Script -->
+    <!-- Lazy Loading and AJAX Filter Script -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Lazy loading implementation
-        const lazyImages = document.querySelectorAll('.lazy-load-image');
-        
-        const imageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src;
-                    img.classList.remove('lazy-load-image');
-                    observer.unobserve(img);
-                }
+        // Lazy loading implementation (reusable function)
+        function initLazyLoading() {
+            const lazyImages = document.querySelectorAll('.lazy-load-image');
+            
+            const imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.src = img.dataset.src;
+                        img.classList.remove('lazy-load-image');
+                        observer.unobserve(img);
+                    }
+                });
+            }, {
+                rootMargin: '50px 0px',
+                threshold: 0.01
             });
-        }, {
-            rootMargin: '50px 0px',
-            threshold: 0.01
-        });
 
-        lazyImages.forEach(img => {
-            imageObserver.observe(img);
-        });
+            lazyImages.forEach(img => {
+                imageObserver.observe(img);
+            });
+        }
+
+        // Initialize lazy loading on page load
+        initLazyLoading();
 
         // Initialize AOS with optimized settings
         AOS.init({
@@ -619,42 +672,39 @@ include("../Includes/loader.php");
             disable: 'mobile'
         });
 
-        // Search and Filter functionality
         const searchInput = document.getElementById('search');
         const searchBtn = document.querySelector('.search-btn');
         const categoryFilters = document.querySelectorAll('.main-category-header');
         const subcategoryFilters = document.querySelectorAll('.course-filter-checkbox');
         const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        const productsGrid = document.querySelector('.products-grid');
+        const mainContent = document.querySelector('main.content');
 
-        // Remove any existing event listeners from the external JS file
+        // Initialize: Hide all subcategories by default
+        document.querySelectorAll('.subcategories').forEach(sub => {
+            sub.style.display = 'none';
+        });
+
         if (searchInput) {
-            // Clone the search input to remove all existing event listeners
             const newSearchInput = searchInput.cloneNode(true);
             searchInput.parentNode.replaceChild(newSearchInput, searchInput);
-            
-            // Update our reference to the new element
             const searchInputNew = document.getElementById('search');
-            
-            // Add our server-side search functionality
+
             let searchTimeout;
             searchInputNew.addEventListener('input', function() {
                 const searchContainer = document.querySelector('.search-container');
-                
-                // Clear any existing timeout
+
                 clearTimeout(searchTimeout);
-                
-                // Show loading state immediately
-                if (searchContainer && this.value.trim().length > 0) {
+
+                if (searchContainer && this.value.trim().length >= 0) {
                     searchContainer.classList.add('loading');
                 }
-                
-                // Set a new timeout to trigger search after user stops typing (300ms delay)
+
                 searchTimeout = setTimeout(function() {
-                    applyFilters();
+                    loadProducts();
                 }, 300);
             });
-            
-            // Also trigger search on Enter key
+
             searchInputNew.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     const searchContainer = document.querySelector('.search-container');
@@ -662,74 +712,261 @@ include("../Includes/loader.php");
                         searchContainer.classList.add('loading');
                     }
                     clearTimeout(searchTimeout);
-                    applyFilters();
+                    loadProducts();
                 }
             });
         }
 
-        // Function to build URL with current filters
-        function buildFilterUrl() {
-            const params = new URLSearchParams(window.location.search);
+        function restoreFilterState() {
+            const urlParams = new URLSearchParams(window.location.search);
             
-            // Remove page parameter when filtering (always go to page 1)
-            params.delete('page');
-            
-            // Get current filter values
+            // Support both 'categories' (plural) and 'category' (singular) parameters
+            let categoriesParam = urlParams.get('categories') || urlParams.get('category');
+            const subcategoriesParam = urlParams.get('subcategories');
+            const search = urlParams.get('search');
+
+            if (search) {
+                document.getElementById('search').value = search;
+            }
+
+            // First, remove active class from ALL categories and hide all subcategories
+            document.querySelectorAll('.main-category-header').forEach(cat => {
+                cat.classList.remove('active');
+                const subcategoriesDiv = cat.nextElementSibling;
+                if (subcategoriesDiv && subcategoriesDiv.classList.contains('subcategories')) {
+                    subcategoriesDiv.style.display = 'none';
+                }
+            });
+
+            // Then add active class to all selected categories and show their subcategories
+            if (categoriesParam) {
+                const selectedCategories = categoriesParam.split(',').map(cat => cat.trim());
+                
+                document.querySelectorAll('.main-category-header').forEach(cat => {
+                    const catDataValue = cat.dataset.category;
+                    
+                    // Check if this category matches any of the selected categories
+                    // Support multiple formats: exact match, normalized match, case-insensitive
+                    const isMatch = selectedCategories.some(selectedCat => {
+                        // Normalize both values for comparison
+                        const normalizedSelected = selectedCat.toLowerCase().replace(/\s+/g, '-');
+                        const normalizedCatData = catDataValue.toLowerCase();
+                        
+                        return normalizedCatData === normalizedSelected || 
+                               catDataValue === selectedCat ||
+                               normalizedCatData === selectedCat.toLowerCase();
+                    });
+                    
+                    if (isMatch) {
+                        cat.classList.add('active');
+                        // Show subcategories for active category
+                        const subcategoriesDiv = cat.nextElementSibling;
+                        if (subcategoriesDiv && subcategoriesDiv.classList.contains('subcategories')) {
+                            subcategoriesDiv.style.display = 'block';
+                        }
+                        // Force a reflow to ensure the styling is applied
+                        void cat.offsetHeight;
+                    }
+                });
+            }
+
+            // First, uncheck all subcategories
+            document.querySelectorAll('.course-filter-checkbox').forEach(sub => {
+                sub.checked = false;
+            });
+
+            // Then check all selected subcategories
+            if (subcategoriesParam) {
+                const selectedSubcategories = subcategoriesParam.split(',');
+                document.querySelectorAll('.course-filter-checkbox').forEach(sub => {
+                    if (selectedSubcategories.includes(sub.value)) {
+                        sub.checked = true;
+                    }
+                });
+            }
+        }
+
+        function getFilterParams(page = 1) {
+            const params = new URLSearchParams();
             const searchValue = document.getElementById('search').value.trim();
             const selectedCategories = [];
             const selectedSubcategories = [];
-
-            // Get selected categories
             document.querySelectorAll('.main-category-header.active').forEach(cat => {
                 selectedCategories.push(cat.dataset.category);
             });
 
-            // Get selected subcategories
             document.querySelectorAll('.course-filter-checkbox:checked').forEach(sub => {
                 selectedSubcategories.push(sub.value);
             });
 
-            // Set parameters
             if (searchValue) {
                 params.set('search', searchValue);
-            } else {
-                params.delete('search');
             }
 
+            // Support multiple categories (comma-separated)
             if (selectedCategories.length > 0) {
-                params.set('category', selectedCategories[0]); // For now, support single category
-            } else {
-                params.delete('category');
+                params.set('categories', selectedCategories.join(','));
             }
 
+            // Support multiple subcategories (comma-separated)
             if (selectedSubcategories.length > 0) {
-                params.set('subcategory', selectedSubcategories[0]); // For now, support single subcategory
-            } else {
-                params.delete('subcategory');
+                params.set('subcategories', selectedSubcategories.join(','));
             }
 
-            return '?' + params.toString();
+            params.set('page', page);
+
+            return params;
         }
 
-        // Function to apply filters
-        function applyFilters() {
+        // Function to load products via AJAX
+        // Add a flag to prevent multiple simultaneous requests
+        let isLoading = false;
+
+        function loadProducts(page = 1) {
+            // Prevent multiple simultaneous requests
+            if (isLoading) {
+                return;
+            }
+            
+            isLoading = true;
+            
+            // Prevent the global loader from showing
+            if (window.STILoaderState) {
+                window.STILoaderState.isNavigating = false;
+            }
+            
+            const params = getFilterParams(page);
+
             // Show loading state
-            const sidebar = document.querySelector('.sidebar');
-            const searchContainer = document.querySelector('.search-container');
+            productsGrid.style.opacity = '0.5';
+            productsGrid.style.pointerEvents = 'none';
             
-            if (sidebar) {
-                sidebar.classList.add('loading');
+            // Add loading spinner as overlay at the top inside products-grid
+            let loadingOverlay = document.querySelector('.ajax-loading-overlay');
+            if (!loadingOverlay) {
+                loadingOverlay = document.createElement('div');
+                loadingOverlay.className = 'ajax-loading-overlay';
+                loadingOverlay.innerHTML = '<div class="spinner"></div>';
+                // Append to products-grid container (will be positioned absolutely)
+                productsGrid.appendChild(loadingOverlay);
             }
-            if (searchContainer) {
-                searchContainer.classList.add('loading');
-            }
+            loadingOverlay.style.display = 'flex';
+
+            // Make AJAX request
+            const fetchUrl = 'ajax_load_products.php?' + params.toString();
             
-            window.location.href = buildFilterUrl();
+            fetch(fetchUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        });
+                    }
+                    
+                    // Check if response is JSON
+                    const contentType = response.headers.get('content-type');
+                    
+                    if (!contentType || !contentType.includes('application/json')) {
+                        return response.text().then(text => {
+                            throw new Error('Server returned non-JSON response');
+                        });
+                    }
+                    
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // Update products grid
+                        productsGrid.innerHTML = data.html;
+                        
+                        // Update or remove pagination
+                        const existingPagination = mainContent.querySelector('.pagination-container');
+                        if (existingPagination) {
+                            existingPagination.remove();
+                        }
+                        
+                        if (data.pagination) {
+                            mainContent.insertAdjacentHTML('beforeend', data.pagination);
+                            
+                            // Add click handlers to pagination links
+                            attachPaginationHandlers();
+                        }
+                        
+                        // Reinitialize lazy loading for new images
+                        initLazyLoading();
+                        
+                        // Reattach cart button event listeners for dynamically loaded products
+                        attachCartEventListeners();
+                        
+                        // Scroll to top of products grid smoothly
+                        productsGrid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        
+                        // Update URL without reloading
+                        const newUrl = window.location.pathname + '?' + params.toString();
+                        window.history.pushState({}, '', newUrl);
+                        
+                        // Restore filter state from the new URL
+                        restoreFilterState();
+                        
+                    } else {
+                        // Server returned error
+                        const errorMsg = data.error || 'Unknown server error';
+                        const debugMsg = data.debug ? '\n\nDebug: ' + data.debug : '';
+                        throw new Error(errorMsg + debugMsg);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading products:', error);
+                    // Show more detailed error information
+                    const errorMessage = error.message || 'Unknown error occurred';
+                    alert('Error loading products: ' + errorMessage + '\n\nPlease try again.');
+                })
+                .finally(() => {
+                    // Reset loading flag
+                    isLoading = false;
+                    
+                    // Remove loading state
+                    productsGrid.style.opacity = '1';
+                    productsGrid.style.pointerEvents = 'auto';
+                    
+                    // Hide loading overlay with a small delay to ensure visibility
+                    setTimeout(() => {
+                        // Hide the global page loader if it's showing
+                        if (window.STILoader) {
+                            window.STILoader.hide();
+                        }
+                        
+                        // Remove AJAX loading overlay
+                        const loadingOverlay = document.querySelector('.ajax-loading-overlay');
+                        if (loadingOverlay) {
+                            loadingOverlay.remove();
+                        }
+                        
+                        // Remove loading class from search container
+                        const searchContainer = document.querySelector('.search-container');
+                        if (searchContainer) {
+                            searchContainer.classList.remove('loading');
+                        }
+                    }, 100);
+                });
+        }
+
+        // Function to attach pagination click handlers
+        function attachPaginationHandlers() {
+            const paginationLinks = document.querySelectorAll('.pagination-number[data-page], .pagination-btn[data-page]');
+            
+            paginationLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const page = parseInt(this.dataset.page);
+                    loadProducts(page);
+                });
+            });
         }
 
         // Search functionality
         function handleSearch() {
-            applyFilters();
+            loadProducts(1);
         }
 
         // Event listeners for search button
@@ -737,56 +974,66 @@ include("../Includes/loader.php");
             searchBtn.addEventListener('click', handleSearch);
         }
 
-        // Category filter functionality
+        // Category filter functionality - Multi-select support
         categoryFilters.forEach(category => {
-            category.addEventListener('click', function() {
-                // Toggle active state
+            category.addEventListener('click', function(e) {
+                // Toggle active state for this category
                 this.classList.toggle('active');
-                applyFilters();
+                
+                // Toggle subcategories visibility
+                const subcategoriesDiv = this.nextElementSibling;
+                if (subcategoriesDiv && subcategoriesDiv.classList.contains('subcategories')) {
+                    if (this.classList.contains('active')) {
+                        // Expanding category - show subcategories
+                        subcategoriesDiv.style.display = 'block';
+                    } else {
+                        // Collapsing category - hide subcategories and uncheck all of them
+                        subcategoriesDiv.style.display = 'none';
+                        
+                        // Uncheck all subcategory checkboxes under this category
+                        const subcategoryCheckboxes = subcategoriesDiv.querySelectorAll('.course-filter-checkbox');
+                        subcategoryCheckboxes.forEach(checkbox => {
+                            checkbox.checked = false;
+                        });
+                    }
+                }
+                
+                loadProducts(1);
             });
         });
 
         // Subcategory filter functionality
         subcategoryFilters.forEach(subcategory => {
             subcategory.addEventListener('change', function() {
-                applyFilters();
+                loadProducts(1);
             });
         });
 
         // Clear filters functionality
         clearFiltersBtn.addEventListener('click', function() {
-            // Clear all filters and go back to page 1
-            window.location.href = window.location.pathname;
+            // Clear all filters
+            document.getElementById('search').value = '';
+            document.querySelectorAll('.main-category-header.active').forEach(cat => {
+                cat.classList.remove('active');
+                // Hide subcategories when clearing
+                const subcategoriesDiv = cat.nextElementSibling;
+                if (subcategoriesDiv && subcategoriesDiv.classList.contains('subcategories')) {
+                    subcategoriesDiv.style.display = 'none';
+                }
+            });
+            document.querySelectorAll('.course-filter-checkbox:checked').forEach(sub => {
+                sub.checked = false;
+            });
+            
+            // Load products with cleared filters
+            loadProducts(1);
         });
 
-        // Set initial filter states based on URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
+        // Attach pagination handlers for initial page load
+        attachPaginationHandlers();
         
-        // Set search input value
-        if (urlParams.has('search')) {
-            const searchInputElement = document.getElementById('search');
-            if (searchInputElement) {
-                searchInputElement.value = urlParams.get('search');
-            }
-        }
-
-        // Set active category
-        if (urlParams.has('category')) {
-            const categoryValue = urlParams.get('category');
-            const categoryElement = document.querySelector(`[data-category="${categoryValue}"]`);
-            if (categoryElement) {
-                categoryElement.classList.add('active');
-            }
-        }
-
-        // Set checked subcategories
-        if (urlParams.has('subcategory')) {
-            const subcategoryValue = urlParams.get('subcategory');
-            const subcategoryElement = document.querySelector(`input[value="${subcategoryValue}"]`);
-            if (subcategoryElement) {
-                subcategoryElement.checked = true;
-            }
-        }
+        // Restore filter state from URL on initial load
+        restoreFilterState();
     });
     </script>
     
@@ -823,24 +1070,151 @@ include("../Includes/loader.php");
     </script>
 
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    let currentProduct = null;
+    
+    // Modal functions - defined globally so they can be called from anywhere
+    function openModal() {
         const modal = document.getElementById('sizeModal');
-        const closeBtn = modal.querySelector('.close');
-        
-        function openModal() {
-            modal.classList.add('show');
-        }
-        
-        function closeModal() {
-            modal.classList.remove('show');
-        }
-        
+        modal.classList.add('show');
+    }
+    
+    function closeModal() {
+        const modal = document.getElementById('sizeModal');
+        modal.classList.remove('show');
+    }
+    
+    function showSizeModal(element) {
+            const productContainer = element.closest('.product-container');
+            const category = productContainer.dataset.category;
+
+            currentProduct = {
+                itemCode: productContainer.dataset.itemCode,
+                name: productContainer.dataset.itemName,
+                sizes: productContainer.dataset.sizes.split(','),
+                prices: productContainer.dataset.prices.split(','),
+                stocks: productContainer.dataset.stocks.split(','),
+                itemCodes: productContainer.dataset.itemCodes ? productContainer.dataset.itemCodes.split(',') : [],
+                image: productContainer.querySelector('img').src,
+                category: category,
+                stock: productContainer.dataset.stock
+            };
+
+            // Update modal content
+            document.getElementById('modalProductImage').src = currentProduct.image;
+            document.getElementById('modalProductName').textContent = currentProduct.name;
+            document.getElementById('modalProductPrice').textContent = `Price Range: ₱${Math.min(...currentProduct.prices.map(Number)).toFixed(2)} - ₱${Math.max(...currentProduct.prices.map(Number)).toFixed(2)}`;
+            document.getElementById('modalProductStock').textContent = `Total Stock: ${currentProduct.stock}`;
+
+            // Generate size options
+            const sizeOptionsContainer = document.querySelector('.size-options');
+            sizeOptionsContainer.innerHTML = '';
+
+            let allSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL', '6XL', '7XL'];
+
+            // If 'One Size' is present, add it to the front
+            if (currentProduct.sizes.some(s => s.trim().toLowerCase() === 'one size')) {
+                allSizes = ['One Size', ...allSizes];
+            }
+
+            allSizes.forEach(size => {
+                const sizeBtn = document.createElement('div');
+                sizeBtn.className = 'size-option';
+                sizeBtn.textContent = size;
+
+                const idx = currentProduct.sizes.findIndex(s => s.trim().toLowerCase() === size.trim().toLowerCase());
+                const stock = idx >= 0 ? parseInt(currentProduct.stocks[idx]) || 0 : 0;
+                const itemCode = idx >= 0 && currentProduct.itemCodes[idx] ? currentProduct.itemCodes[idx] : currentProduct.itemCode;
+                const price = idx >= 0 && currentProduct.prices[idx] ? currentProduct.prices[idx] : '';
+
+                sizeBtn.dataset.stock = stock;
+                sizeBtn.dataset.itemCode = itemCode;
+                sizeBtn.dataset.price = price;
+
+                if (stock > 0) {
+                    sizeBtn.classList.add('available');
+                    sizeBtn.onclick = () => selectSize(sizeBtn);
+                } else {
+                    sizeBtn.classList.add('unavailable');
+                }
+
+                sizeOptionsContainer.appendChild(sizeBtn);
+            });
+
+            // Reset quantity input
+            const quantityInput = document.getElementById('quantity');
+            quantityInput.value = 1;
+            quantityInput.min = 1;
+
+            openModal();
+    }
+
+    function showAccessoryModal(element) {
+        const productContainer = element.closest('.product-container');
+        const price = productContainer.dataset.prices.split(',')[0];
+        const stock = productContainer.dataset.stock;
+
+        currentProduct = {
+            itemCode: productContainer.dataset.itemCode,
+            name: productContainer.dataset.itemName,
+            price: price,
+            stock: stock,
+            image: productContainer.querySelector('img').src,
+            category: productContainer.dataset.category
+        };
+
+        // Update modal content
+        document.getElementById('accessoryModalImage').src = currentProduct.image;
+        document.getElementById('accessoryModalName').textContent = currentProduct.name;
+        document.getElementById('accessoryModalPrice').textContent = `Price: ₱${parseFloat(currentProduct.price).toFixed(2)}`;
+        document.getElementById('accessoryModalStock').textContent = `Stock: ${currentProduct.stock}`;
+
+        // Set max quantity
+        const accessoryQuantityInput = document.getElementById('accessoryQuantity');
+        accessoryQuantityInput.max = currentProduct.stock;
+        accessoryQuantityInput.value = 1;
+
+        const accessoryModal = document.getElementById('accessoryModal');
+        accessoryModal.style.display = 'block';
+    }
+    
+    // Function to attach cart event listeners (reusable for AJAX-loaded content)
+    function attachCartEventListeners() {
         document.querySelectorAll('.cart').forEach(button => {
-            button.addEventListener('click', function(e) {
+            // Remove existing listeners by cloning
+            const newButton = button.cloneNode(true);
+            button.parentNode.replaceChild(newButton, button);
+            
+            newButton.addEventListener('click', function(e) {
                 e.preventDefault();
-                openModal();
+                e.stopPropagation();
+                
+                // Check if user is logged in
+                if (!window.isLoggedIn) {
+                    window.location.href = 'login.php';
+                    return;
+                }
+                
+                // Get product container and category
+                const productContainer = this.closest('.product-container');
+                const category = productContainer.dataset.category;
+
+                // Check if it's an accessory
+                if (category && (category.toLowerCase().includes('accessories') || category.toLowerCase().includes('sti-accessories'))) {
+                    showAccessoryModal(this);
+                } else {
+                    showSizeModal(this);
+                }
             });
         });
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('sizeModal');
+        const accessoryModal = document.getElementById('accessoryModal');
+        const closeBtn = modal.querySelector('.close');
+        
+        // Attach cart event listeners on page load
+        attachCartEventListeners();
         
         closeBtn.addEventListener('click', closeModal);
         
@@ -854,6 +1228,177 @@ include("../Includes/loader.php");
             e.stopPropagation();
         });
     });
+    
+    // Size selection function
+    function selectSize(sizeBtn) {
+        // Only allow selection if size is available
+        if (sizeBtn.classList.contains('unavailable')) {
+            return;
+        }
+        
+        // Remove active class from all size options
+        document.querySelectorAll('.size-option').forEach(btn => {
+            btn.classList.remove('active');
+            btn.classList.remove('selected');
+        });
+        
+        // Add active class to selected size
+        sizeBtn.classList.add('active');
+        sizeBtn.classList.add('selected');
+        
+        // Update stock and price display for the selected size
+        const stock = sizeBtn.dataset.stock;
+        const price = sizeBtn.dataset.price;
+        
+        document.getElementById('modalProductStock').textContent = `Stock: ${stock}`;
+        document.getElementById('modalProductPrice').textContent = `Price: ₱${parseFloat(price).toFixed(2)}`;
+        
+        // Update quantity input max based on selected size stock
+        const quantityInput = document.getElementById('quantity');
+        quantityInput.max = parseInt(stock);
+        
+        // If current quantity exceeds new max, reset to max
+        if (parseInt(quantityInput.value) > parseInt(stock)) {
+            quantityInput.value = stock;
+        }
+    }
+    
+    // Quantity control functions
+    function incrementQuantity() {
+        const input = document.getElementById('quantity');
+        const max = parseInt(input.max) || 999;
+        const current = parseInt(input.value) || 0;
+        if (current < max) {
+            input.value = current + 1;
+        }
+    }
+    
+    function decrementQuantity() {
+        const input = document.getElementById('quantity');
+        const min = parseInt(input.min) || 1;
+        const current = parseInt(input.value) || 0;
+        if (current > min) {
+            input.value = current - 1;
+        }
+    }
+    
+    function incrementAccessoryQuantity() {
+        const input = document.getElementById('accessoryQuantity');
+        const max = parseInt(input.max) || 999;
+        const current = parseInt(input.value) || 0;
+        if (current < max) {
+            input.value = current + 1;
+        }
+    }
+    
+    function decrementAccessoryQuantity() {
+        const input = document.getElementById('accessoryQuantity');
+        const min = 1;
+        const current = parseInt(input.value) || 0;
+        if (current > min) {
+            input.value = current - 1;
+        }
+    }
+    
+    function closeAccessoryModal() {
+        document.getElementById('accessoryModal').style.display = 'none';
+    }
+    
+    // Add to cart functions
+    function addToCartWithSize() {
+        const selectedSize = document.querySelector('.size-option.active');
+        if (!selectedSize) {
+            alert('Please select a size');
+            return;
+        }
+
+        const quantityInput = document.getElementById('quantity');
+        const quantity = parseInt(quantityInput.value);
+
+        if (!quantity || quantity <= 0) {
+            alert('Please enter a valid quantity');
+            return;
+        }
+
+        const availableStock = parseInt(selectedSize.dataset.stock);
+        if (quantity > availableStock) {
+            alert(`Sorry, only ${availableStock} items are available in stock for this size.`);
+            return;
+        }
+
+        const itemCode = selectedSize.dataset.itemCode;
+        const size = selectedSize.textContent;
+
+        addToCart({
+            itemCode: itemCode,
+            size: size,
+            quantity: quantity
+        });
+
+        // Close modal
+        document.getElementById('sizeModal').classList.remove('show');
+        quantityInput.value = 1;
+    }
+    
+    function addAccessoryToCart() {
+        const quantityInput = document.getElementById('accessoryQuantity');
+        const quantity = parseInt(quantityInput.value);
+
+        if (!quantity || quantity <= 0) {
+            alert('Please enter a valid quantity');
+            return;
+        }
+
+        const availableStock = parseInt(currentProduct.stock);
+        if (quantity > availableStock) {
+            alert(`Sorry, only ${availableStock} items are available in stock.`);
+            return;
+        }
+
+        addToCart({
+            itemCode: currentProduct.itemCode,
+            quantity: quantity,
+            size: 'One Size'
+        });
+
+        closeAccessoryModal();
+    }
+    
+    async function addToCart(customData) {
+        try {
+            const formData = new URLSearchParams();
+            formData.append('action', 'add');
+            formData.append('item_code', customData.itemCode);
+            formData.append('quantity', customData.quantity);
+            formData.append('size', customData.size || '');
+
+            const response = await fetch('../Includes/cart_operations.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: formData.toString()
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Update cart count in header
+                const cartCount = document.querySelector('.cart-count');
+                if (cartCount && typeof data.cart_count !== 'undefined') {
+                    cartCount.textContent = data.cart_count;
+                    cartCount.style.display = Number(data.cart_count) > 0 ? 'flex' : 'none';
+                }
+
+                alert('Item added to cart successfully!');
+            } else {
+                alert(data.message || 'Error adding item to cart');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error adding item to cart');
+        }
+    }
     </script>
 </body>
 

@@ -310,6 +310,64 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             const existingPrograms = <?= json_encode($programs) ?>;
             
+            // Restrict input to letters, spaces, and commas only
+            function restrictToLettersAndCommas(event) {
+                const input = event.target;
+                let value = input.value;
+                
+                // Remove any character that is not a letter, space, or comma
+                value = value.replace(/[^A-Za-z\s,]/g, '');
+                
+                // Replace multiple consecutive spaces with a single space
+                value = value.replace(/\s{2,}/g, ' ');
+                
+                input.value = value;
+            }
+            
+            // Validate that input contains actual letters (not just spaces)
+            function validateInput(input) {
+                const value = input.value.trim();
+                
+                // Remove existing validation feedback
+                input.classList.remove('is-invalid');
+                const existingFeedback = input.parentNode.querySelector('.invalid-feedback.format-error');
+                if (existingFeedback) {
+                    existingFeedback.remove();
+                }
+                
+                // Check if input is empty or contains only spaces/commas
+                if (!value || !/[A-Za-z]/.test(value)) {
+                    input.classList.add('is-invalid');
+                    const feedback = document.createElement('div');
+                    feedback.className = 'invalid-feedback format-error';
+                    feedback.style.display = 'block';
+                    feedback.textContent = 'This field must contain at least one letter.';
+                    input.parentNode.appendChild(feedback);
+                    return false;
+                }
+                
+                return true;
+            }
+            
+            // Add input event listeners to restrict characters
+            nameInput.addEventListener('input', restrictToLettersAndCommas);
+            abbreviationInput.addEventListener('input', restrictToLettersAndCommas);
+            
+            // Add blur event listeners to validate format
+            nameInput.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = this.value.trim().replace(/\s{2,}/g, ' ');
+                    validateInput(this);
+                }
+            });
+            
+            abbreviationInput.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = this.value.trim().replace(/\s{2,}/g, ' ');
+                    validateInput(this);
+                }
+            });
+            
             function checkDuplicates() {
                 const selectedCategory = categorySelect.value;
                 const enteredName = nameInput.value.trim().toLowerCase();
@@ -347,10 +405,40 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
             categorySelect.addEventListener('change', checkDuplicates);
 
             form.addEventListener('submit', function(e) {
+                // Trim and clean up inputs before validation
+                nameInput.value = nameInput.value.trim().replace(/\s{2,}/g, ' ');
+                if (abbreviationInput.value.trim()) {
+                    abbreviationInput.value = abbreviationInput.value.trim().replace(/\s{2,}/g, ' ');
+                }
+                
+                // Validate format
+                const isNameValid = validateInput(nameInput);
+                let isAbbrValid = true;
+                
+                // Only validate abbreviation if it has content
+                if (abbreviationInput.value.trim()) {
+                    isAbbrValid = validateInput(abbreviationInput);
+                }
+                
+                // Check for duplicates
                 checkDuplicates();
-                if (document.querySelectorAll('.is-invalid').length > 0) {
+                
+                // Prevent submission if there are any validation errors
+                const hasErrors = document.querySelectorAll('.is-invalid').length > 0;
+                
+                if (hasErrors || !isNameValid || !isAbbrValid) {
                     e.preventDefault();
-                    alert('Please resolve duplicate validation errors before submitting.');
+                    
+                    let errorMsg = '';
+                    if (!isNameValid) {
+                        errorMsg = 'Program/Position name must contain at least one letter and cannot be only spaces.';
+                    } else if (!isAbbrValid) {
+                        errorMsg = 'Abbreviation must contain at least one letter and cannot be only spaces.';
+                    } else {
+                        errorMsg = 'Please resolve validation errors before submitting.';
+                    }
+                    
+                    alert(errorMsg);
                 }
             });
         });

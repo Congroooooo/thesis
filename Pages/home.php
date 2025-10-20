@@ -293,13 +293,16 @@ include("../Includes/loader.php");
                         $title = htmlspecialchars($categoryName);
                         $isActive = $index === 0 ? 'active' : '';
                         
+                        // Normalize category name to match ProItemList.php format (lowercase, hyphens instead of spaces)
+                        $normalizedCategory = strtolower(str_replace(' ', '-', $categoryName));
+                        
                         echo '<div class="category-card ' . $isActive . '" data-aos="fade-up" data-aos-delay="' . ($index * 100) . '">';
                         echo '  <div class="category-image-wrapper">';
                         echo '    <img src="../' . htmlspecialchars($imagePath) . '" alt="' . $title . '" draggable="false" />';
                         echo '    <div class="category-overlay">';
                         echo '      <div class="category-content">';
                         echo '        <h3>' . $title . '</h3>';
-                        echo '        <a href="ProItemList.php?category=' . urlencode($title) . '" class="category-btn">View Items</a>';
+                        echo '        <a href="ProItemList.php?category=' . urlencode($normalizedCategory) . '" class="category-btn">View Items</a>';
                         echo '      </div>';
                         echo '    </div>';
                         echo '  </div>';

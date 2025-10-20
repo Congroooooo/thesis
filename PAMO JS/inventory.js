@@ -1,3 +1,74 @@
+// Global variable to track current sort state
+let currentSort = "";
+
+// Function to toggle sort order
+function toggleSort() {
+  const filterForm = document.getElementById("filterForm");
+  if (!filterForm) return;
+
+  // Get current sort state from the hidden input in the form (not URL)
+  let sortInput = filterForm.querySelector('input[name="sort"]');
+  if (sortInput) {
+    currentSort = sortInput.value || "";
+  } else {
+    // If no input exists, check URL as fallback
+    const urlParams = new URLSearchParams(window.location.search);
+    currentSort = urlParams.get("sort") || "";
+  }
+
+  // Toggle sort: asc <-> desc (only two states for better UX)
+  if (currentSort === "asc") {
+    currentSort = "desc";
+  } else {
+    // Default to ascending on first click or when switching from desc
+    currentSort = "asc";
+  }
+
+  // Update the sort icon
+  updateSortIcon(currentSort);
+
+  // Add or update sort parameter in form
+  if (!sortInput) {
+    sortInput = document.createElement("input");
+    sortInput.type = "hidden";
+    sortInput.name = "sort";
+    filterForm.appendChild(sortInput);
+  }
+  sortInput.value = currentSort;
+
+  // Reset to page 1 when sorting
+  let pageInput = filterForm.querySelector('input[name="page"]');
+  if (!pageInput) {
+    pageInput = document.createElement("input");
+    pageInput.type = "hidden";
+    pageInput.name = "page";
+    filterForm.appendChild(pageInput);
+  }
+  pageInput.value = "1";
+
+  // Show loader
+  if (window.PAMOLoader && typeof window.PAMOLoader.show === "function") {
+    window.PAMOLoader.show();
+  }
+
+  // Perform the search with sorting
+  performSearch();
+}
+
+// Function to update sort icon display
+function updateSortIcon(sort) {
+  const sortIcon = document.getElementById("sortIcon");
+  if (sortIcon) {
+    if (sort === "asc") {
+      sortIcon.textContent = "▲";
+    } else if (sort === "desc") {
+      sortIcon.textContent = "▼";
+    } else {
+      sortIcon.textContent = "⇅";
+    }
+  }
+}
+
 function handleAddQuantity() {
   if (!selectedItemCode) {
     alert("Please select an item first");
@@ -491,6 +562,11 @@ function performSearch() {
       hideSearchLoader();
       updateTableAndPagination(data);
 
+      // Hide PAMO loader if it was shown (e.g., from sorting)
+      if (window.PAMOLoader && typeof window.PAMOLoader.hide === "function") {
+        window.PAMOLoader.hide();
+      }
+
       // Log performance for debugging
       const endTime = performance.now();
       console.log(`Search completed in ${endTime - startTime}ms`);
@@ -498,6 +574,12 @@ function performSearch() {
     .catch(function (error) {
       // Hide loading state on error too
       hideSearchLoader();
+
+      // Hide PAMO loader on error as well
+      if (window.PAMOLoader && typeof window.PAMOLoader.hide === "function") {
+        window.PAMOLoader.hide();
+      }
+
       // Only log errors that aren't from aborted requests
       if (error.name !== "AbortError") {
         console.error("Search error:", error);
@@ -510,6 +592,22 @@ document.addEventListener("DOMContentLoaded", function () {
   var searchInput = document.getElementById("searchInput");
   var filterForm = document.getElementById("filterForm");
   var tableBody = document.querySelector(".inventory-table tbody");
+
+  // Initialize sort state from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  currentSort = urlParams.get("sort") || "";
+
+  // Add sort input to form if it exists in URL
+  if (currentSort && filterForm) {
+    let sortInput = filterForm.querySelector('input[name="sort"]');
+    if (!sortInput) {
+      sortInput = document.createElement("input");
+      sortInput.type = "hidden";
+      sortInput.name = "sort";
+      sortInput.value = currentSort;
+      filterForm.appendChild(sortInput);
+    }
+  }
 
   // Prevent form submit on Enter or any input
   if (filterForm) {
@@ -597,6 +695,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
       currentSearchController = new AbortController();
 
+      // Show the PAMO loader when pagination is clicked
+      if (window.PAMOLoader && typeof window.PAMOLoader.show === "function") {
+        window.PAMOLoader.show();
+      }
+
       const url = new URL(e.target.href, window.location.origin);
       const page = url.searchParams.get("page") || 1;
       let pageInput = filterForm.querySelector('input[name="page"]');
@@ -620,8 +723,24 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           throw new Error("Network response was not ok");
         })
-        .then(updateTableAndPagination)
+        .then(function (data) {
+          updateTableAndPagination(data);
+          // Hide the PAMO loader after content is loaded
+          if (
+            window.PAMOLoader &&
+            typeof window.PAMOLoader.hide === "function"
+          ) {
+            window.PAMOLoader.hide();
+          }
+        })
         .catch(function (error) {
+          // Hide the loader even on error
+          if (
+            window.PAMOLoader &&
+            typeof window.PAMOLoader.hide === "function"
+          ) {
+            window.PAMOLoader.hide();
+          }
           if (error.name !== "AbortError") {
             console.error("Pagination error:", error);
           }

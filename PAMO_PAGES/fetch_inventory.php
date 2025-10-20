@@ -26,6 +26,7 @@ $status = isset($_GET['status']) && $_GET['status'] !== '' ? $_GET['status'] : '
 $search = isset($_GET['search']) && $_GET['search'] !== '' ? trim($_GET['search']) : '';
 $normalized_search = preg_replace('/\s+/', '', $search);
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$sort = isset($_GET['sort']) && in_array($_GET['sort'], ['asc', 'desc']) ? $_GET['sort'] : '';
 $limit = 15;
 $offset = ($page - 1) * $limit;
 $where = [];
@@ -76,10 +77,16 @@ try {
     
     $total_pages = ($total_items > 0) ? ceil($total_items / $limit) : 1;
 
-
+    // Handle sorting
+    $order_by = "ORDER BY created_at DESC";
+    if ($sort === 'asc') {
+        $order_by = "ORDER BY actual_quantity ASC, created_at DESC";
+    } elseif ($sort === 'desc') {
+        $order_by = "ORDER BY actual_quantity DESC, created_at DESC";
+    }
 
     // Use unified enhanced search logic for main query
-    $sql = "SELECT * FROM inventory $where_clause ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
+    $sql = "SELECT * FROM inventory $where_clause $order_by LIMIT $limit OFFSET $offset";
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
     $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
