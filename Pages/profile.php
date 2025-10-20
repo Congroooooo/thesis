@@ -68,7 +68,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         <div class="profile-header">
             <div class="profile-info">
                 <h1><?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?></h1>
-                <p class="user-id">Student ID: <?php echo htmlspecialchars($user['id_number']); ?></p>
+                <?php if ($user['id_number'] !== null): ?>
+                    <p class="user-id">Student ID: <?php echo htmlspecialchars($user['id_number']); ?></p>
+                <?php endif; ?>
             </div>
         </div>
 
