@@ -40,16 +40,13 @@ try {
     if (empty($user['last_name']) || empty($user['birthday'])) {
         throw new Exception('Unable to generate default password. Missing user information.');
     }
-    
-    // Generate default password: sanitized_last_name + birthday in mdY format
+
     $sanitizedLastName = preg_replace('/\s+/', '', strtolower($user['last_name']));
     $birthdayObj = new DateTime($user['birthday']);
     $defaultPassword = $sanitizedLastName . $birthdayObj->format('mdY');
-    
-    // Hash the password
+
     $hashedPassword = password_hash($defaultPassword, PASSWORD_DEFAULT);
-    
-    // Update the password
+
     if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
         $updateStmt = $conn->prepare('UPDATE account SET password = ? WHERE email = ?');
     } else {

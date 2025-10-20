@@ -539,6 +539,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                         roleSel.disabled = true;
                     }
                 } else {
+                    roleSel.value = 'all';
                     roleSel.disabled = false;
                 }
                 filterUsers();
