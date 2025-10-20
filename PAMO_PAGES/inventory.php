@@ -271,7 +271,21 @@ function page_link($page, $query_string) {
                               <th>Item Code</th>
                               <th>Item Name</th>
                               <th>Category</th>
-                              <th>Actual Quantity</th>
+                              <th class="sortable" onclick="toggleSort()" style="cursor: pointer;">
+                                  Actual Quantity 
+                                  <span id="sortIcon">
+                                      <?php 
+                                      $sort = $_GET['sort'] ?? '';
+                                      if ($sort === 'asc') {
+                                          echo '▲';
+                                      } elseif ($sort === 'desc') {
+                                          echo '▼';
+                                      } else {
+                                          echo '⇅';
+                                      }
+                                      ?>
+                                  </span>
+                              </th>
                               <th>Sizes</th>
                               <th>Price</th>
                               <th>Status</th>
@@ -316,6 +330,15 @@ function page_link($page, $query_string) {
                           $page = max(1, intval($_GET['page'] ?? 1));
                           $limit = 15;
                           $offset = ($page - 1) * $limit;
+                          
+                          // Handle sorting
+                          $sort = $_GET['sort'] ?? '';
+                          $order_by = "ORDER BY created_at DESC";
+                          if ($sort === 'asc') {
+                              $order_by = "ORDER BY actual_quantity ASC, created_at DESC";
+                          } elseif ($sort === 'desc') {
+                              $order_by = "ORDER BY actual_quantity DESC, created_at DESC";
+                          }
 
                           $total_sql = "SELECT COUNT(*) as total FROM inventory $where_clause";
                           $total_stmt = $conn->prepare($total_sql);
@@ -324,7 +347,7 @@ function page_link($page, $query_string) {
                           $total_items = $total_row['total'];
                           $total_pages = ceil($total_items / $limit);
 
-                          $sql = "SELECT * FROM inventory $where_clause ORDER BY created_at DESC LIMIT $limit OFFSET $offset";
+                          $sql = "SELECT * FROM inventory $where_clause $order_by LIMIT $limit OFFSET $offset";
                           $stmt = $conn->prepare($sql);
                           $stmt->execute($params);
 
@@ -1142,6 +1165,31 @@ function page_link($page, $query_string) {
         border-radius: 4px;
         border: 1px solid #ddd;
         font-size: 14px;
+    }
+
+    /* Sortable column header styles */
+    th.sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.2s ease;
+        position: relative;
+        padding-right: 30px;
+    }
+
+    th.sortable:hover {
+        background-color: #f0f0f0;
+    }
+
+    th.sortable:active {
+        background-color: #e0e0e0;
+    }
+
+    #sortIcon {
+        display: inline-block;
+        margin-left: 6px;
+        font-size: 12px;
+        color: #666;
+        vertical-align: middle;
     }
 
     .pagination {
