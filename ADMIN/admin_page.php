@@ -172,15 +172,15 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         <h3>Update Status</h3>
         <form id="updateStatusForm">
             <input type="hidden" id="selectedUserId" name="userId">
+            <input type="hidden" id="newStatusValue" name="status">
             <div class="form-group">
-                <label for="statusSelect">Select Status:</label>
-                <select name="status" id="statusSelect" class="form-control" required>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
+                <p id="statusConfirmMessage" style="margin: 15px 0; color: #495057; line-height: 1.6;">
+                    <i class="fas fa-exclamation-triangle" style="color: #ffc107; margin-right: 8px;"></i>
+                    <span id="statusMessageText">Are you sure you want to change this user's status?</span>
+                </p>
             </div>
             <div class="mt-3">
-                <button type="submit" class="btn btn-primary">Update Status</button>
+                <button type="submit" class="btn btn-primary">Confirm</button>
                 <button type="button" class="btn btn-secondary"
                     onclick="closeModal('updateStatusModal')">Cancel</button>
             </div>
@@ -192,19 +192,19 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     <div class="modal-content">
         <h3>Bulk Update Status</h3>
         <form id="bulkUpdateStatusForm">
+            <input type="hidden" id="bulkNewStatusValue" name="status">
             <div class="form-group">
                 <label>Selected Users:</label>
                 <div id="selectedUsersList" class="selected-users-list"></div>
             </div>
             <div class="form-group">
-                <label for="bulkStatusSelect">Select New Status:</label>
-                <select name="status" id="bulkStatusSelect" class="form-control" required>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
+                <p id="bulkStatusConfirmMessage" style="margin: 15px 0; color: #495057; line-height: 1.6;">
+                    <i class="fas fa-exclamation-triangle" style="color: #ffc107; margin-right: 8px;"></i>
+                    <span id="bulkStatusMessageText">Are you sure you want to change the status of these users?</span>
+                </p>
             </div>
             <div class="mt-3">
-                <button type="submit" class="btn btn-primary">Update All Selected</button>
+                <button type="submit" class="btn btn-primary">Confirm All</button>
                 <button type="button" class="btn btn-secondary"
                     onclick="closeModal('bulkUpdateStatusModal')">Cancel</button>
             </div>
@@ -1348,12 +1348,20 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             }
         });
 
-        // Set the dropdown to the current status of selected users
-        const bulkStatusSelect = document.getElementById('bulkStatusSelect');
-        if (firstSelectedStatus && bulkStatusSelect) {
-            bulkStatusSelect.value = firstSelectedStatus.toLowerCase();
-        }
+        // Determine the new status (toggle from current status)
+        const newStatus = firstSelectedStatus === 'active' ? 'inactive' : 'active';
         
+        // Set the hidden field with the new status
+        document.getElementById('bulkNewStatusValue').value = newStatus;
+        
+        // Update the confirmation message
+        const messageText = document.getElementById('bulkStatusMessageText');
+        const userCount = selectedUserIds.length;
+        const userWord = userCount === 1 ? 'user' : 'users';
+        
+        if (messageText) {
+            messageText.innerHTML = `Are you sure you want to change the status of these <strong>${userCount} ${userWord}</strong>?<br><br>These users will be set to <strong>${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}</strong>.`;
+        }
 
         const modal = document.getElementById('bulkUpdateStatusModal');
         modal.style.display = 'flex';
@@ -1436,15 +1444,28 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             return;
         }
         document.getElementById('selectedUserId').value = selectedUserId;
+        
         try {
             const row = document.querySelector(`tr[data-id="${selectedUserId}"]`);
             const statusCell = row ? row.querySelector('td:last-child') : null;
             const currentStatus = statusCell ? statusCell.textContent.trim().toLowerCase() : '';
-            const select = document.getElementById('statusSelect');
-            if (select && (currentStatus === 'active' || currentStatus === 'inactive')) {
-                select.value = currentStatus;
+            
+            // Determine the new status (toggle)
+            const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+            
+            // Set the hidden field with the new status
+            document.getElementById('newStatusValue').value = newStatus;
+            
+            // Update the confirmation message
+            const messageText = document.getElementById('statusMessageText');
+            const userName = row ? `${row.children[1].textContent} ${row.children[2].textContent}` : 'this user';
+            
+            if (messageText) {
+                messageText.innerHTML = `Are you sure you want to change <strong>${userName}'s</strong> status?<br><br>This user will be set to <strong>${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}</strong>.`;
             }
-        } catch (e) { /* noop */ }
+        } catch (e) { 
+            console.error('Error preparing status update:', e);
+        }
 
         const modal = document.getElementById('updateStatusModal');
         modal.style.display = 'flex';
@@ -1728,8 +1749,16 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
                     selectedUserId = null;
                     document.querySelectorAll('.account-row').forEach(r => r.classList.remove('selected'));
-                    document.getElementById('changePasswordBtn').disabled = true;
-                    document.getElementById('updateStatusBtn').disabled = true;
+                    const resetPasswordBtn = document.getElementById('resetPasswordBtn');
+                    const updateStatusBtn = document.getElementById('updateStatusBtn');
+                    if (resetPasswordBtn) {
+                        resetPasswordBtn.disabled = true;
+                        resetPasswordBtn.title = 'Select a user row to reset password';
+                    }
+                    if (updateStatusBtn) {
+                        updateStatusBtn.disabled = true;
+                        updateStatusBtn.title = 'Select a user row to update status';
+                    }
                 }
            }
        } catch (error) {
@@ -1757,7 +1786,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             return;
         }
         
-        const status = document.getElementById('bulkStatusSelect').value;
+        const status = document.getElementById('bulkNewStatusValue').value;
         
         try {
             const response = await fetch('bulk_update_status.php', {

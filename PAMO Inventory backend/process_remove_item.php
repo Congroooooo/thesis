@@ -2,9 +2,9 @@
 session_start();
 header('Content-Type: application/json');
 
-require_once '../Includes/connection.php'; // PDO $conn
-require_once '../Includes/MonthlyInventoryManager.php'; // Monthly inventory manager
-require_once '../PAMO_PAGES/includes/config_functions.php'; // For logActivity function
+require_once '../Includes/connection.php';
+require_once '../Includes/MonthlyInventoryManager.php';
+require_once '../PAMO_PAGES/includes/config_functions.php';
 
 // Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
