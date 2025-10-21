@@ -58,8 +58,54 @@ function showEditPriceModal() {
 }
 
 function showEditImageModal() {
-  document.getElementById("imageItemId").value =
-    document.getElementById("editItemId").value;
+  const itemId = document.getElementById("editItemId").value;
+  const row = document.querySelector(`tr[data-item-code="${itemId}"]`);
+
+  if (!row) {
+    alert("Selected item not found.");
+    return;
+  }
+
+  // Get the image path from the row data attribute
+  const imagePath = row.getAttribute("data-image-path");
+
+  // Set the item ID and current image path
+  document.getElementById("imageItemId").value = itemId;
+  document.getElementById("currentImagePath").value = imagePath || "";
+
+  // Display current image
+  const currentImageDisplay = document.getElementById("currentImageDisplay");
+  const noCurrentImage = document.getElementById("noCurrentImage");
+
+  if (imagePath && imagePath.trim() !== "") {
+    currentImageDisplay.src = "../" + imagePath;
+    currentImageDisplay.style.display = "block";
+    noCurrentImage.style.display = "none";
+  } else {
+    currentImageDisplay.style.display = "none";
+    noCurrentImage.style.display = "block";
+  }
+
+  // Clear any previous new image preview
+  document.getElementById("editNewImage").value = "";
+  document.getElementById("newImagePreview").style.display = "none";
+
+  // Add event listener for new image preview
+  const fileInput = document.getElementById("editNewImage");
+  fileInput.onchange = function (e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        document.getElementById("newImageDisplay").src = event.target.result;
+        document.getElementById("newImagePreview").style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    } else {
+      document.getElementById("newImagePreview").style.display = "none";
+    }
+  };
+
   document.getElementById("editImageModal").style.display = "block";
 }
 

@@ -370,7 +370,7 @@ function page_link($page, $query_string) {
                                   $statusClass = 'status-in-stock';
                               }
  
-                              echo "<tr data-item-code='" . htmlspecialchars($row['item_code']) . "' data-created-at='" . htmlspecialchars($row['created_at']) . "' data-category='" . strtolower(htmlspecialchars($row['category'])) . "' onclick='selectRow(this, \"" . htmlspecialchars($row['item_code']) . "\", " . $row['price'] . ")'>";
+                              echo "<tr data-item-code='" . htmlspecialchars($row['item_code']) . "' data-created-at='" . htmlspecialchars($row['created_at']) . "' data-category='" . strtolower(htmlspecialchars($row['category'])) . "' data-image-path='" . htmlspecialchars($row['image_path'] ?? '') . "' onclick='selectRow(this, \"" . htmlspecialchars($row['item_code']) . "\", " . $row['price'] . ")'>";
                               echo "<td>" . htmlspecialchars($row['item_code']) . "</td>";
                               echo "<td>" . htmlspecialchars($row['item_name']) . "</td>";
                               echo "<td>" . htmlspecialchars($row['category']) . "</td>";
@@ -583,12 +583,27 @@ function page_link($page, $query_string) {
 
     <div id="editImageModal" class="modal">
         <div class="modal-content">
-            <h2>Edit Image</h2>
+            <h2 style="text-align: center;">Edit Image</h2>
             <input type="hidden" id="imageItemId">
+            <input type="hidden" id="currentImagePath">
+            
             <div class="input-group">
+                <label style="text-align: center; display: block;">Current Image:</label>
+                <div id="currentImagePreview" style="margin-top: 8px; text-align: center; display: flex; justify-content: center; align-items: center; min-height: 100px;">
+                    <img id="currentImageDisplay" src="" alt="Current Image" style="max-width: 300px; max-height: 300px; border: 2px solid #ddd; border-radius: 8px; display: none; margin: 0 auto;">
+                    <p id="noCurrentImage" style="color: #999; font-style: italic; display: none;">No image available</p>
+                </div>
+            </div>
+            
+            <div class="input-group" style="margin-top: 20px;">
                 <label for="editNewImage">Upload New Image:</label>
                 <input type="file" id="editNewImage" accept="image/*" required>
+                <div id="newImagePreview" style="margin-top: 12px; text-align: center; display: none;">
+                    <p style="font-weight: 600; color: #333; margin-bottom: 8px;">New Image Preview:</p>
+                    <img id="newImageDisplay" src="" alt="New Image Preview" style="max-width: 300px; max-height: 300px; border: 2px solid #4CAF50; border-radius: 8px;">
+                </div>
             </div>
+            
             <div class="modal-buttons">
                 <button onclick="submitEditImage()" class="save-btn">Save</button>
                 <button onclick="closeModal('editImageModal')" class="cancel-btn">Cancel</button>
