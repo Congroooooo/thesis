@@ -1362,6 +1362,13 @@ function page_link($page, $query_string) {
     pointer-events: none;
 }
 
+.pagination .pagination-ellipsis {
+    display: inline-block;
+    padding: 10px 8px;
+    color: #666;
+    user-select: none;
+}
+
 .item-size-entry {
     position: relative;
     background: #f9f9f9;
@@ -1957,6 +1964,41 @@ function page_link($page, $query_string) {
     
     .select2-container--default .select2-results__option--highlighted .select2-result-student .student-id {
         color: #e0e0e0;
+    }
+    
+    /* Ajax Loading Overlay - Similar to ProItemList.php */
+    .ajax-loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: none;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 100px;
+        z-index: 999;
+        backdrop-filter: blur(2px);
+    }
+    
+    .ajax-spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #007bff;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Ensure main-content has position relative for overlay */
+    main.main-content {
+        position: relative;
     }
     
     /* Improve Select2 search input */

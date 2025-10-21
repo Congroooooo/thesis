@@ -36,23 +36,8 @@ function toggleSort() {
   }
   sortInput.value = currentSort;
 
-  // Reset to page 1 when sorting
-  let pageInput = filterForm.querySelector('input[name="page"]');
-  if (!pageInput) {
-    pageInput = document.createElement("input");
-    pageInput.type = "hidden";
-    pageInput.name = "page";
-    filterForm.appendChild(pageInput);
-  }
-  pageInput.value = "1";
-
-  // Show loader
-  if (window.PAMOLoader && typeof window.PAMOLoader.show === "function") {
-    window.PAMOLoader.show();
-  }
-
-  // Perform the search with sorting
-  performSearch();
+  // Apply filters with new sort - no need for loader since it's instant
+  applyFiltersAndPagination(false);
 }
 
 // Function to update sort icon display
@@ -75,18 +60,6 @@ function handleAddQuantity() {
     return;
   }
   addQuantity(selectedItemCode);
-}
-
-function editPrice(itemCode, currentPrice) {
-  document.getElementById("itemId").value = itemCode;
-  document.getElementById("newPrice").value = currentPrice;
-  document.getElementById("editPriceModal").style.display = fetch(
-    "fetch_inventory.php?" + queryString
-  )
-    .then(function (res) {
-      return res.json();
-    })
-    .then(updateTableAndPagination);
 }
 
 function addQuantity(itemCode) {
@@ -448,143 +421,309 @@ function validatePrice(price) {
   return true;
 }
 
-// Helper to update table and pagination
-function updateTableAndPagination(data) {
-  var tableBody = document.querySelector(".inventory-table tbody");
-  tableBody.innerHTML = data.tbody;
-  var oldPaginationDiv = document.querySelector(".pagination");
-  if (oldPaginationDiv) {
-    if (data.pagination) {
-      oldPaginationDiv.outerHTML = data.pagination;
-    } else {
-      oldPaginationDiv.parentNode.removeChild(oldPaginationDiv);
-    }
-  } else if (data.pagination) {
-    // If there was no pagination before but now there is, add it after the .inventory-table (not inside)
-    var inventoryTableDiv = document.querySelector(".inventory-table");
-    if (inventoryTableDiv && inventoryTableDiv.parentNode) {
-      var tempDiv = document.createElement("div");
-      tempDiv.innerHTML = data.pagination;
-      inventoryTableDiv.parentNode.insertBefore(
-        tempDiv.firstChild,
-        inventoryTableDiv.nextSibling
-      );
-    }
-  }
-  /* Show result count
-  var resultCountDiv = document.getElementById("resultCount");
-  if (!resultCountDiv) {
-    var inventoryContent = document.querySelector(".inventory-content");
-    resultCountDiv = document.createElement("div");
-    resultCountDiv.id = "resultCount";
-    resultCountDiv.style.margin = "0 0 10px 0";
-    resultCountDiv.style.fontWeight = "500";
-    resultCountDiv.style.fontSize = "1.05em";
-    inventoryContent.insertBefore(resultCountDiv, inventoryContent.firstChild);
-  }
-  if (data.total_items > 0) {
-    var start = (data.page - 1) * data.limit + 1;
-    var end = Math.min(data.page * data.limit, data.total_items);
-    resultCountDiv.textContent = `Showing ${start}-${end} of ${data.total_items} results`;
-  } else {
-    resultCountDiv.textContent = "No items found.";
-  }
-  */
-}
-
 // Search debouncing variables
 let searchTimeout = null;
 let currentSearchController = null;
 
+// Client-side filtering variables
+let allInventoryItems = [];
+let filteredItems = [];
+let currentPage = 1;
+const itemsPerPage = 15;
+
 // Visual feedback functions
 function showSearchLoader() {
-  const tableBody = document.querySelector(".inventory-table tbody");
-  if (tableBody) {
-    // Add subtle loading effect without replacing content
-    tableBody.style.opacity = "0.7";
-    tableBody.style.pointerEvents = "none";
+  let loadingOverlay = document.querySelector(".ajax-loading-overlay");
+  if (!loadingOverlay) {
+    loadingOverlay = document.createElement("div");
+    loadingOverlay.className = "ajax-loading-overlay";
+    loadingOverlay.innerHTML = '<div class="ajax-spinner"></div>';
+    const mainContent = document.querySelector("main.main-content");
+    if (mainContent) {
+      mainContent.style.position = "relative";
+      mainContent.appendChild(loadingOverlay);
+    }
   }
+  loadingOverlay.style.display = "flex";
 }
 
 function hideSearchLoader() {
-  const tableBody = document.querySelector(".inventory-table tbody");
-  if (tableBody) {
-    tableBody.style.opacity = "1";
-    tableBody.style.pointerEvents = "auto";
+  const loadingOverlay = document.querySelector(".ajax-loading-overlay");
+  if (loadingOverlay) {
+    loadingOverlay.style.display = "none";
   }
 }
 
 // Debounced search function
 function performSearch() {
-  const filterForm = document.getElementById("filterForm");
-  if (!filterForm) return;
+  // No longer needed - we use client-side filtering
+  applyFiltersAndPagination();
+}
 
-  // Cancel any ongoing search request
-  if (currentSearchController) {
-    currentSearchController.abort();
-  }
+// Fetch all inventory data once on page load
+async function fetchAllInventory() {
+  try {
+    showSearchLoader();
 
-  // Create new AbortController for this search
-  currentSearchController = new AbortController();
-
-  // Always reset to page 1 on new search
-  let pageInput = filterForm.querySelector('input[name="page"]');
-  if (!pageInput) {
-    pageInput = document.createElement("input");
-    pageInput.type = "hidden";
-    pageInput.name = "page";
-    filterForm.appendChild(pageInput);
-  }
-  pageInput.value = 1;
-
-  var formData = new FormData(filterForm);
-  var queryString = new URLSearchParams(formData).toString();
-
-  // Start timer for performance monitoring
-  const startTime = performance.now();
-
-  fetch("fetch_inventory.php?" + queryString, {
-    signal: currentSearchController.signal,
-    // Add cache control for faster subsequent requests
-    headers: {
-      "Cache-Control": "no-cache",
-      "X-Requested-With": "XMLHttpRequest",
-    },
-  })
-    .then(function (res) {
-      if (res.ok) {
-        return res.json();
-      }
-      throw new Error("Network response was not ok");
-    })
-    .then(function (data) {
-      // Hide loading state immediately
-      hideSearchLoader();
-      updateTableAndPagination(data);
-
-      // Hide PAMO loader if it was shown (e.g., from sorting)
-      if (window.PAMOLoader && typeof window.PAMOLoader.hide === "function") {
-        window.PAMOLoader.hide();
-      }
-
-      // Log performance for debugging
-      const endTime = performance.now();
-      console.log(`Search completed in ${endTime - startTime}ms`);
-    })
-    .catch(function (error) {
-      // Hide loading state on error too
-      hideSearchLoader();
-
-      // Hide PAMO loader on error as well
-      if (window.PAMOLoader && typeof window.PAMOLoader.hide === "function") {
-        window.PAMOLoader.hide();
-      }
-
-      // Only log errors that aren't from aborted requests
-      if (error.name !== "AbortError") {
-        console.error("Search error:", error);
-      }
+    const response = await fetch("fetch_all_inventory.php", {
+      headers: {
+        "Cache-Control": "no-cache",
+        "X-Requested-With": "XMLHttpRequest",
+      },
     });
+
+    if (!response.ok) {
+      throw new Error("Network response was not ok");
+    }
+
+    const data = await response.json();
+
+    if (data.success) {
+      allInventoryItems = data.items;
+      applyFiltersAndPagination();
+    } else {
+      console.error("Failed to fetch inventory:", data.error);
+      allInventoryItems = [];
+      updateTableDisplay([]);
+    }
+
+    hideSearchLoader();
+
+    // Ensure PAMO global loader is hidden after data loads
+    if (window.PAMOLoader && typeof window.PAMOLoader.hide === "function") {
+      window.PAMOLoader.hide();
+    }
+  } catch (error) {
+    console.error("Error fetching inventory:", error);
+    hideSearchLoader();
+    allInventoryItems = [];
+    updateTableDisplay([]);
+
+    // Ensure PAMO global loader is hidden even on error
+    if (window.PAMOLoader && typeof window.PAMOLoader.hide === "function") {
+      window.PAMOLoader.hide();
+    }
+  }
+}
+
+// Client-side filtering function
+function applyFiltersAndPagination(resetPage = false) {
+  if (resetPage) {
+    currentPage = 1;
+  }
+
+  const searchInput = document.getElementById("searchInput");
+  const categoryFilter = document.getElementById("categoryFilter");
+  const sizeFilter = document.getElementById("sizeFilter");
+  const statusFilter = document.getElementById("statusFilter");
+
+  const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : "";
+  const selectedCategory = categoryFilter ? categoryFilter.value : "";
+  const selectedSize = sizeFilter ? sizeFilter.value : "";
+  const selectedStatus = statusFilter ? statusFilter.value : "";
+
+  // Get sort state
+  const filterForm = document.getElementById("filterForm");
+  let sortValue = "";
+  if (filterForm) {
+    const sortInput = filterForm.querySelector('input[name="sort"]');
+    if (sortInput) {
+      sortValue = sortInput.value;
+    }
+  }
+
+  // Filter items
+  filteredItems = allInventoryItems.filter((item) => {
+    // Search filter - check if any keyword matches
+    if (searchTerm) {
+      const keywords = searchTerm.split(" ").filter((k) => k.length > 0);
+      const matchesSearch = keywords.every((keyword) =>
+        item.searchText.includes(keyword)
+      );
+      if (!matchesSearch) return false;
+    }
+
+    // Category filter
+    if (selectedCategory && item.category !== selectedCategory) {
+      return false;
+    }
+
+    // Size filter
+    if (selectedSize && item.sizes !== selectedSize) {
+      return false;
+    }
+
+    // Status filter
+    if (selectedStatus && item.status !== selectedStatus) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // Sort items
+  if (sortValue === "asc") {
+    filteredItems.sort((a, b) => a.actual_quantity - b.actual_quantity);
+  } else if (sortValue === "desc") {
+    filteredItems.sort((a, b) => b.actual_quantity - a.actual_quantity);
+  }
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  if (currentPage > totalPages && totalPages > 0) {
+    currentPage = totalPages;
+  }
+
+  // Get items for current page
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const itemsForPage = filteredItems.slice(startIndex, endIndex);
+
+  // Update display
+  updateTableDisplay(itemsForPage);
+  updatePaginationDisplay(totalPages);
+}
+
+// Update table with filtered items
+function updateTableDisplay(items) {
+  const tableBody = document.querySelector(".inventory-table tbody");
+  if (!tableBody) return;
+
+  tableBody.innerHTML = "";
+
+  if (items.length === 0) {
+    tableBody.innerHTML =
+      '<tr class="empty-row"><td colspan="7">No items found.</td></tr>';
+    return;
+  }
+
+  items.forEach((item) => {
+    const row = document.createElement("tr");
+    row.dataset.itemCode = item.item_code;
+    row.dataset.createdAt = item.created_at;
+    row.dataset.category = item.category.toLowerCase();
+    row.onclick = function () {
+      selectRow(this, item.item_code, item.price);
+    };
+
+    row.innerHTML = `
+      <td>${escapeHtml(item.item_code)}</td>
+      <td>${escapeHtml(item.item_name)}</td>
+      <td>${escapeHtml(item.category)}</td>
+      <td>${item.actual_quantity || 0}</td>
+      <td>${escapeHtml(item.sizes)}</td>
+      <td>${item.priceFormatted}</td>
+      <td class="${item.statusClass}">${item.status}</td>
+    `;
+
+    tableBody.appendChild(row);
+  });
+}
+
+// Update pagination display
+function updatePaginationDisplay(totalPages) {
+  const paginationContainer = document.querySelector(".pagination");
+  if (!paginationContainer) return;
+
+  if (totalPages <= 1) {
+    paginationContainer.innerHTML = "";
+    return;
+  }
+
+  let html = "";
+
+  // Previous button
+  if (currentPage > 1) {
+    html += `<a href="#" data-page="${
+      currentPage - 1
+    }" class="client-page-link">&laquo;</a>`;
+  } else {
+    html += `<a href="#" class="disabled" disabled>&laquo;</a>`;
+  }
+
+  // Always show first page
+  html += `<a href="#" data-page="1" class="client-page-link ${
+    currentPage === 1 ? "active" : ""
+  }">1</a>`;
+
+  // Show ellipsis if needed before the window
+  if (currentPage > 4) {
+    html += '<span class="pagination-ellipsis">...</span>';
+  }
+
+  // Determine window of pages to show around current page
+  const window = 1;
+  const start = Math.max(2, currentPage - window);
+  const end = Math.min(totalPages - 1, currentPage + window);
+
+  for (let i = start; i <= end; i++) {
+    html += `<a href="#" data-page="${i}" class="client-page-link ${
+      i === currentPage ? "active" : ""
+    }">${i}</a>`;
+  }
+
+  // Show ellipsis if needed after the window
+  if (currentPage < totalPages - 3) {
+    html += '<span class="pagination-ellipsis">...</span>';
+  }
+
+  // Always show last page (if more than 1 page)
+  if (totalPages > 1) {
+    html += `<a href="#" data-page="${totalPages}" class="client-page-link ${
+      currentPage === totalPages ? "active" : ""
+    }">${totalPages}</a>`;
+  }
+
+  // Next button
+  if (currentPage < totalPages) {
+    html += `<a href="#" data-page="${
+      currentPage + 1
+    }" class="client-page-link">&raquo;</a>`;
+  } else {
+    html += `<a href="#" class="disabled" disabled>&raquo;</a>`;
+  }
+
+  paginationContainer.innerHTML = html;
+
+  // Attach click handlers
+  attachClientPaginationHandlers();
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Attach pagination click handlers
+function attachClientPaginationHandlers() {
+  const links = document.querySelectorAll(".client-page-link");
+  links.forEach((link) => {
+    link.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation(); // Prevent event bubbling
+
+      const page = parseInt(this.dataset.page);
+      if (page && page !== currentPage) {
+        currentPage = page;
+        applyFiltersAndPagination(false);
+
+        // Ensure PAMOLoader stays hidden during client-side pagination
+        if (window.PAMOLoader && typeof window.PAMOLoader.hide === "function") {
+          window.PAMOLoader.hide();
+        }
+
+        // Scroll to top of table
+        const mainContent = document.querySelector("main.main-content");
+        if (mainContent) {
+          mainContent.scrollTop = 0;
+        }
+      }
+
+      return false;
+    });
+  });
 }
 
 // Always bind search input event, even if DOMContentLoaded is missed
@@ -592,6 +731,11 @@ document.addEventListener("DOMContentLoaded", function () {
   var searchInput = document.getElementById("searchInput");
   var filterForm = document.getElementById("filterForm");
   var tableBody = document.querySelector(".inventory-table tbody");
+
+  // Disable PAMOLoader navigation state for client-side operations
+  if (window.PAMOLoaderState) {
+    window.PAMOLoaderState.setNavigating(false);
+  }
 
   // Initialize sort state from URL
   const urlParams = new URLSearchParams(window.location.search);
@@ -613,16 +757,20 @@ document.addEventListener("DOMContentLoaded", function () {
   if (filterForm) {
     filterForm.addEventListener("submit", function (e) {
       e.preventDefault();
-      // Clear any pending search timeout
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-        searchTimeout = null;
-      }
-      performSearch();
       return false;
     });
   }
 
+  // Remove any server-side pagination links before client-side pagination loads
+  const paginationContainer = document.querySelector(".pagination");
+  if (paginationContainer) {
+    paginationContainer.innerHTML = "";
+  }
+
+  // Fetch all inventory data on page load
+  fetchAllInventory();
+
+  // Search input with debouncing
   if (searchInput && filterForm && tableBody) {
     searchInput.addEventListener("input", function () {
       // Clear any existing timeout
@@ -630,17 +778,14 @@ document.addEventListener("DOMContentLoaded", function () {
         clearTimeout(searchTimeout);
       }
 
-      // Add immediate visual feedback
-      showSearchLoader();
-
       const searchTerm = this.value.trim();
 
-      // For very short searches (1-2 characters), use slightly longer delay
-      // For longer searches, use shorter delay for more responsiveness
-      const delay = searchTerm.length <= 2 ? 150 : 50;
+      // Immediate filter for better responsiveness
+      // Use shorter delay since we're filtering client-side
+      const delay = 150;
 
       searchTimeout = setTimeout(function () {
-        performSearch();
+        applyFiltersAndPagination(true); // Reset to page 1
         searchTimeout = null;
       }, delay);
     });
@@ -650,101 +795,50 @@ document.addEventListener("DOMContentLoaded", function () {
   const sizeFilter = document.getElementById("sizeFilter");
   const statusFilter = document.getElementById("statusFilter");
 
+  // Category filter change
   if (categoryFilter) {
     categoryFilter.addEventListener("change", function () {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-        searchTimeout = null;
-      }
-      performSearch();
+      applyFiltersAndPagination(true); // Reset to page 1
     });
   }
 
+  // Size filter change
   if (sizeFilter) {
     sizeFilter.addEventListener("change", function () {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-        searchTimeout = null;
-      }
-      performSearch();
+      applyFiltersAndPagination(true); // Reset to page 1
     });
   }
 
+  // Status filter change
   if (statusFilter) {
     statusFilter.addEventListener("change", function () {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-        searchTimeout = null;
-      }
-      performSearch();
+      applyFiltersAndPagination(true); // Reset to page 1
     });
   }
 
-  document.addEventListener("click", function (e) {
-    if (e.target.classList.contains("ajax-page-link")) {
-      e.preventDefault();
+  // Prevent any old server-side pagination links from triggering navigation
+  document.addEventListener(
+    "click",
+    function (e) {
+      // Check if clicked element is an old ajax-page-link
+      if (
+        e.target.classList.contains("ajax-page-link") ||
+        e.target.closest(".ajax-page-link")
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
 
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-        searchTimeout = null;
+        // Force hide PAMOLoader if it appears
+        if (window.PAMOLoader && typeof window.PAMOLoader.hide === "function") {
+          window.PAMOLoader.hide();
+        }
+
+        console.warn(
+          "Old pagination link clicked - please use client-side pagination"
+        );
+        return false;
       }
-
-      if (currentSearchController) {
-        currentSearchController.abort();
-      }
-
-      currentSearchController = new AbortController();
-
-      // Show the PAMO loader when pagination is clicked
-      if (window.PAMOLoader && typeof window.PAMOLoader.show === "function") {
-        window.PAMOLoader.show();
-      }
-
-      const url = new URL(e.target.href, window.location.origin);
-      const page = url.searchParams.get("page") || 1;
-      let pageInput = filterForm.querySelector('input[name="page"]');
-      if (!pageInput) {
-        pageInput = document.createElement("input");
-        pageInput.type = "hidden";
-        pageInput.name = "page";
-        filterForm.appendChild(pageInput);
-      }
-      pageInput.value = page;
-
-      var formData = new FormData(filterForm);
-      var queryString = new URLSearchParams(formData).toString();
-
-      fetch("fetch_inventory.php?" + queryString, {
-        signal: currentSearchController.signal,
-      })
-        .then(function (res) {
-          if (res.ok) {
-            return res.json();
-          }
-          throw new Error("Network response was not ok");
-        })
-        .then(function (data) {
-          updateTableAndPagination(data);
-          // Hide the PAMO loader after content is loaded
-          if (
-            window.PAMOLoader &&
-            typeof window.PAMOLoader.hide === "function"
-          ) {
-            window.PAMOLoader.hide();
-          }
-        })
-        .catch(function (error) {
-          // Hide the loader even on error
-          if (
-            window.PAMOLoader &&
-            typeof window.PAMOLoader.hide === "function"
-          ) {
-            window.PAMOLoader.hide();
-          }
-          if (error.name !== "AbortError") {
-            console.error("Pagination error:", error);
-          }
-        });
-    }
-  });
+    },
+    true
+  ); // Use capture phase to catch events early
 });
