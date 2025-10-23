@@ -54,7 +54,7 @@ try {
         JOIN account a ON o.user_id = a.id
         WHERE o.status = 'approved'
           AND o.payment_date IS NULL
-          AND o.created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+          AND o.created_at < DATE_SUB(NOW(), INTERVAL 20 MINUTE)
         LIMIT 20
     ";
 
@@ -112,7 +112,7 @@ try {
             }
 
             // 4️⃣ Create notification
-            $notif = "Your order #{$orderNumber} has been voided because payment was not made within 5 minutes.{$strikeMessage}";
+            $notif = "Your order #{$orderNumber} has been voided because payment was not made within 20 minutes.{$strikeMessage}";
             createNotification($conn, $userId, $notif, $orderNumber, 'voided');
 
             // 5️⃣ Log item-level activity (optimized)
