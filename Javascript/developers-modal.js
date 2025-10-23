@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
         </div>
         <div class="developer-card">
-          <img class="developer-img" src="https://ui-avatars.com/api/?name=Jane+Smith" alt="de vera, Aaron David">
+          <img class="developer-img" src="../Images/devera_profile.jpg" alt="de vera, Aaron David">
           <div class="developer-name">de vera, Aaron David</div>
           <div class="developer-role">UI/ UX Designer || Frontend Developer</div>
           <div class="developer-socials">
@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
         </div>
         <div class="developer-card">
-          <img class="developer-img" src="https://ui-avatars.com/api/?name=Alex+Lee" alt="Garcia Reyn Alduz">
+          <img class="developer-img" src="../Images/garcia_profile.jpg" alt="Garcia Reyn Alduz">
           <div class="developer-name">Garcia, Reyn Alduz</div>
           <div class="developer-role">Project Manager || Frontend Developer</div>
           <div class="developer-socials">
@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
         </div>
         <div class="developer-card">
-          <img class="developer-img" src="https://ui-avatars.com/api/?name=Maria+Garcia" alt="Ibarra Lander">
+          <img class="developer-img" src="../Images/Ibarra_profile.jpg" alt="Ibarra Lander">
           <div class="developer-name">Ibarra, Lander</div>
           <div class="developer-role">UI/ UX Designer || Frontend Developer</div>
           <div class="developer-socials">
