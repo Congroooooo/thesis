@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
         </div>
         <div class="developer-card">
-          <img class="developer-img" src="../Images/garcia_profile.jpg" alt="Garcia Reyn Alduz">
+          <img class="developer-img" src="../Images/garcia_profile.png" alt="Garcia Reyn Alduz">
           <div class="developer-name">Garcia, Reyn Alduz</div>
           <div class="developer-role">Project Manager || Frontend Developer</div>
           <div class="developer-socials">
