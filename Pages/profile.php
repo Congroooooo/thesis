@@ -17,6 +17,10 @@ $stmt = $conn->prepare("SELECT * FROM account WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
+// Determine if user is an employee
+$isEmployee = strtoupper(trim($user['role_category'] ?? '')) === 'EMPLOYEE';
+$idLabel = $isEmployee ? 'Employee Number' : 'Student ID';
+
 // Handle password change
 $passwordMessage = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
@@ -68,8 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         <div class="profile-header">
             <div class="profile-info">
                 <h1><?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?></h1>
-                <?php if ($user['id_number'] !== null): ?>
-                    <p class="user-id">Student ID: <?php echo htmlspecialchars($user['id_number']); ?></p>
+                <?php if ($user['id_number'] !== null && $user['id_number'] !== ''): ?>
+                    <p class="user-id"><?php echo $idLabel; ?>: <?php echo htmlspecialchars($user['id_number']); ?></p>
                 <?php endif; ?>
             </div>
         </div>
@@ -78,6 +82,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
             <div class="info-section">
                 <h2>Personal Information</h2>
                 <div class="info-grid">
+                    <?php if ($user['id_number'] !== null && $user['id_number'] !== ''): ?>
+                        <div class="info-item">
+                            <label><?php echo $idLabel; ?></label>
+                            <span><?php echo htmlspecialchars($user['id_number']); ?></span>
+                        </div>
+                    <?php endif; ?>
                     <div class="info-item">
                         <label>Role:</label>
                         <span><?php echo htmlspecialchars($user['role_category']); ?></span>

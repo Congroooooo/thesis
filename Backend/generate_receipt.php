@@ -18,7 +18,7 @@ $stmt->execute([$order_id, $_SESSION['user_id']]);
 $order = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$order || !in_array($order['status'], ['approved', 'completed'])) die('Order not found or not approved/completed');
 
-$user_stmt = $conn->prepare('SELECT first_name, last_name, email, program_or_position, id_number FROM account WHERE id = ?');
+$user_stmt = $conn->prepare('SELECT first_name, last_name, email, program_or_position, id_number, role_category FROM account WHERE id = ?');
 $user_stmt->execute([$_SESSION['user_id']]);
 $user = $user_stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -40,6 +40,8 @@ $studentName = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
 $studentIdNumber = htmlspecialchars($user['id_number']);
 $course = htmlspecialchars($user['program_or_position']);
 $email = htmlspecialchars($user['email']);
+$roleCategory = strtoupper(trim($user['role_category'] ?? ''));
+$isEmployee = ($roleCategory === 'EMPLOYEE');
 $transactionNumber = htmlspecialchars($order['order_number']);
 $orderDate = date('F d, Y', strtotime($order['created_at']));
 $totalAmount = 0;
@@ -80,14 +82,18 @@ body { font-family: Arial, sans-serif; font-size: 12px; }
 .receipt-footer-total { text-align: right; font-size: 1.05em; font-weight: bold; padding-top: 10px; }
 </style>';
 
-function renderReceipt($copyLabel, $logo_src, $studentName, $studentIdNumber, $transactionNumber, $orderDate, $order_items, $totalAmount, $preparedBy) {
+function renderReceipt($copyLabel, $logo_src, $studentName, $studentIdNumber, $transactionNumber, $orderDate, $order_items, $totalAmount, $preparedBy, $isEmployee = false) {
     $dataRows = '';
     $rowspan = count($order_items);
     foreach ($order_items as $i => $item) {
-        $cleanName = preg_replace('/\s*\([^)]*\)/', '', $item['item_name']);
-        $cleanName = preg_replace('/\s*-\s*[^-]*$/', '', $cleanName);
+        // Use the item name as-is, only add size if available
+        $itemDescription = $item['item_name'];
+        if (!empty($item['size'])) {
+            $itemDescription .= ' - ' . $item['size'];
+        }
+        
         $row = '<tr>';
-        $row .= '<td>' . htmlspecialchars($cleanName . ' ' . ($item['size'] ?? '')) . '</td>';
+        $row .= '<td>' . htmlspecialchars($itemDescription) . '</td>';
         $row .= '<td>' . htmlspecialchars($item['category'] ?? '') . '</td>';
         $row .= '<td style="text-align:center;">' . htmlspecialchars($item['quantity']) . '</td>';
         $row .= '<td style="text-align:right;">' . number_format($item['price'], 2) . '</td>';
@@ -121,6 +127,12 @@ function renderReceipt($copyLabel, $logo_src, $studentName, $studentIdNumber, $t
           TOTAL AMOUNT: <span>' . number_format($totalAmount, 2) . '</span>
         </td>
       </tr>';
+    
+    // Determine labels based on user type
+    $userTypeLabel = $isEmployee ? 'Employee Name:' : 'Student Name:';
+    $userNumberLabel = $isEmployee ? 'Employee No.:' : 'Student No.:';
+    $copyTypeLabel = $isEmployee ? 'EMPLOYEE COPY' : 'STUDENT COPY';
+    
     return '
       <div class="receipt-a4">
         <div class="receipt-half">' .
@@ -130,14 +142,14 @@ function renderReceipt($copyLabel, $logo_src, $studentName, $studentIdNumber, $t
             <div class="sti-lucena">STI LUCENA</div>
             <div class="sales-issuance-slip">SALES ISSUANCE SLIP</div>
           </div>
-          <div class="receipt-header-copy">' . htmlspecialchars($copyLabel) . '</div>
+          <div class="receipt-header-copy">' . htmlspecialchars($copyTypeLabel) . '</div>
         </div>
         <div class="receipt-section">
           <table class="receipt-header-table">
             <tr>
-              <td><b>Student Name:</b></td>
+              <td><b>' . $userTypeLabel . '</b></td>
               <td>' . $studentName . '</td>
-              <td><b>Student No.:</b></td>
+              <td><b>' . $userNumberLabel . '</b></td>
               <td>' . $studentIdNumber . '</td>
               <td><b>DATE:</b></td>
               <td>' . $orderDate . '</td>
@@ -169,7 +181,7 @@ function renderReceipt($copyLabel, $logo_src, $studentName, $studentIdNumber, $t
 }
 
 $html = '<html><head><meta charset="UTF-8">' . $css . '</head><body>';
-$html .= renderReceipt('STUDENT COPY', $logo_src, $studentName, $studentIdNumber, $transactionNumber, $orderDate, $order_items, $totalAmount, $preparedBy);
+$html .= renderReceipt('COPY', $logo_src, $studentName, $studentIdNumber, $transactionNumber, $orderDate, $order_items, $totalAmount, $preparedBy, $isEmployee);
 $html .= '</body></html>';
 
 $options = new Options();

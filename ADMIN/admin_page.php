@@ -329,6 +329,13 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                     <input type="hidden" name="birthday" id="hiddenBirthdayEmployee">
                 </div>
             </div>
+            <div class="form-group">
+                <label>Employee Number<span class="text-danger" style="color: red;"> *</span></label>
+                <input type="text" name="employeeNumber" id="employeeModalNumber" class="form-control" 
+                       placeholder="e.g., LCA 2303P" maxlength="9" required
+                       pattern="^[A-Z]+\s[A-Z0-9]+$"
+                       title="Format: Uppercase letters, one space, then uppercase letters/numbers (e.g., LCA 2303P)">
+            </div> 
             <div class="form-group"><label>Position<span class="text-danger" style="color: red;"> *</span></label>
                 <select name="program_position" id="employeeModalPosition" class="form-control" required>
                     <option value="">Select Position</option>
@@ -869,7 +876,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                                     <td>${data.first_name || ''}</td>
                                     <td>${data.last_name || ''}</td>
                                     <td>${fmtBirthday(data.birthday)}</td>
-                                    <td>N/A</td>
+                                    <td>${data.employee_number || 'N/A'}</td>
                                     <td>${role}</td>
                                     <td class="has-tooltip" data-fulltext="${position}">${position}</td>
                                     <td>${status}</td>
@@ -3110,6 +3117,62 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             setTimeout(initBirthdayFields, 100);
         };
     }
+
+    // Employee Number validation
+    document.addEventListener('DOMContentLoaded', function() {
+        const employeeNumberInput = document.getElementById('employeeModalNumber');
+        
+        if (employeeNumberInput) {
+            employeeNumberInput.addEventListener('input', function(e) {
+                let value = this.value;
+                
+                // Convert to uppercase
+                value = value.toUpperCase();
+                
+                // Remove any characters that are not letters, numbers, or spaces
+                value = value.replace(/[^A-Z0-9\s]/g, '');
+                
+                // Remove leading spaces only (allow trailing space for user to continue typing)
+                value = value.replace(/^\s+/, '');
+                
+                // Replace multiple consecutive spaces with a single space
+                value = value.replace(/\s{2,}/g, ' ');
+                
+                // Limit to maximum one space (if there's already a space, don't allow more)
+                const spaceCount = (value.match(/\s/g) || []).length;
+                if (spaceCount > 1) {
+                    // Keep only the first space
+                    const firstSpaceIndex = value.indexOf(' ');
+                    const beforeSpace = value.substring(0, firstSpaceIndex);
+                    const afterSpace = value.substring(firstSpaceIndex + 1).replace(/\s/g, '');
+                    value = beforeSpace + ' ' + afterSpace;
+                }
+                
+                this.value = value;
+            });
+            
+            employeeNumberInput.addEventListener('blur', function() {
+                const value = this.value.trim();
+                
+                if (value) {
+                    // Validate format: Letters SPACE Letters/Numbers
+                    const pattern = /^[A-Z]+\s[A-Z0-9]+$/;
+                    
+                    if (!pattern.test(value)) {
+                        this.setCustomValidity('Employee Number must be uppercase letters, one space, then uppercase letters/numbers (e.g., LCA 2303P)');
+                    } else {
+                        this.setCustomValidity('');
+                    }
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+            
+            employeeNumberInput.addEventListener('input', function() {
+                this.setCustomValidity('');
+            });
+        }
+    });
 
 </script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">

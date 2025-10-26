@@ -98,7 +98,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     break;
                 }
 
-                $stmt = $conn->prepare("SELECT SUM(quantity) as total FROM cart WHERE user_id = ?");
+                // Count unique items instead of total quantity
+                $stmt = $conn->prepare("SELECT COUNT(DISTINCT item_code) as total FROM cart WHERE user_id = ?");
                 $stmt->execute([$user_id]);
                 $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
                 
@@ -198,7 +199,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                $stmt = $conn->prepare("SELECT SUM(quantity) as total FROM cart WHERE user_id = ?");
+                // Count unique items instead of total quantity
+                $stmt = $conn->prepare("SELECT COUNT(DISTINCT item_code) as total FROM cart WHERE user_id = ?");
                 $stmt->execute([$user_id]);
                 $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
                 $_SESSION['cart_count'] = $total;
@@ -264,7 +266,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare("UPDATE cart SET quantity = ? WHERE id = ? AND user_id = ?");
                 $stmt->execute([$quantity, $item_id, $user_id]);
 
-                $stmt = $conn->prepare("SELECT SUM(quantity) as total FROM cart WHERE user_id = ?");
+                // Count unique items instead of total quantity
+                $stmt = $conn->prepare("SELECT COUNT(DISTINCT item_code) as total FROM cart WHERE user_id = ?");
                 $stmt->execute([$user_id]);
                 $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
                 
@@ -286,7 +289,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare("DELETE FROM cart WHERE id = ? AND user_id = ?");
                 $stmt->execute([$item_id, $user_id]);
 
-                $stmt = $conn->prepare("SELECT SUM(quantity) as total FROM cart WHERE user_id = ?");
+                // Count unique items instead of total quantity
+                $stmt = $conn->prepare("SELECT COUNT(DISTINCT item_code) as total FROM cart WHERE user_id = ?");
                 $stmt->execute([$user_id]);
                 $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
                 

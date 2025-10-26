@@ -22,7 +22,15 @@ try {
     $result = $stmt->execute([$user_id, $item_id]);
 
     if ($result && $stmt->rowCount() > 0) {
-        echo json_encode(['success' => true]);
+        // Get updated cart count - count unique items instead of total quantity
+        $countStmt = $conn->prepare("SELECT COUNT(DISTINCT item_code) as total FROM cart WHERE user_id = ?");
+        $countStmt->execute([$user_id]);
+        $cartCount = $countStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+        
+        // Update session
+        $_SESSION['cart_count'] = $cartCount;
+        
+        echo json_encode(['success' => true, 'cart_count' => $cartCount]);
     } else {
         echo json_encode(['success' => false, 'error' => 'Item not found in cart']);
     }

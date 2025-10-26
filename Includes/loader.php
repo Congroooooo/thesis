@@ -442,7 +442,9 @@
     }, true);
 
     setTimeout(() => {
-        window.STILoaderState.setNavigating(false);
+        if (window.STILoaderState && typeof window.STILoaderState.setNavigating === 'function') {
+            window.STILoaderState.setNavigating(false);
+        }
     }, 1000);
 })();
 
@@ -512,7 +514,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function safeHideLoader() {
         if (document.readyState === 'complete') {
-            window.STILoaderState.setNavigating(false);
+            if (window.STILoaderState && typeof window.STILoaderState.setNavigating === 'function') {
+                window.STILoaderState.setNavigating(false);
+            }
             isNavigating = false;
             
             clearAllTimers();

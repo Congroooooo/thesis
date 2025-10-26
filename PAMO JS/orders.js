@@ -180,6 +180,14 @@ function showOrderReceipt(orderId) {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+
+  // Determine if customer is an employee
+  const roleCategory = (order.role_category || "").toUpperCase();
+  const isEmployee = roleCategory === "EMPLOYEE";
+  const customerCopyLabel = isEmployee ? "EMPLOYEE COPY" : "STUDENT COPY";
+  const customerNameLabel = isEmployee ? "Employee Name:" : "Student Name:";
+  const customerIdLabel = isEmployee ? "Employee No.:" : "Student No.:";
+
   function renderReceipt(copyLabel) {
     const dataRows = orderItems
       .map((item, i) => {
@@ -238,9 +246,9 @@ function showOrderReceipt(orderId) {
       <div class="receipt-section">
         <table class="receipt-header-table">
           <tr>
-            <td><b>Student Name:</b></td>
+            <td><b>${customerNameLabel}</b></td>
             <td>${studentName}</td>
-            <td><b>Student No.:</b></td>
+            <td><b>${customerIdLabel}</b></td>
             <td>${studentIdNumber}</td>
             <td><b>DATE:</b></td>
             <td>${new Date(order.created_at).toLocaleDateString()}</td>
@@ -276,7 +284,7 @@ function showOrderReceipt(orderId) {
     <div class="receipt-a4">
       <div class="receipt-half">${renderReceipt("PAMO COPY")}</div>
       <div class="receipt-divider"></div>
-      <div class="receipt-half">${renderReceipt("STUDENT COPY")}</div>
+      <div class="receipt-half">${renderReceipt(customerCopyLabel)}</div>
     </div>
   `;
   const receiptContainer = document.getElementById("orderReceiptBody");

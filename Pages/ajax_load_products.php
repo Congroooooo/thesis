@@ -12,6 +12,7 @@ ini_set('log_errors', 1);
 
 try {
     require_once '../Includes/connection.php';
+    require_once '../Includes/image_path_helper.php';
     if (session_status() === PHP_SESSION_NONE) session_start();
 
     // Get filter and search parameters
@@ -40,13 +41,27 @@ try {
 $whereConditions = [];
 $params = [];
 
-// Add search condition
+// Add search condition with multi-keyword support
 if (!empty($searchQuery)) {
-    $whereConditions[] = "(i.item_name LIKE ? OR i.item_code LIKE ? OR i.category LIKE ?)";
-    $searchParam = '%' . $searchQuery . '%';
-    $params[] = $searchParam;
-    $params[] = $searchParam;
-    $params[] = $searchParam;
+    // Split search query into individual keywords
+    $keywords = array_filter(array_map('trim', explode(' ', $searchQuery)));
+    
+    if (!empty($keywords)) {
+        $searchConditions = [];
+        
+        foreach ($keywords as $keyword) {
+            // Each keyword should match in item_name OR item_code OR category
+            $searchConditions[] = "(i.item_name LIKE ? OR i.item_code LIKE ? OR i.category LIKE ?)";
+            $keywordParam = '%' . $keyword . '%';
+            $params[] = $keywordParam;
+            $params[] = $keywordParam;
+            $params[] = $keywordParam;
+        }
+        
+        // All keywords must be present (AND logic)
+        // This means "TM Blouse" will match items containing both "TM" AND "Blouse"
+        $whereConditions[] = '(' . implode(' AND ', $searchConditions) . ')';
+    }
 }
 
 // Handle category and subcategory filters with smart logic
@@ -186,17 +201,8 @@ while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
         $subcats = explode(',', $row['subcategory_ids']);
     }
 
-    // Optimized image resolution logic
-    $itemImage = '';
-    if (!empty($imagePath)) {
-        if (strpos($imagePath, 'uploads/') === false) {
-            $itemImage = '../uploads/itemlist/' . $imagePath;
-        } else {
-            $itemImage = '../' . ltrim($imagePath, '/');
-        }
-    } else {
-        $itemImage = '../uploads/itemlist/default.png';
-    }
+    // Optimized image resolution logic using helper function
+    $itemImage = resolveImagePath($imagePath);
 
     if (!isset($allProducts[$baseItemCode])) {
         $allProducts[$baseItemCode] = [
@@ -286,15 +292,12 @@ foreach ($products as $baseItemCode => $product):
     data-courses="<?php echo htmlspecialchars(implode(',', $courses)); ?>"
     data-subcategories="<?php echo htmlspecialchars(implode(',', ($product['subcategories'] ?? []))); ?>">
     <?php
-        $productImage = '';
+        $productImage = getDefaultImagePath(); // Start with default
         foreach ($product['variants'] as $variant) {
             if (!empty($variant['image'])) {
                 $productImage = $variant['image'];
                 break;
             }
-        }
-        if (empty($productImage)) {
-            $productImage = '../uploads/itemlist/default.png';
         }
     ?>
     <img src="data:image/svg+xml;base64,<?php echo base64_encode('<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg"><rect width="300" height="300" fill="#f0f0f0"/></svg>'); ?>" 
@@ -302,7 +305,7 @@ foreach ($products as $baseItemCode => $product):
          alt="<?php echo htmlspecialchars($product['name']); ?>" 
          class="lazy-load-image"
          loading="lazy"
-         onerror="this.onerror=null; this.src='data:image/svg+xml;base64,<?php echo base64_encode('<svg width=\'300\' height=\'300\' xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'300\' height=\'300\' fill=\'#f0f0f0\' stroke=\'#ddd\' stroke-width=\'2\'/><text x=\'150\' y=\'150\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-family=\'Arial\' font-size=\'16\' fill=\'#666\'>No Image</text></svg>'); ?>'">
+         onerror="this.onerror=null; this.src='<?php echo getDefaultImagePath(); ?>'">
     <div class="product-overlay">
         <div class="items"></div>
         <div class="items head">

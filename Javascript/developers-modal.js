@@ -1,10 +1,7 @@
-// Developers Modal Logic
-
 document.addEventListener("DOMContentLoaded", function () {
   const devLink = document.getElementById("developers-link");
   if (!devLink) return;
 
-  // Create modal HTML
   const modalOverlay = document.createElement("div");
   modalOverlay.className = "developers-modal-overlay";
   modalOverlay.style.display = "none";
@@ -41,7 +38,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <div class="developer-socials">
             <a href="#" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
             <a href="#" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
-            <a href="#" target="_blank" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+            <a href="https://www.facebook.com/alduz.garcia.7" target="_blank" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
           </div>
         </div>
         <div class="developer-card">
@@ -51,7 +48,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <div class="developer-socials">
             <a href="#" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
             <a href="#" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
-            <a href="#" target="_blank" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+            <a href="https://www.facebook.com/ibarralander" target="_blank" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
           </div>
         </div>
       </div>

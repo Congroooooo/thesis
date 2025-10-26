@@ -19,7 +19,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
 $status = isset($_GET['status']) ? $_GET['status'] : '';
 
 $query = "
-    SELECT po.*, a.first_name, a.last_name, a.email, a.program_or_position, a.id_number
+    SELECT po.*, a.first_name, a.last_name, a.email, a.program_or_position, a.id_number, a.role_category
     FROM orders po
     JOIN account a ON po.user_id = a.id
 ";

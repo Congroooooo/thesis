@@ -112,12 +112,27 @@ include("../Includes/loader.php");
             $whereConditions = [];
             $params = [];
 
+            // Add search condition with multi-keyword support
             if (!empty($searchQuery)) {
-                $whereConditions[] = "(i.item_name LIKE ? OR i.item_code LIKE ? OR i.category LIKE ?)";
-                $searchParam = '%' . $searchQuery . '%';
-                $params[] = $searchParam;
-                $params[] = $searchParam;
-                $params[] = $searchParam;
+                // Split search query into individual keywords
+                $keywords = array_filter(array_map('trim', explode(' ', $searchQuery)));
+                
+                if (!empty($keywords)) {
+                    $searchConditions = [];
+                    
+                    foreach ($keywords as $keyword) {
+                        // Each keyword should match in item_name OR item_code OR category
+                        $searchConditions[] = "(i.item_name LIKE ? OR i.item_code LIKE ? OR i.category LIKE ?)";
+                        $keywordParam = '%' . $keyword . '%';
+                        $params[] = $keywordParam;
+                        $params[] = $keywordParam;
+                        $params[] = $keywordParam;
+                    }
+                    
+                    // All keywords must be present (AND logic)
+                    // This means "TM Blouse" will match items containing both "TM" AND "Blouse"
+                    $whereConditions[] = '(' . implode(' AND ', $searchConditions) . ')';
+                }
             }
 
             // Handle category and subcategory filters with smart logic
@@ -685,34 +700,44 @@ include("../Includes/loader.php");
             sub.style.display = 'none';
         });
 
+        // Search functionality with debouncing
+        let searchTimeout = null;
+        
         if (searchInput) {
+            // Remove existing event listeners by cloning
             const newSearchInput = searchInput.cloneNode(true);
             searchInput.parentNode.replaceChild(newSearchInput, searchInput);
             const searchInputNew = document.getElementById('search');
 
-            let searchTimeout;
+            // Debounced search on input
             searchInputNew.addEventListener('input', function() {
                 const searchContainer = document.querySelector('.search-container');
-
+                
+                // Clear any existing timeout
                 clearTimeout(searchTimeout);
 
-                if (searchContainer && this.value.trim().length >= 0) {
+                // Show loading state immediately when typing
+                if (searchContainer) {
                     searchContainer.classList.add('loading');
                 }
 
+                // Wait 500ms after user stops typing before triggering search
                 searchTimeout = setTimeout(function() {
-                    loadProducts();
-                }, 300);
+                    loadProducts(1); // Reset to page 1 on new search
+                }, 500); // Increased from 300ms to 500ms for better debouncing
             });
 
+            // Immediate search on Enter key
             searchInputNew.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent form submission
                     const searchContainer = document.querySelector('.search-container');
+                    
                     if (searchContainer) {
                         searchContainer.classList.add('loading');
                     }
                     clearTimeout(searchTimeout);
-                    loadProducts();
+                    loadProducts(1); // Reset to page 1
                 }
             });
         }
@@ -917,9 +942,35 @@ include("../Includes/loader.php");
                 })
                 .catch(error => {
                     console.error('Error loading products:', error);
-                    // Show more detailed error information
-                    const errorMessage = error.message || 'Unknown error occurred';
-                    alert('Error loading products: ' + errorMessage + '\n\nPlease try again.');
+                    
+                    // Show user-friendly error message in the products grid
+                    productsGrid.innerHTML = `
+                        <div class="error-message" style="
+                            grid-column: 1 / -1;
+                            text-align: center;
+                            padding: 3rem 1rem;
+                            background: #fff3cd;
+                            border: 2px solid #ffc107;
+                            border-radius: 8px;
+                            margin: 2rem auto;
+                            max-width: 600px;
+                        ">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ffc107; margin-bottom: 1rem;"></i>
+                            <h3 style="color: #856404; margin-bottom: 0.5rem;">Error Loading Products</h3>
+                            <p style="color: #856404; margin-bottom: 1rem;">${error.message || 'An unexpected error occurred'}</p>
+                            <button onclick="loadProducts(1)" style="
+                                background: #007bff;
+                                color: white;
+                                border: none;
+                                padding: 0.75rem 1.5rem;
+                                border-radius: 4px;
+                                cursor: pointer;
+                                font-size: 1rem;
+                            ">
+                                <i class="fas fa-redo"></i> Try Again
+                            </button>
+                        </div>
+                    `;
                 })
                 .finally(() => {
                     // Reset loading flag

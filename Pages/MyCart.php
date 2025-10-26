@@ -160,7 +160,7 @@ $cart_total = 0;
                                         <span class="item-subtotal">₱<?php echo number_format($subtotal, 2); ?></span>
                                     </td>
                                     <td class="action-col">
-                                        <button onclick="removeFromCart(<?php echo $item['id']; ?>)" class="remove-btn" title="Remove item">
+                                        <button type="button" onclick="removeFromCart(<?php echo $item['id']; ?>); return false;" class="remove-btn" title="Remove item">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </td>
@@ -181,7 +181,7 @@ $cart_total = 0;
                             <div class="card-details-section">
                                 <div class="card-title-row">
                                     <div class="card-item-name"><?php echo htmlspecialchars($item['item_name']); ?></div>
-                                    <button onclick="removeFromCart(<?php echo $item['id']; ?>)" class="remove-btn" title="Remove item">
+                                    <button type="button" onclick="removeFromCart(<?php echo $item['id']; ?>); return false;" class="remove-btn" title="Remove item">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -707,10 +707,51 @@ $cart_total = 0;
             cursor: pointer;
             font-weight: bold;
             transition: all 0.2s ease;
+            position: relative;
         }
 
         .qty-btn:hover {
             background-color: #e0e0e0;
+        }
+
+        .qty-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .qty-btn.updating {
+            pointer-events: none;
+        }
+
+        .qty-btn.updating::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #ccc;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        .qty-btn.success {
+            background-color: #d4edda;
+            color: #28a745;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes successFade {
+            0% { 
+                background-color: #d4edda;
+                transform: scale(1.1);
+            }
+            100% { 
+                background-color: #f0f0f0;
+                transform: scale(1);
+            }
         }
 
         .qty-input {
@@ -841,19 +882,18 @@ $cart_total = 0;
         let currentItemIdToRemove = null;
 
         function removeFromCart(itemId) {
-
             currentItemIdToRemove = itemId;
             showRemoveModal();
+            return false;
         }
 
         function showRemoveModal() {
             const removeModal = document.getElementById('removeItemModal');
             if (!removeModal) {
-                console.error('Remove modal not found');
                 if (currentItemIdToRemove && confirm('Are you sure you want to remove this item from your cart?')) {
                     confirmRemoveItem();
                 }
-                return;
+                return false;
             }
             
             removeModal.classList.add('show');
@@ -863,6 +903,8 @@ $cart_total = 0;
             if (confirmBtn) {
                 confirmBtn.focus();
             }
+            
+            return false;
         }
 
         function hideRemoveModal() {
@@ -872,31 +914,97 @@ $cart_total = 0;
             }
             document.body.style.overflow = '';
             currentItemIdToRemove = null;
+            return false;
         }
 
         function confirmRemoveItem() {
             if (currentItemIdToRemove) {
+                const itemIdToRemove = currentItemIdToRemove;
+                
                 fetch('remove_from_cart.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `item_id=${currentItemIdToRemove}`
+                    body: `item_id=${itemIdToRemove}`
                 })
                 .then(response => response.json())
                 .then(data => {
                     hideRemoveModal();
                     if (data.success) {
-                        location.reload();
+                        removeItemFromUI(itemIdToRemove, data.cart_count);
                     } else {
-                        alert('Error removing item from cart');
+                        alert('Error removing item from cart: ' + (data.error || 'Unknown error'));
+                        location.reload();
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
                     hideRemoveModal();
                     alert('Error removing item from cart');
+                    location.reload();
                 });
+            }
+            
+            return false;
+        }
+
+        function removeItemFromUI(itemId, totalCartCount) {
+            const inputs = document.querySelectorAll(`.qty-input[data-item-id="${itemId}"]`);
+            
+            inputs.forEach((input) => {
+                const row = input.closest('.cart-row');
+                const card = input.closest('.cart-item-card');
+                
+                if (row) {
+                    row.style.transition = 'all 0.3s ease';
+                    row.style.opacity = '0';
+                    row.style.transform = 'translateX(-20px)';
+                    setTimeout(() => row.remove(), 300);
+                }
+                
+                if (card) {
+                    card.style.transition = 'all 0.3s ease';
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateX(-20px)';
+                    setTimeout(() => card.remove(), 300);
+                }
+            });
+            
+            setTimeout(() => {
+                updateCartTotal();
+                
+                const cartCountElements = document.querySelectorAll('.cart-count, .notification-badge');
+                cartCountElements.forEach(el => {
+                    el.textContent = totalCartCount;
+                    el.style.display = totalCartCount > 0 ? 'block' : 'none';
+                });
+                
+                const remainingRows = document.querySelectorAll('.cart-row').length;
+                if (remainingRows === 0) {
+                    showEmptyCartMessage();
+                }
+            }, 350);
+        }
+
+        function showEmptyCartMessage() {
+            // Hide the cart grid
+            const cartGrid = document.querySelector('.cart-grid');
+            if (cartGrid) {
+                cartGrid.style.display = 'none';
+            }
+
+            // Create and show empty cart message
+            const cartContent = document.querySelector('.cart-content');
+            if (cartContent) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'empty-cart';
+                emptyDiv.innerHTML = `
+                    <i class="fas fa-shopping-basket"></i>
+                    <h2>Your cart is empty</h2>
+                    <p>Looks like you haven't added any items to your cart yet.</p>
+                    <a href="ProItemList.php" class="shop-now-btn">Start Shopping</a>
+                `;
+                cartContent.appendChild(emptyDiv);
             }
         }
 
@@ -907,7 +1015,6 @@ $cart_total = 0;
             currentItemToDecreaseQuantity = { itemId, input };
             const modal = document.getElementById('quantityDecreaseModal');
             if (!modal) {
-                console.error('Quantity decrease modal not found');
                 return;
             }
             
@@ -928,13 +1035,13 @@ $cart_total = 0;
             }
             document.body.style.overflow = '';
             currentItemToDecreaseQuantity = null;
+            return false; // Prevent default action
         }
 
         function confirmDecreaseQuantity() {
             if (currentItemToDecreaseQuantity) {
-                const { itemId, input } = currentItemToDecreaseQuantity;
+                const { itemId } = currentItemToDecreaseQuantity;
                 
-                // Remove the item from cart (quantity becomes 0)
                 fetch('remove_from_cart.php', {
                     method: 'POST',
                     headers: {
@@ -946,17 +1053,20 @@ $cart_total = 0;
                 .then(data => {
                     hideQuantityDecreaseModal();
                     if (data.success) {
-                        location.reload();
+                        removeItemFromUI(itemId, data.cart_count);
                     } else {
                         alert('Error removing item from cart');
+                        location.reload();
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
                     hideQuantityDecreaseModal();
                     alert('Error removing item from cart');
+                    location.reload();
                 });
             }
+            
+            return false;
         }
 
         document.addEventListener("DOMContentLoaded", function () {
@@ -966,9 +1076,21 @@ $cart_total = 0;
                 const cancelBtn = removeModal.querySelector('.remove-btn-cancel');
                 const confirmBtn = removeModal.querySelector('.remove-btn-confirm');
 
-                closeBtn?.addEventListener('click', hideRemoveModal);
-                cancelBtn?.addEventListener('click', hideRemoveModal);
-                confirmBtn?.addEventListener('click', confirmRemoveItem);
+                closeBtn?.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    hideRemoveModal();
+                });
+                cancelBtn?.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    hideRemoveModal();
+                });
+                confirmBtn?.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    confirmRemoveItem();
+                });
 
                 removeModal.addEventListener('click', (e) => {
                     if (e.target === removeModal) {
@@ -991,9 +1113,21 @@ $cart_total = 0;
                 const qtyCancelBtn = qtyModal.querySelector('.qty-btn-cancel');
                 const qtyConfirmBtn = qtyModal.querySelector('.qty-btn-confirm');
 
-                qtyCloseBtn?.addEventListener('click', hideQuantityDecreaseModal);
-                qtyCancelBtn?.addEventListener('click', hideQuantityDecreaseModal);
-                qtyConfirmBtn?.addEventListener('click', confirmDecreaseQuantity);
+                qtyCloseBtn?.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    hideQuantityDecreaseModal();
+                });
+                qtyCancelBtn?.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    hideQuantityDecreaseModal();
+                });
+                qtyConfirmBtn?.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    confirmDecreaseQuantity();
+                });
 
                 qtyModal.addEventListener('click', (e) => {
                     if (e.target === qtyModal) {
@@ -1017,17 +1151,21 @@ $cart_total = 0;
 
                     if (this.classList.contains("plus")) {
                         if (currentValue < maxStock) {
-                            input.value = currentValue + 1;
+                            const newValue = currentValue + 1;
+                            input.value = newValue;
                             const itemId = input.dataset.itemId;
-                            updateCartItem(itemId, input.value);
+                            setQuantityButtonsLoading(input, true);
+                            updateCartItem(itemId, newValue, input);
                         } else {
                             alert(`Maximum available stock is ${maxStock}.`);
                         }
                     } else if (this.classList.contains("minus")) {
                         if (currentValue > 1) {
-                            input.value = currentValue - 1;
+                            const newValue = currentValue - 1;
+                            input.value = newValue;
                             const itemId = input.dataset.itemId;
-                            updateCartItem(itemId, input.value);
+                            setQuantityButtonsLoading(input, true);
+                            updateCartItem(itemId, newValue, input);
                         } else if (currentValue === 1) {
                             // Show confirmation modal when trying to decrease from 1
                             const itemId = input.dataset.itemId;
@@ -1042,6 +1180,7 @@ $cart_total = 0;
                 input.addEventListener("change", function () {
                     const maxStock = parseInt(this.dataset.maxStock);
                     const newValue = parseInt(this.value);
+                    const oldValue = parseInt(this.defaultValue);
 
                     if (newValue < 1) {
                         this.value = 1;
@@ -1050,12 +1189,48 @@ $cart_total = 0;
                         alert(`Maximum available stock is ${maxStock}.`);
                     }
 
-                    const itemId = this.dataset.itemId;
-                    updateCartItem(itemId, this.value);
+                    // Only update if value actually changed
+                    if (parseInt(this.value) !== oldValue) {
+                        const itemId = this.dataset.itemId;
+                        setQuantityButtonsLoading(this, true);
+                        updateCartItem(itemId, this.value, this);
+                    }
                 });
             });
 
-            async function updateCartItem(itemId, quantity) {
+            function setQuantityButtonsLoading(input, isLoading) {
+                // Find all quantity controls for this item (desktop and mobile)
+                const itemId = input.dataset.itemId;
+                const allInputs = document.querySelectorAll(`.qty-input[data-item-id="${itemId}"]`);
+                
+                allInputs.forEach(inp => {
+                    const control = inp.parentElement;
+                    const buttons = control.querySelectorAll('.qty-btn');
+                    
+                    if (isLoading) {
+                        buttons.forEach(btn => {
+                            btn.classList.add('updating');
+                            btn.disabled = true;
+                        });
+                        inp.disabled = true;
+                    } else {
+                        buttons.forEach(btn => {
+                            btn.classList.remove('updating');
+                            btn.disabled = false;
+                            // Brief success indication
+                            btn.classList.add('success');
+                            setTimeout(() => {
+                                btn.classList.remove('success');
+                            }, 600);
+                        });
+                        inp.disabled = false;
+                        // Update defaultValue so change detection works
+                        inp.defaultValue = inp.value;
+                    }
+                });
+            }
+
+            async function updateCartItem(itemId, quantity, inputElement) {
                 try {
                     const response = await fetch("../Includes/cart_operations.php", {
                         method: "POST",
@@ -1066,18 +1241,120 @@ $cart_total = 0;
                     });
 
                     const data = await response.json();
+                    
+                    // Remove loading state
+                    if (inputElement) {
+                        setQuantityButtonsLoading(inputElement, false);
+                    }
+                    
                     if (data.success) {
-                        location.reload();
+                        updateCartUI(itemId, quantity, data.cart_count);
                     } else {
-                        console.error("Failed to update cart:", data.message);
-                        alert("Failed to update quantity");
+                        alert(data.message || "Failed to update quantity");
+                        location.reload();
                     }
                 } catch (error) {
-                    console.error("Error:", error);
+                    if (inputElement) {
+                        setQuantityButtonsLoading(inputElement, false);
+                    }
                     alert("Error updating quantity");
+                    location.reload();
                 }
             }
+
+            function updateCartUI(itemId, newQuantity, totalCartCount) {
+                // Find all inputs with this item ID (desktop and mobile)
+                const inputs = document.querySelectorAll(`.qty-input[data-item-id="${itemId}"]`);
+                
+                inputs.forEach(input => {
+                    // Update the input value
+                    input.value = newQuantity;
+                    
+                    // Find the row/card containing this input
+                    const row = input.closest('.cart-row') || input.closest('.cart-item-card');
+                    if (!row) return;
+                    
+                    // Get the price from the row
+                    const priceElement = row.querySelector('.item-price, .card-item-price');
+                    if (!priceElement) return;
+                    
+                    const priceText = priceElement.textContent.replace('₱', '').replace(',', '');
+                    const price = parseFloat(priceText);
+                    
+                    // Calculate new subtotal
+                    const newSubtotal = price * newQuantity;
+                    
+                    // Update subtotal display
+                    const subtotalElement = row.querySelector('.item-subtotal, .card-item-subtotal');
+                    if (subtotalElement) {
+                        const formattedSubtotal = '₱' + newSubtotal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                        if (subtotalElement.classList.contains('card-item-subtotal')) {
+                            subtotalElement.textContent = 'Subtotal: ' + formattedSubtotal;
+                        } else {
+                            subtotalElement.textContent = formattedSubtotal;
+                        }
+                        
+                        // Add pulse animation to show change
+                        subtotalElement.style.animation = 'none';
+                        setTimeout(() => {
+                            subtotalElement.style.animation = 'subtotalPulse 0.5s ease';
+                        }, 10);
+                    }
+                });
+                
+                // Recalculate and update cart total
+                updateCartTotal();
+                
+                // Update cart count in header if it exists
+                const cartCountElements = document.querySelectorAll('.cart-count, .notification-badge');
+                cartCountElements.forEach(el => {
+                    el.textContent = totalCartCount;
+                    // Hide badge when count is 0
+                    el.style.display = totalCartCount > 0 ? 'block' : 'none';
+                });
+            }
+
         });
+
+        // Move updateCartTotal outside DOMContentLoaded so it's globally accessible
+        function updateCartTotal() {
+            let total = 0;
+            let totalItems = 0;
+            
+            // Calculate from desktop view
+            document.querySelectorAll('.cart-row').forEach(row => {
+                const subtotalElement = row.querySelector('.item-subtotal');
+                const quantityInput = row.querySelector('.qty-input');
+                
+                if (subtotalElement && quantityInput) {
+                    const subtotalText = subtotalElement.textContent.replace('₱', '').replace(',', '');
+                    const subtotal = parseFloat(subtotalText);
+                    const quantity = parseInt(quantityInput.value);
+                    
+                    total += subtotal;
+                    totalItems += quantity;
+                }
+            });
+            
+            // Update total items display
+            const totalItemsElement = document.querySelector('.summary-row span:last-child');
+            if (totalItemsElement && totalItemsElement.parentElement.querySelector('span:first-child').textContent.includes('Total Items')) {
+                totalItemsElement.textContent = totalItems;
+            }
+            
+            // Update total amount display
+            const totalAmountElement = document.querySelector('.summary-row.total span:last-child');
+            if (totalAmountElement) {
+                const formattedTotal = '₱' + total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                totalAmountElement.textContent = formattedTotal;
+                
+                // Add pulse animation
+                totalAmountElement.style.animation = 'none';
+                setTimeout(() => {
+                    totalAmountElement.style.animation = 'totalPulse 0.6s ease';
+                }, 10);
+            }
+        }
     </script>
 
     <div id="removeItemModal" class="remove-modal">
@@ -1394,6 +1671,44 @@ $cart_total = 0;
                 0 15px 35px rgba(220, 53, 69, 0.5),
                 0 8px 18px rgba(220, 53, 69, 0.3);
         }
+    }
+
+    /* Instant update animations */
+    @keyframes subtotalPulse {
+        0% { 
+            transform: scale(1);
+            color: var(--primary-color);
+        }
+        50% { 
+            transform: scale(1.1);
+            color: #00a8e8;
+            font-weight: 700;
+        }
+        100% { 
+            transform: scale(1);
+            color: var(--primary-color);
+        }
+    }
+
+    @keyframes totalPulse {
+        0% { 
+            transform: scale(1);
+        }
+        30% { 
+            transform: scale(1.08);
+            color: #00a8e8;
+        }
+        100% { 
+            transform: scale(1);
+        }
+    }
+
+    .qty-btn {
+        transition: all 0.2s ease, transform 0.1s ease;
+    }
+
+    .qty-btn:active {
+        transform: scale(0.9);
     }
 
     /* Mobile Responsive Styles */

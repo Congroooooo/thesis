@@ -17,6 +17,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $category = $_POST['category'];
     $abbreviation = trim($_POST['abbreviation']);
 
+    // Prevent adding employee positions manually
+    if ($category === 'EMPLOYEE') {
+        $_SESSION['error_message'] = "Employee positions cannot be added manually. The system has three predefined positions: Administrator (ADMIN), Purchasing Asset and Management Officer (PAMO), and Institutional Staff (Staff).";
+        header("Location: manage_programs.php");
+        exit();
+    }
+
     try {
         $checkStmt = $conn->prepare("SELECT id, category FROM programs_positions WHERE LOWER(name) = LOWER(?) OR (abbreviation != '' AND LOWER(abbreviation) = LOWER(?))");
         $checkStmt->execute([$name, $abbreviation]);
@@ -65,6 +72,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $new_status = $_POST['new_status'];
     
     try {
+        // Check if this is a system-defined employee position
+        $checkStmt = $conn->prepare("SELECT name, category, is_system_defined FROM programs_positions WHERE id = ?");
+        $checkStmt->execute([$id]);
+        $program = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($program && isset($program['is_system_defined']) && $program['is_system_defined'] == 1) {
+            $_SESSION['error_message'] = "Cannot modify system-defined employee positions. The positions Administrator, PAMO, and Institutional Staff must remain active.";
+            header("Location: manage_programs.php");
+            exit();
+        }
+        
         $stmt = $conn->prepare("UPDATE programs_positions SET is_active = ? WHERE id = ?");
         $result = $stmt->execute([$new_status, $id]);
         
@@ -215,7 +233,6 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <option value="">Select Role</option>
                                 <option value="SHS">SHS Academic Strand</option>
                                 <option value="COLLEGE STUDENT">COLLEGE Courses</option>
-                                <option value="EMPLOYEE">EMPLOYEE Postion</option>
                             </select>
                         </div>
                     </div>
@@ -267,10 +284,15 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="program-item"><em class="text-muted">No programs/positions added for this category yet.</em></div>
                 <?php else: ?>
                     <?php foreach ($categoryPrograms as $program): ?>
+                        <?php 
+                            $isSystemDefined = isset($program['is_system_defined']) && $program['is_system_defined'] == 1;
+                        ?>
                         <div class="program-item" style="display:grid; grid-template-columns: 1fr auto auto; align-items:center; column-gap:12px; padding:10px 12px; border:1px dashed #e6eef6; border-radius:10px; margin-bottom:10px; background:linear-gradient(145deg,#ffffff 0%, #f8fbff 100%);">
                             <div class="program-info" style="min-width:0;">
                                 <div class="program-name" style="font-weight:600; color:#003d82;">
                                     <?= htmlspecialchars($program['name']) ?>
+                                    <?php if ($isSystemDefined): ?>
+                                    <?php endif; ?>
                                 </div>
                                 <?php if ($program['abbreviation']): ?>
                                     <div class="program-abbr" style="font-size:12px; color:#6c757d;">Abbreviation: <?= htmlspecialchars($program['abbreviation']) ?></div>
@@ -279,6 +301,7 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <span class="status-badge <?= $program['is_active'] ? 'status-active' : 'status-inactive' ?>" style="justify-self:center;">
                                 <?= $program['is_active'] ? 'Active' : 'Inactive' ?>
                             </span>
+                            <?php if (!$isSystemDefined): ?>
                             <form method="POST" style="display:inline; margin:0; justify-self:end;">
                                 <input type="hidden" name="action" value="toggle_status">
                                 <input type="hidden" name="program_id" value="<?= $program['id'] ?>">
@@ -289,6 +312,8 @@ $programs = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <?= $program['is_active'] ? 'Deactivate' : 'Activate' ?>
                                 </button>
                             </form>
+                            <?php else: ?>
+                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>

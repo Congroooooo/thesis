@@ -291,6 +291,12 @@ function updateAvailableSizes(itemSelect) {
 }
 
 function showSalesReceipt(formData) {
+  // Determine if customer is an employee
+  const isEmployee = formData.roleCategory === "EMPLOYEE";
+  const customerCopyLabel = isEmployee ? "EMPLOYEE COPY" : "STUDENT COPY";
+  const customerNameLabel = isEmployee ? "Employee Name:" : "Student Name:";
+  const customerIdLabel = isEmployee ? "Employee No.:" : "Student No.:";
+
   // Helper for the two copies
   function renderReceipt(copyLabel) {
     // Get the logged-in user's name from the global variable set by PHP
@@ -360,11 +366,11 @@ function showSalesReceipt(formData) {
       <div class="receipt-section">
         <table class="receipt-header-table">
           <tr>
-            <td style="width:22%;font-size:0.98em;"><b>Student Name:</b></td>
+            <td style="width:22%;font-size:0.98em;"><b>${customerNameLabel}</b></td>
             <td style="width:22%;border-bottom:1px solid #222;">${
               formData.studentName
             }</td>
-            <td style="width:13%;font-size:0.98em;"><b>Student No.:</b></td>
+            <td style="width:13%;font-size:0.98em;"><b>${customerIdLabel}</b></td>
             <td style="width:15%;border-bottom:1px solid #222;">${
               formData.studentIdNumber
             }</td>
@@ -407,7 +413,7 @@ function showSalesReceipt(formData) {
     <div class="receipt-a4">
       <div class="receipt-half">${renderReceipt("PAMO COPY")}</div>
       <div class="receipt-divider"></div>
-      <div class="receipt-half">${renderReceipt("STUDENT COPY")}</div>
+      <div class="receipt-half">${renderReceipt(customerCopyLabel)}</div>
     </div>
     <style>
       .receipt-header-flex {
@@ -607,6 +613,7 @@ function submitDeductQuantity(event) {
 
   const transactionNumber = document.getElementById("transactionNumber").value;
   const studentNameSelect = document.getElementById("studentName");
+  const roleCategory = document.getElementById("roleCategory").value;
 
   let studentName;
   if (window.jQuery && $(studentNameSelect).data("select2")) {
@@ -626,6 +633,7 @@ function submitDeductQuantity(event) {
     !studentNameSelect.value ||
     !studentIdNumber ||
     !studentName ||
+    !roleCategory ||
     salesItems.length === 0
   ) {
     alert("Please fill in all required fields");
@@ -768,6 +776,7 @@ function submitDeductQuantity(event) {
           transactionNumber: transactionNumber,
           studentName,
           studentIdNumber,
+          roleCategory,
           itemIds,
           itemNames,
           itemCategories,
