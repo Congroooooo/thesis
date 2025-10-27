@@ -357,6 +357,40 @@ document.addEventListener("click", function (e) {
 
 // Update updateOrderStatus to accept a callback
 function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
+  // Find the button that triggered this action
+  const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
+  let targetButton = null;
+
+  if (orderCard) {
+    if (status === "approved") {
+      targetButton = orderCard.querySelector(".accept-btn");
+    } else if (status === "rejected") {
+      targetButton = orderCard.querySelector(".reject-btn");
+    } else if (status === "completed") {
+      targetButton = orderCard.querySelector(".complete-btn");
+    }
+  }
+
+  // Store original button content
+  let originalButtonContent = "";
+  if (targetButton) {
+    originalButtonContent = targetButton.innerHTML;
+    targetButton.disabled = true;
+    targetButton.classList.add("processing");
+
+    // Show processing state with spinner
+    if (status === "approved") {
+      targetButton.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    } else if (status === "rejected") {
+      targetButton.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    } else if (status === "completed") {
+      targetButton.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Marking...';
+    }
+  }
+
   const data = new URLSearchParams();
   data.append("order_id", orderId);
   data.append("status", status);
@@ -379,20 +413,127 @@ function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
           setTimeout(updatePendingOrdersBadge, 500); // Small delay to ensure DB is updated
         }
 
-        if (typeof callback === "function") {
-          callback();
+        // Show success state briefly
+        if (targetButton) {
+          targetButton.innerHTML = '<i class="fas fa-check"></i> Success!';
+          targetButton.classList.remove("processing");
+          targetButton.classList.add("success");
+
+          setTimeout(() => {
+            if (typeof callback === "function") {
+              callback();
+            } else {
+              // Update the order card UI without reloading
+              updateOrderCardUI(orderId, status);
+            }
+          }, 800);
         } else {
-          location.reload();
+          if (typeof callback === "function") {
+            callback();
+          } else {
+            // Update the order card UI without reloading
+            updateOrderCardUI(orderId, status);
+          }
         }
       } else {
+        // Restore original button state on error
+        if (targetButton) {
+          targetButton.disabled = false;
+          targetButton.classList.remove("processing");
+          targetButton.innerHTML = originalButtonContent;
+        }
         alert("Error updating order status: " + data.message);
         console.error("Error details:", data.debug);
       }
     })
     .catch((error) => {
+      // Restore original button state on error
+      if (targetButton) {
+        targetButton.disabled = false;
+        targetButton.classList.remove("processing");
+        targetButton.innerHTML = originalButtonContent;
+      }
       console.error("Error:", error);
       alert("Error updating order status. Check console for details.");
     });
+}
+
+// New function to update order card UI without page reload
+function updateOrderCardUI(orderId, newStatus) {
+  const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
+  if (!orderCard) return;
+
+  // Update the status badge
+  const statusBadge = orderCard.querySelector(".status-badge");
+  if (statusBadge) {
+    statusBadge.className = `status-badge ${newStatus}`;
+    statusBadge.textContent =
+      newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+
+    // Add flash animation
+    statusBadge.style.animation = "flash 0.5s ease-in-out";
+    setTimeout(() => (statusBadge.style.animation = ""), 500);
+  }
+
+  // Update the order actions based on new status
+  const actionButtons = orderCard.querySelector(".order-actions");
+  if (actionButtons) {
+    if (newStatus === "approved") {
+      actionButtons.innerHTML = `
+        <button class="complete-btn" data-order-id="${orderId}">
+          <i class="fas fa-check-double"></i> Mark as Completed (After Payment)
+        </button>
+      `;
+    } else if (newStatus === "rejected" || newStatus === "completed") {
+      // Remove action buttons for rejected or completed orders
+      actionButtons.remove();
+    }
+  }
+
+  // Update data-status attribute
+  orderCard.setAttribute("data-status", newStatus);
+
+  // Show a brief success notification
+  showInlineNotification(orderCard, `Order ${newStatus} successfully!`);
+}
+
+// Helper function to show inline notification
+function showInlineNotification(cardElement, message) {
+  const notification = document.createElement("div");
+  notification.className = "inline-notification";
+  notification.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+  notification.style.cssText = `
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(40, 167, 69, 0.95);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    animation: fadeInOut 2s ease-in-out;
+  `;
+
+  // Add relative positioning to card if not already
+  const currentPosition = window.getComputedStyle(cardElement).position;
+  if (currentPosition === "static") {
+    cardElement.style.position = "relative";
+  }
+
+  cardElement.appendChild(notification);
+
+  // Remove notification after animation
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification);
+    }
+  }, 2000);
 }
 
 function showRejectionModal(orderId) {
@@ -414,7 +555,10 @@ function submitRejection() {
   }
 
   if (currentRejectionOrderId) {
-    updateOrderStatus(currentRejectionOrderId, "rejected", null, reason);
+    // Close the modal first for better UX
     closeRejectionModal();
+
+    // Then update the order status (which will show the inline processing indicator)
+    updateOrderStatus(currentRejectionOrderId, "rejected", null, reason);
   }
 }

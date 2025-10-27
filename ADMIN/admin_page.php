@@ -1071,7 +1071,10 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
     }
 
     function getUserStatus(row) {
-        const statusCell = row.querySelector('td:last-child');
+        // Status is now the second-to-last column (8th column, index 7)
+        // Last column is Strikes (9th column, index 8)
+        const cells = row.querySelectorAll('td');
+        const statusCell = cells[7]; // Status column (0-indexed: checkbox, fname, lname, bday, id, role, designation, status, strikes)
         return statusCell ? statusCell.textContent.trim().toLowerCase() : null;
     }
 
@@ -1466,7 +1469,9 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         
         try {
             const row = document.querySelector(`tr[data-id="${selectedUserId}"]`);
-            const statusCell = row ? row.querySelector('td:last-child') : null;
+            // Status is the 8th column (index 7), not the last column anymore (Strikes is last)
+            const cells = row ? row.querySelectorAll('td') : null;
+            const statusCell = cells ? cells[7] : null; // Status column
             const currentStatus = statusCell ? statusCell.textContent.trim().toLowerCase() : '';
             
             // Determine the new status (toggle)
@@ -1753,7 +1758,9 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
                     const row = document.querySelector(`tr[data-id="${formData.get('userId')}"]`);
                     if (row) {
-               const statusCell = row.querySelector('td:last-child');
+               // Status is the 8th column (index 7), Strikes is the last column (index 8)
+               const cells = row.querySelectorAll('td');
+               const statusCell = cells[7];
                if (statusCell) {
                    statusCell.textContent = formData.get('status');
                    
@@ -1841,7 +1848,9 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             selectedUserIds.forEach(userId => {
                 const row = document.querySelector(`tr[data-id="${userId}"]`);
                 if (row) {
-                    const statusCell = row.querySelector('td:last-child');
+                    // Status is the 8th column (index 7), Strikes is the last column (index 8)
+                    const cells = row.querySelectorAll('td');
+                    const statusCell = cells[7];
                     if (statusCell) {
                         statusCell.textContent = status;
                     }

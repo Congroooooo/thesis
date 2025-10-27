@@ -31,6 +31,7 @@
   padding: 20px;
   margin-bottom: 20px;
   box-shadow: var(--card-shadow);
+  position: relative; /* Added for inline notification positioning */
 }
 
 .order-header {
@@ -206,6 +207,7 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 20px;
   transition: transform 0.3s ease;
+  position: relative; /* Added for inline notification positioning */
 }
 
 .order-card:hover {
@@ -599,6 +601,80 @@
 
 .reject-btn:hover {
   background: #c82333;
+}
+
+/* Button processing and success states */
+.accept-btn.processing,
+.reject-btn.processing,
+.complete-btn.processing {
+  opacity: 0.8;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.accept-btn.success {
+  background: #28a745;
+  cursor: default;
+}
+
+.reject-btn.success {
+  background: #dc3545;
+  cursor: default;
+}
+
+.complete-btn.success {
+  background: #17a2b8;
+  cursor: default;
+}
+
+/* Spinner animation */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.fa-spinner.fa-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Flash animation for status badge */
+@keyframes flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.05);
+  }
+}
+
+/* Fade in/out animation for inline notification */
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+}
+
+.inline-notification {
+  animation: fadeInOut 2s ease-in-out;
 }
 
 .status-badge {

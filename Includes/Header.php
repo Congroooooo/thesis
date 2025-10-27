@@ -303,6 +303,7 @@ if (isset($_SESSION['user_id'])) {
                 'ready': 'shopping_bag',
                 'completed': 'done_all',
                 'cancelled': 'block',
+                'voided': 'remove_circle_outline',
                 // Database ENUM values
                 'Restock Item': 'inventory',
                 'Restock': 'inventory',
@@ -1819,6 +1820,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     .notification-icon-wrapper.cancelled {
+        background: linear-gradient(135deg, #757575, #424242);
+    }
+
+    .notification-icon-wrapper.voided {
         background: linear-gradient(135deg, #757575, #424242);
     }
 
