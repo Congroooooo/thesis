@@ -161,14 +161,22 @@ let currentOrderId = null;
 let currentRejectionOrderId = null;
 
 function showOrderReceipt(orderId) {
-  currentOrderId = orderId;
   const order = (window.ORDERS || []).find(
     (o) => String(o.id) === String(orderId)
   );
+
   if (!order) {
     alert("[DEBUG] Order not found for orderId: " + orderId);
     return;
   }
+
+  showOrderReceiptWithData(orderId, order);
+}
+
+// New function that accepts order data directly
+function showOrderReceiptWithData(orderId, order) {
+  currentOrderId = orderId;
+
   const orderItems = JSON.parse(order.items);
   const preparedByName =
     window.PAMO_USER && window.PAMO_USER.name ? window.PAMO_USER.name : "";
@@ -191,10 +199,13 @@ function showOrderReceipt(orderId) {
   function renderReceipt(copyLabel) {
     const dataRows = orderItems
       .map((item, i) => {
-        let cleanName = item.item_name.replace(/\s*\([^)]*\)/, "");
-        cleanName = cleanName.replace(/\s*-\s*[^-]*$/, "");
+        // Use the item name as-is, only add size if available and not already included
+        let itemDescription = item.item_name;
+        if (item.size && !itemDescription.includes(item.size)) {
+          itemDescription += " - " + item.size;
+        }
         return `<tr>
-        <td>${cleanName} ${item.size || ""}</td>
+        <td>${itemDescription}</td>
         <td>${item.category || ""}</td>
         <td style="text-align:center;">${item.quantity}</td>
         <td style="text-align:right;">${parseFloat(item.price).toFixed(2)}</td>
@@ -345,9 +356,26 @@ document.addEventListener("click", function (e) {
   if (btn) {
     e.preventDefault();
     let orderId = btn.getAttribute("data-order-id");
+
     if (orderId) {
+      // Find the order in window.ORDERS BEFORE updating status
+      let orderData = (window.ORDERS || []).find(
+        (o) => String(o.id) === String(orderId)
+      );
+
+      if (!orderData) {
+        alert(
+          "Error: Order data not found in memory. Please refresh the page and try again."
+        );
+        return;
+      }
+
+      // Clone the order data to preserve it
+      const orderClone = JSON.parse(JSON.stringify(orderData));
+
       updateOrderStatus(orderId, "completed", function () {
-        showOrderReceipt(orderId);
+        // Use the cloned data to show receipt, since the order might be filtered out after status change
+        showOrderReceiptWithData(orderId, orderClone);
       });
     } else {
       console.warn("[DEBUG] No orderId found on button");
@@ -360,22 +388,34 @@ function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
   // Find the button that triggered this action
   const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
   let targetButton = null;
+  let acceptBtn = null;
+  let rejectBtn = null;
 
   if (orderCard) {
+    acceptBtn = orderCard.querySelector(".accept-btn");
+    rejectBtn = orderCard.querySelector(".reject-btn");
+
     if (status === "approved") {
-      targetButton = orderCard.querySelector(".accept-btn");
+      targetButton = acceptBtn;
     } else if (status === "rejected") {
-      targetButton = orderCard.querySelector(".reject-btn");
+      targetButton = rejectBtn;
     } else if (status === "completed") {
       targetButton = orderCard.querySelector(".complete-btn");
     }
+  }
+
+  // Disable BOTH Accept and Reject buttons immediately to prevent double-clicking
+  if (acceptBtn) {
+    acceptBtn.disabled = true;
+  }
+  if (rejectBtn) {
+    rejectBtn.disabled = true;
   }
 
   // Store original button content
   let originalButtonContent = "";
   if (targetButton) {
     originalButtonContent = targetButton.innerHTML;
-    targetButton.disabled = true;
     targetButton.classList.add("processing");
 
     // Show processing state with spinner
@@ -420,25 +460,32 @@ function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
           targetButton.classList.add("success");
 
           setTimeout(() => {
+            // Always update the order card UI to keep window.ORDERS in sync
+            updateOrderCardUI(orderId, status);
+
+            // Then call the callback if provided
             if (typeof callback === "function") {
               callback();
-            } else {
-              // Update the order card UI without reloading
-              updateOrderCardUI(orderId, status);
             }
           }, 800);
         } else {
+          // Update the order card UI without reloading
+          updateOrderCardUI(orderId, status);
+
+          // Call callback if provided
           if (typeof callback === "function") {
             callback();
-          } else {
-            // Update the order card UI without reloading
-            updateOrderCardUI(orderId, status);
           }
         }
       } else {
-        // Restore original button state on error
+        // Restore both buttons on error
+        if (acceptBtn) {
+          acceptBtn.disabled = false;
+        }
+        if (rejectBtn) {
+          rejectBtn.disabled = false;
+        }
         if (targetButton) {
-          targetButton.disabled = false;
           targetButton.classList.remove("processing");
           targetButton.innerHTML = originalButtonContent;
         }
@@ -447,9 +494,14 @@ function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
       }
     })
     .catch((error) => {
-      // Restore original button state on error
+      // Restore both buttons on error
+      if (acceptBtn) {
+        acceptBtn.disabled = false;
+      }
+      if (rejectBtn) {
+        rejectBtn.disabled = false;
+      }
       if (targetButton) {
-        targetButton.disabled = false;
         targetButton.classList.remove("processing");
         targetButton.innerHTML = originalButtonContent;
       }
@@ -461,7 +513,24 @@ function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
 // New function to update order card UI without page reload
 function updateOrderCardUI(orderId, newStatus) {
   const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
-  if (!orderCard) return;
+  if (!orderCard) {
+    return;
+  }
+
+  // Update the window.ORDERS array to keep it in sync
+  if (window.ORDERS && Array.isArray(window.ORDERS)) {
+    const orderIndex = window.ORDERS.findIndex(
+      (o) => String(o.id) === String(orderId)
+    );
+
+    if (orderIndex !== -1) {
+      window.ORDERS[orderIndex].status = newStatus;
+      // Update payment_date for completed orders
+      if (newStatus === "completed") {
+        window.ORDERS[orderIndex].payment_date = new Date().toISOString();
+      }
+    }
+  }
 
   // Update the status badge
   const statusBadge = orderCard.querySelector(".status-badge");
@@ -555,10 +624,13 @@ function submitRejection() {
   }
 
   if (currentRejectionOrderId) {
+    // Store the order ID before closing the modal (which sets it to null)
+    const orderIdToReject = currentRejectionOrderId;
+
     // Close the modal first for better UX
     closeRejectionModal();
 
     // Then update the order status (which will show the inline processing indicator)
-    updateOrderStatus(currentRejectionOrderId, "rejected", null, reason);
+    updateOrderStatus(orderIdToReject, "rejected", null, reason);
   }
 }

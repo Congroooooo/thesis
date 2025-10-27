@@ -198,6 +198,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 // Calculate total
                                 $total_amount += ($item['price'] ?? 0) * ($item['quantity'] ?? 0);
                             }
+                            
+                            // Update the items JSON with categories
+                            $order['items'] = json_encode($order_items);
                         }
                         
                         $order['items_decoded'] = $order_items;

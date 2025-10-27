@@ -295,6 +295,18 @@ include 'includes/pamo_loader.php';
             updatedOrders.forEach(order => {
                 const existingCard = document.querySelector(`[data-order-id="${order.id}"]`);
                 
+                // Update or add the order to window.ORDERS array
+                if (window.ORDERS && Array.isArray(window.ORDERS)) {
+                    const orderIndex = window.ORDERS.findIndex(o => String(o.id) === String(order.id));
+                    if (orderIndex !== -1) {
+                        // Update existing order in the array
+                        window.ORDERS[orderIndex] = order;
+                    } else {
+                        // Add new order to the beginning of the array
+                        window.ORDERS.unshift(order);
+                    }
+                }
+                
                 if (existingCard) {
                     // Update existing order card
                     updateSinglePamoOrderCard(existingCard, order);
