@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Pre Order Details</title>
     <link rel="stylesheet" href="../CSS/global.css">
-    <link rel="stylesheet" href="../CSS/ProOrderDetails.css">
+    <link rel="stylesheet" href="../CSS/ProOrderDetails.css?v=2.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Smooch+Sans:wght@100..900&display=swap" rel="stylesheet">
@@ -19,10 +19,10 @@
     <?php include("../Includes/Header.php"); ?>
 
     <div class="preorder-container">
-        <div class="process-steps">
-            <div class="step completed">1. Pre Order Cart</div>
-            <div class="step completed">2. Checkout Details</div>
-            <div class="step active">3. Order Details</div>
+        <div class="process-steps" style="--progress: 100%;">
+            <div class="step completed" data-step="1">Pre Order Cart</div>
+            <div class="step completed" data-step="2">Checkout Details</div>
+            <div class="step active" data-step="3">Order Details</div>
         </div>
 
         <div class="order-success">

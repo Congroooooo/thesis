@@ -7,41 +7,115 @@
 
 .process-steps {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1.5rem;
-  padding: 0.75rem;
+  padding: 1.5rem 0.75rem;
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   margin-top: 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+.process-steps::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    #4caf50 0%,
+    #4caf50 var(--progress, 0%),
+    #e0e0e0 var(--progress, 0%),
+    #e0e0e0 100%
+  );
+  width: 100%;
+  transition: all 0.5s ease;
 }
 
 .step {
   font-family: var(--primary-font-family);
-  color: var(--text-color);
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.5rem;
-  text-align: center;
+  color: #999;
+  padding: 0.5rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
   position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+  flex: 1;
+  font-size: 0.8rem;
+  text-align: center;
 }
 
-.step:not(:last-child):after {
+.step::before {
+  content: attr(data-step);
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  color: #999;
+  margin-bottom: 0.25rem;
+}
+
+.step:not(:last-child)::after {
   content: "";
   position: absolute;
-  bottom: -5px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80%;
+  right: -50%;
+  top: 17px;
+  width: 100%;
   height: 2px;
-  background-color: #e0e0e0;
+  background: #e0e0e0;
+  z-index: -1;
+  transition: all 0.3s ease;
 }
 
 .step.active {
   color: var(--primary-color);
-  font-weight: bold;
+  font-weight: 600;
+}
+
+.step.active::before {
+  background: var(--primary-color);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+  animation: pulse 2s infinite;
 }
 
 .step.completed {
-  color: green;
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.step.completed::before {
+  background: #4caf50;
+  color: white;
+  content: "✓";
+  font-size: 1.1rem;
+}
+
+.step.completed::after {
+  background: #4caf50;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.5);
+  }
 }
 
 .delete-btn {
@@ -321,6 +395,21 @@ h1 {
 
   .process-steps {
     margin-top: 100px;
+    padding: 2rem 1.5rem;
+  }
+
+  .step {
+    font-size: 0.95rem;
+  }
+
+  .step::before {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+
+  .step:not(:last-child)::after {
+    top: 20px;
   }
 
   .cart-layout {

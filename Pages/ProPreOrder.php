@@ -8,7 +8,7 @@ include("../Includes/loader.php");
 
 <head>
     <title>Pre Order Page</title>
-    <link rel="stylesheet" href="../CSS/ProPreOrder.css">
+    <link rel="stylesheet" href="../CSS/ProPreOrder.css?v=2.0">
     <link rel="stylesheet" href="../CSS/global.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -125,10 +125,10 @@ include("../Includes/loader.php");
     $total_amount = 0;
     ?>
     <div class="preorder-container">
-        <div class="process-steps">
-            <div class="step active">1. Order Cart</div>
-            <div class="step">2. Checkout Details</div>
-            <div class="step">3. Order Details</div>
+        <div class="process-steps" style="--progress: 33.33%;">
+            <div class="step active" data-step="1">Pre Order Cart</div>
+            <div class="step" data-step="2">Checkout Details</div>
+            <div class="step" data-step="3">Order Details</div>
         </div>
 
         <h1>Cart</h1>

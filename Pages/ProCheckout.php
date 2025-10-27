@@ -50,7 +50,7 @@ $_SESSION['checkout_total'] = $total_amount;
 
 <head>
     <title>Pre Order Checkout</title>
-    <link rel="stylesheet" href="../CSS/ProCheckout.css">
+    <link rel="stylesheet" href="../CSS/ProCheckout.css?v=2.1">
     <link rel="stylesheet" href="../CSS/global.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -63,10 +63,10 @@ $_SESSION['checkout_total'] = $total_amount;
 
 <body>
     <div class="preorder-container">
-        <div class="process-steps">
-            <div class="step completed">1. Pre Order Cart</div>
-            <div class="step active">2. Checkout Details</div>
-            <div class="step">3. Order Details</div>
+        <div class="process-steps" style="--progress: 66.66%;">
+            <div class="step completed" data-step="1">Pre Order Cart</div>
+            <div class="step active" data-step="2">Checkout Details</div>
+            <div class="step" data-step="3">Order Details</div>
         </div>
 
         <div class="checkout-content">
