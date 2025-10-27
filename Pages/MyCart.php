@@ -91,7 +91,7 @@ $cart_total = 0;
 </head>
 <body>
 <?php
-    include("../Includes/header.php");
+    include("../Includes/Header.php");
     ?>
 
     <div class="cart-page">
