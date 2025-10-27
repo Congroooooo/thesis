@@ -568,6 +568,28 @@ function applyFiltersAndPagination(resetPage = false) {
     filteredItems.sort((a, b) => b.actual_quantity - a.actual_quantity);
   }
 
+  // Check if the currently selected item is still in the filtered results
+  let selectedItemStillVisible = false;
+  if (typeof selectedItemCode !== "undefined" && selectedItemCode !== null) {
+    selectedItemStillVisible = filteredItems.some(
+      (item) => item.item_code === selectedItemCode
+    );
+  }
+
+  // Reset selection only if the selected item is not in the filtered results
+  if (!selectedItemStillVisible) {
+    if (typeof selectedItemCode !== "undefined") {
+      selectedItemCode = null;
+    }
+    if (typeof selectedPrice !== "undefined") {
+      selectedPrice = null;
+    }
+    const editBtn = document.getElementById("editBtn");
+    if (editBtn) {
+      editBtn.disabled = true;
+    }
+  }
+
   // Calculate pagination
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   if (currentPage > totalPages && totalPages > 0) {
@@ -605,6 +627,15 @@ function updateTableDisplay(items) {
     row.onclick = function () {
       selectRow(this, item.item_code, item.price);
     };
+
+    // Re-apply highlight if this is the selected item
+    if (
+      typeof selectedItemCode !== "undefined" &&
+      selectedItemCode !== null &&
+      item.item_code === selectedItemCode
+    ) {
+      row.classList.add("selected");
+    }
 
     row.innerHTML = `
       <td>${escapeHtml(item.item_code)}</td>
