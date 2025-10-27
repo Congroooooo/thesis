@@ -324,6 +324,42 @@ tr:hover {
   width: 200px;
 }
 
+/* Stock Status Filter */
+.stock-status-filter {
+  padding-top: 10px;
+  margin-top: 15px;
+  border-top: 1px solid #dee2e6;
+}
+
+.stock-status-filter .filter-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #495057;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.stock-status-filter select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 200px;
+  background-color: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.stock-status-filter select:hover {
+  border-color: #007bff;
+}
+
+.stock-status-filter select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
 /* Tables */
 .report-table {
   background-color: white;

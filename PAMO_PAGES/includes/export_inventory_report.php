@@ -17,6 +17,7 @@ $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $category = isset($_GET['category']) ? trim($_GET['category']) : '';
 $size = isset($_GET['size']) ? trim($_GET['size']) : '';
 $status = isset($_GET['status']) ? trim($_GET['status']) : '';
+$stockStatus = isset($_GET['stockStatus']) ? trim($_GET['stockStatus']) : '';
 $startDate = isset($_GET['startDate']) ? trim($_GET['startDate']) : '';
 $endDate = isset($_GET['endDate']) ? trim($_GET['endDate']) : '';
 
@@ -35,6 +36,12 @@ if ($status) {
     if ($status == 'In Stock') $where[] = "actual_quantity > $lowStockThreshold";
     else if ($status == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= $lowStockThreshold";
     else if ($status == 'Out of Stock') $where[] = "actual_quantity <= 0";
+}
+// Apply stockStatus filter (new dedicated filter for inventory report)
+if ($stockStatus) {
+    if ($stockStatus == 'In Stock') $where[] = "actual_quantity > $lowStockThreshold";
+    else if ($stockStatus == 'Low Stock') $where[] = "actual_quantity > 0 AND actual_quantity <= $lowStockThreshold";
+    else if ($stockStatus == 'Out of Stock') $where[] = "actual_quantity <= 0";
 }
 if ($search) {
     $where[] = "(item_name LIKE ? OR item_code LIKE ?)";

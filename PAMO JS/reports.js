@@ -61,6 +61,7 @@ function getCurrentReportFilters() {
     startDate: document.getElementById("startDate")?.value || "",
     endDate: document.getElementById("endDate")?.value || "",
     type: document.getElementById("reportType")?.value || "inventory",
+    stockStatus: document.getElementById("stockStatus")?.value || "",
   };
 }
 
@@ -216,6 +217,13 @@ function clearDates() {
 // Report type change
 function changeReportType() {
   const reportType = document.getElementById("reportType").value;
+
+  // For monthly report, do a full page reload to get server-side rendered content
+  if (reportType === "monthly") {
+    window.location.href = "?type=monthly&page=1";
+    return;
+  }
+
   document.getElementById("inventoryReport").style.display = "none";
   document.getElementById("salesReport").style.display = "none";
   document.getElementById("auditReport").style.display = "none";
@@ -224,6 +232,21 @@ function changeReportType() {
   if (totalDisplay) {
     totalDisplay.style.display = "none";
   }
+
+  // Show/hide stock status filter based on report type
+  const stockStatusFilter = document.getElementById("stockStatusFilter");
+  if (stockStatusFilter) {
+    stockStatusFilter.style.display =
+      reportType === "inventory" ? "block" : "none";
+    // Reset stock status when switching away from inventory
+    if (reportType !== "inventory") {
+      const stockStatusSelect = document.getElementById("stockStatus");
+      if (stockStatusSelect) {
+        stockStatusSelect.value = "";
+      }
+    }
+  }
+
   ajaxLoadReport(reportType, 1);
 }
 
@@ -246,10 +269,21 @@ document.addEventListener("click", function (e) {
   }
 });
 
+// Apply stock status filter
+function applyStockStatusFilter() {
+  const type = document.getElementById("reportType")?.value || "inventory";
+  if (type === "inventory") {
+    ajaxLoadReport(type, 1);
+  }
+}
+
 // On initial load, load the current report via AJAX
 window.addEventListener("DOMContentLoaded", function () {
   const reportType = document.getElementById("reportType").value;
-  ajaxLoadReport(reportType, 1);
+  // Skip AJAX loading for monthly report (it's server-side rendered)
+  if (reportType !== "monthly") {
+    ajaxLoadReport(reportType, 1);
+  }
 });
 
 function exportToExcel() {
@@ -504,48 +538,9 @@ function exportMonthlyReport() {
   if (monthSelector && yearSelector) {
     const month = monthSelector.value;
     const year = yearSelector.value;
-    const monthName = monthSelector.options[monthSelector.selectedIndex].text;
 
-    // Fetch full report data for export
-    fetch(
-      `../PAMO_DASHBOARD_BACKEND/monthly_reports_api.php?action=get_monthly_inventory&year=${year}&month=${month}&limit=1000`
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.success && data.data.length > 0) {
-          exportToExcelFromData(
-            data.data,
-            `Monthly_Inventory_Report_${monthName}_${year}`
-          );
-        } else {
-          alert("No data available to export for the selected period.");
-        }
-      })
-      .catch((error) => {
-        console.error("Error exporting monthly report:", error);
-        alert("Error exporting monthly report");
-      });
+    // Open the export URL directly to download Excel file
+    const exportUrl = `../PAMO_PAGES/includes/export_monthly_report.php?year=${year}&month=${month}`;
+    window.open(exportUrl, "_blank");
   }
-}
-
-function exportToExcelFromData(data, filename) {
-  // Create CSV content
-  let csv =
-    "Item Code,Item Name,Category,Beginning Quantity,Deliveries,Sales,Ending Quantity,Unit Price,Total Value\n";
-
-  data.forEach((item) => {
-    csv += `"${item.item_code}","${item.item_name}","${item.category}",${item.beginning_quantity},${item.new_delivery_total},${item.sales_total},${item.ending_quantity},${item.price},${item.ending_value}\n`;
-  });
-
-  // Create and download file
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.style.display = "none";
-  a.href = url;
-  a.download = filename + ".csv";
-  document.body.appendChild(a);
-  a.click();
-  window.URL.revokeObjectURL(url);
-  document.body.removeChild(a);
 }

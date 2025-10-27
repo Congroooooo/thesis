@@ -84,6 +84,16 @@ include 'includes/pamo_loader.php';
                         <option value="sales"<?php if($reportType=='sales') echo ' selected'; ?>>Sales Report</option>
                         <option value="audit"<?php if($reportType=='audit') echo ' selected'; ?>>Audit Trail</option>
                     </select>
+                    
+                    <div id="stockStatusFilter" class="stock-status-filter" style="display: <?php echo $reportType == 'inventory' ? 'block' : 'none'; ?>; margin-top: 15px;">
+                        <label for="stockStatus" class="filter-label">Stock Status</label>
+                        <select id="stockStatus" onchange="applyStockStatusFilter()">
+                            <option value="">All Stock Levels</option>
+                            <option value="In Stock">In Stock</option>
+                            <option value="Low Stock">Low Stock</option>
+                            <option value="Out of Stock">Out of Stock</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Inventory Report Table -->
@@ -246,7 +256,6 @@ include 'includes/pamo_loader.php';
                                             <th style="padding: 15px 12px; text-align: center; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Deliveries</th>
                                             <th style="padding: 15px 12px; text-align: center; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Sales</th>
                                             <th style="padding: 15px 12px; text-align: center; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Ending</th>
-                                            <th style="padding: 15px 12px; text-align: right; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Value</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -257,7 +266,7 @@ include 'includes/pamo_loader.php';
                                                 $currentCategory = $item['category'];
                                         ?>
                                             <tr style="background: #e9ecef;">
-                                                <td colspan="8" style="padding: 10px 12px; font-weight: 600; color: #495057;">
+                                                <td colspan="7" style="padding: 10px 12px; font-weight: 600; color: #495057;">
                                                     <?php echo htmlspecialchars($item['category']); ?>
                                                 </td>
                                             </tr>
@@ -265,14 +274,13 @@ include 'includes/pamo_loader.php';
                                         <tr style="border-bottom: 1px solid #dee2e6;">
                                             <td style="padding: 12px; color: #495057;"><?php echo htmlspecialchars($item['item_code']); ?></td>
                                             <td style="padding: 12px; color: #495057;"><?php echo htmlspecialchars($item['item_name']); ?></td>
-                                            <td style="padding: 12px; color: #6c757d; font-size: 14px;"></td>
+                                            <td style="padding: 12px; color: #6c757d; font-size: 14px;"><?php echo htmlspecialchars($item['category']); ?></td>
                                             <td style="padding: 12px; text-align: center; color: #495057;"><?php echo number_format($item['beginning_quantity']); ?></td>
                                             <td style="padding: 12px; text-align: center; color: #28a745;"><?php echo number_format($item['new_delivery_total']); ?></td>
                                             <td style="padding: 12px; text-align: center; color: #dc3545;"><?php echo number_format($item['sales_total']); ?></td>
                                             <td style="padding: 12px; text-align: center; font-weight: 600; color: <?php echo $item['ending_quantity'] > 0 ? '#28a745' : '#dc3545'; ?>;">
                                                 <?php echo number_format($item['ending_quantity']); ?>
                                             </td>
-                                            <td style="padding: 12px; text-align: right; color: #495057;">₱<?php echo number_format($item['ending_value'], 2); ?></td>
                                         </tr>
                                         <?php endforeach; ?>
                                     </tbody>
