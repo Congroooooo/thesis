@@ -50,7 +50,6 @@
                     <p><strong>Student Number:</strong> <span><?php echo htmlspecialchars($_POST['studentNumber']); ?></span></p>
                     <p><strong>Course/Strand:</strong> <span><?php echo htmlspecialchars($course); ?></span></p>
                     <p><strong>Email:</strong> <span><?php echo htmlspecialchars($email); ?></span></p>
-                    <p><strong>Phone:</strong> <span><?php echo htmlspecialchars($phone); ?></span></p>
                 </div>
 
                 <div class="ordered-items">

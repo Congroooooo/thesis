@@ -226,10 +226,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
                             </div>
 
                             <div class="order-footer">
-                                <div class="contact-info">
-                                    <i class="fas fa-phone"></i>
-                                    <?php echo htmlspecialchars($order['phone']); ?>
-                                </div>
                                 <div class="total-amount">
                                     <strong>Total Amount:</strong>
                                     <span>₱<?php echo number_format($total_amount, 2); ?></span>

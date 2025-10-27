@@ -23,7 +23,6 @@ $firstName = $_POST['firstName'] ?? '';
 $lastName = $_POST['lastName'] ?? '';
 $course = $_POST['course'] ?? '';
 $email = $_POST['email'] ?? '';
-$phone = $_POST['phone'] ?? '';
 $cart_items = json_decode($_POST['cart_items'] ?? '[]', true);
 if (!is_array($cart_items)) {
     $cart_items = [];
@@ -72,14 +71,13 @@ try {
     }
     unset($item);
     $stmt = $conn->prepare("
-        INSERT INTO orders (order_number, user_id, items, phone, total_amount, status, payment_date, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, 'pending', NULL, NOW(), NOW())
+        INSERT INTO orders (order_number, user_id, items, total_amount, status, payment_date, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, 'pending', NULL, NOW(), NOW())
     ");
     $stmt->execute([
         $order_number,
         $_SESSION['user_id'],
         json_encode($selected_items),
-        $phone,
         $total_amount
     ]);
     if (!empty($included_items)) {

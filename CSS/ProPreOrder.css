@@ -598,3 +598,54 @@ h1 {
     margin: 0;
   }
 }
+
+/* Start Shopping Button Styles */
+.start-shopping-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 28px;
+  background: linear-gradient(135deg, #0077be, #005a8d);
+  color: yellow !important;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 300;
+  font-family: var(--primary-font-family);
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 12px rgba(0, 119, 190, 0.3);
+  font-size: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border: none;
+  cursor: pointer;
+}
+
+.start-shopping-btn i {
+  font-size: 16px;
+}
+
+.start-shopping-btn:hover {
+  background: linear-gradient(135deg, #005a8d, #004070);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 119, 190, 0.5);
+  color: #ffffff !important;
+}
+
+.start-shopping-btn:active {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 119, 190, 0.4);
+}
+
+.empty-cart {
+  padding: 40px 20px;
+  text-align: center;
+  color: #666;
+  font-family: var(--primary-font-family);
+}
+
+.empty-cart p {
+  margin-bottom: 20px;
+  font-size: 18px;
+  color: #333;
+  font-weight: 500;
+}

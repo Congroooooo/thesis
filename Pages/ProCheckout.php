@@ -93,14 +93,6 @@ $_SESSION['checkout_total'] = $total_amount;
                         <label for="email">Email</label>
                         <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" readonly required>
                     </div>
-                    <div class="form-group">
-                        <label for="phone">Phone Number</label>
-                        <div class="phone-input">
-                            <span class="country-code">+63</span>
-                            <input type="tel" id="phone" name="phone" pattern="[0-9]{10}" maxlength="10" placeholder="9123456789" required>
-                        </div>
-                        <small class="phone-hint">Enter your 10-digit mobile number (e.g., 9123456789)</small>
-                    </div>
                     <input type="hidden" name="cart_items" value='<?php echo json_encode($cart_items); ?>'>
                     <input type="hidden" name="included_items" value='<?php echo json_encode($included_items); ?>'>
                     <input type="hidden" name="total_amount" value="<?php echo $total_amount; ?>">
@@ -143,30 +135,3 @@ $_SESSION['checkout_total'] = $total_amount;
 </body>
 
 </html>
-
-<style>
-    .phone-input {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    
-    .country-code {
-        padding: 8px;
-        background-color: #f0f0f0;
-        border: 1px solid #ddd;
-        border-radius: 4px 0 0 4px;
-    }
-    
-    .phone-input input {
-        border-radius: 0 4px 4px 0;
-        flex: 1;
-    }
-    
-    .phone-hint {
-        display: block;
-        margin-top: 5px;
-        color: #666;
-        font-size: 0.8em;
-    }
-</style>

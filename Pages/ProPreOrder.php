@@ -187,7 +187,15 @@ include("../Includes/loader.php");
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="6" class="empty-cart">Your cart is empty</td>
+                                    <td colspan="6" class="empty-cart">
+                                        <div style="text-align: center; padding: 20px;">
+                                            <p style="margin-bottom: 15px; font-size: 18px; color: #333; font-weight: 500;">Your cart is empty</p>
+                                            <a href="ProItemList.php" class="start-shopping-btn">
+                                                <i class="fas fa-shopping-cart"></i>
+                                                <span>Start Shopping</span>
+                                            </a>
+                                        </div>
+                                    </td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>
@@ -227,7 +235,13 @@ include("../Includes/loader.php");
                         </div>
                         <?php endforeach; ?>
                     <?php else: ?>
-                        <div class="empty-cart">Your cart is empty</div>
+                        <div class="empty-cart" style="text-align: center; padding: 30px;">
+                            <p style="margin-bottom: 15px; font-size: 18px; color: #333; font-weight: 500;">Your cart is empty</p>
+                            <a href="ProItemList.php" class="start-shopping-btn">
+                                <i class="fas fa-shopping-cart"></i>
+                                <span>Start Shopping</span>
+                            </a>
+                        </div>
                     <?php endif; ?>
                 </div>
                 <!-- MOBILE CART CARDS END -->
