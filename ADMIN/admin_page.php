@@ -127,6 +127,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 <th onclick="sortTable(5)">Role</th>
                 <th onclick="sortTable(6)">Designation</th>
                 <th onclick="sortTable(7)">Status</th>
+                <th onclick="sortTable(8)">Strikes</th>
             </tr>
         </thead>
         <tbody id="accountsTbody">
@@ -143,6 +144,16 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
             foreach ($accounts as $account) {
                 $identifier = $account['id_number'] ? $account['id_number'] : $account['email'];
+                $strikes = isset($account['pre_order_strikes']) ? intval($account['pre_order_strikes']) : 0;
+                $strikesBadge = '';
+                
+                if ($strikes > 0) {
+                    $badgeClass = $strikes >= 3 ? 'danger' : ($strikes == 2 ? 'warning' : 'info');
+                    $strikesBadge = "<span class='badge badge-{$badgeClass}'>{$strikes}/3</span>";
+                } else {
+                    $strikesBadge = "<span class='text-muted'>0</span>";
+                }
+                
                 echo "<tr data-id='" . htmlspecialchars($identifier) . "' class='account-row'>";
                 echo "<td><input type='checkbox' class='user-checkbox' value='" . htmlspecialchars($identifier) . "' onchange='handleCheckboxChange(this)'></td>";
                 echo "<td>" . htmlspecialchars($account['first_name']) . "</td>";
@@ -154,6 +165,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 $abbreviation = htmlspecialchars($account['program_abbr']);
                 echo "<td class='has-tooltip' data-fulltext='".$programText."'>" . $abbreviation . "</td>";
                 echo "<td>" . htmlspecialchars($account['status']) . "</td>";
+                echo "<td style='text-align: center;'>" . $strikesBadge . "</td>";
                 echo "</tr>";
             }
             ?>
@@ -682,7 +694,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 if (suffixInput && fullIdInput) {
                     const suffix = suffixInput.value.trim();
                     if (suffix.length !== 6) {
-                        alert('Please enter exactly 6 digits for the ID number suffix.');
+                        showNotification('Please enter exactly 6 digits for the ID number suffix.', 'warning');
                         suffixInput.focus();
                         return;
                     }
@@ -1336,7 +1348,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
     function bulkUpdateStatus() {
         if (selectedUserIds.length === 0) {
-            alert('Please select at least one user.');
+            showNotification('Please select at least one user.', 'warning');
             return;
         }
 
@@ -1437,7 +1449,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
     function resetPassword() {
         if (!selectedUserId) {
-            alert('Please select an account first.');
+            showNotification('Please select an account first.', 'warning');
             return;
         }
         document.getElementById('resetPasswordUserId').value = selectedUserId;
@@ -1447,7 +1459,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 
     function updateStatus() {
         if (!selectedUserId) {
-            alert('Please select an account first.');
+            showNotification('Please select an account first.', 'warning');
             return;
         }
         document.getElementById('selectedUserId').value = selectedUserId;
@@ -1789,7 +1801,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
         e.preventDefault();
         
         if (selectedUserIds.length === 0) {
-            alert('No users selected.');
+            showNotification('No users selected.', 'warning');
             return;
         }
         
@@ -3177,3 +3189,29 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
 </script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<!-- Notification Modal CSS and JS -->
+<link rel="stylesheet" href="../CSS/notification-modal.css">
+<script src="../Javascript/notification-modal.js"></script>
+
+<!-- Notification Modal HTML -->
+<div id="notificationModal" class="notification-modal">
+    <div class="notification-modal-content">
+        <button class="notification-modal-close" aria-label="Close notification">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="notification-modal-header">
+            <div class="notification-modal-icon">
+                <i class="fas fa-info-circle"></i>
+            </div>
+            <h2 class="notification-modal-title">Notification</h2>
+        </div>
+        <p class="notification-modal-message">This is a notification message.</p>
+        <div class="notification-modal-buttons">
+            <button class="notification-btn-ok">OK</button>
+        </div>
+        <div class="notification-progress-bar" style="display: none;">
+            <div class="notification-progress-fill"></div>
+        </div>
+    </div>
+</div>

@@ -101,14 +101,14 @@ try {
             $strikeCount = (int) $newStrikes->fetchColumn();
 
             $strikeMessage = ($strikeCount >= 3)
-                ? " Your account has been blocked due to 3 strikes."
-                : " You now have {$strikeCount} strike(s). 3 strikes will result in account blocking.";
+                ? " Your account has been set to inactive due to 3 strikes."
+                : " You now have {$strikeCount} strike(s). 3 strikes will result in account deactivation.";
 
-            // Block if 3 strikes
+            // Deactivate account if 3 strikes
             if ($strikeCount >= 3) {
-                $conn->prepare("UPDATE account SET is_strike = 1 WHERE id = ?")
+                $conn->prepare("UPDATE account SET status = 'inactive' WHERE id = ?")
                     ->execute([$userId]);
-                logMessage("User {$userId} blocked (3 strikes)");
+                logMessage("User {$userId} account set to inactive (3 strikes)");
             }
 
             // 4️⃣ Create notification

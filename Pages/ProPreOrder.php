@@ -37,7 +37,7 @@ include("../Includes/loader.php");
         $stmt = $conn->prepare("SELECT item_name, price, image_path FROM inventory WHERE item_code = ?");
         $stmt->execute([$cart_item['item_code']]);
         $inventory_item = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+         
         if ($inventory_item) {
             // Normalize/resolve image path to a valid public path
             $image_path = $inventory_item['image_path'];
@@ -274,7 +274,7 @@ include("../Includes/loader.php");
         const items = JSON.parse(includedItems || '[]');
         
         if (items.length === 0) {
-            alert('Please include at least one item for checkout');
+            showNotification('Please include at least one item for checkout', 'warning');
             return false;
         }
 

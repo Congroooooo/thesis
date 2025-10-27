@@ -934,13 +934,13 @@ $cart_total = 0;
                     if (data.success) {
                         removeItemFromUI(itemIdToRemove, data.cart_count);
                     } else {
-                        alert('Error removing item from cart: ' + (data.error || 'Unknown error'));
+                        showNotification('Error removing item from cart: ' + (data.error || 'Unknown error'), 'error');
                         location.reload();
                     }
                 })
                 .catch(error => {
                     hideRemoveModal();
-                    alert('Error removing item from cart');
+                    showNotification('Error removing item from cart', 'error');
                     location.reload();
                 });
             }
@@ -1055,13 +1055,13 @@ $cart_total = 0;
                     if (data.success) {
                         removeItemFromUI(itemId, data.cart_count);
                     } else {
-                        alert('Error removing item from cart');
+                        showNotification('Error removing item from cart', 'error');
                         location.reload();
                     }
                 })
                 .catch(error => {
                     hideQuantityDecreaseModal();
-                    alert('Error removing item from cart');
+                    showNotification('Error removing item from cart', 'error');
                     location.reload();
                 });
             }
@@ -1157,7 +1157,7 @@ $cart_total = 0;
                             setQuantityButtonsLoading(input, true);
                             updateCartItem(itemId, newValue, input);
                         } else {
-                            alert(`Maximum available stock is ${maxStock}.`);
+                            showNotification(`Maximum available stock is ${maxStock}.`, 'warning');
                         }
                     } else if (this.classList.contains("minus")) {
                         if (currentValue > 1) {
@@ -1186,7 +1186,7 @@ $cart_total = 0;
                         this.value = 1;
                     } else if (newValue > maxStock) {
                         this.value = maxStock;
-                        alert(`Maximum available stock is ${maxStock}.`);
+                        showNotification(`Maximum available stock is ${maxStock}.`, 'warning');
                     }
 
                     // Only update if value actually changed
@@ -1250,14 +1250,14 @@ $cart_total = 0;
                     if (data.success) {
                         updateCartUI(itemId, quantity, data.cart_count);
                     } else {
-                        alert(data.message || "Failed to update quantity");
+                        showNotification(data.message || 'Failed to update quantity', 'error');
                         location.reload();
                     }
                 } catch (error) {
                     if (inputElement) {
                         setQuantityButtonsLoading(inputElement, false);
                     }
-                    alert("Error updating quantity");
+                    showNotification('Error updating quantity', 'error');
                     location.reload();
                 }
             }

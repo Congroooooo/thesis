@@ -8,6 +8,24 @@ $current_page = basename($_SERVER['PHP_SELF']);
 $mailboxCount = 0;
 if (isset($_SESSION['user_id'])) {
     require_once dirname(__FILE__) . '/connection.php';
+    
+    // Check if user account is inactive
+    $stmt = $conn->prepare("SELECT status, pre_order_strikes FROM account WHERE id = :uid");
+    $stmt->bindParam(':uid', $_SESSION['user_id'], PDO::PARAM_INT);
+    $stmt->execute();
+    $userStatus = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($userStatus && $userStatus['status'] === 'inactive') {
+        // User account is inactive, destroy session and redirect to login
+        session_destroy();
+        if (isset($userStatus['pre_order_strikes']) && $userStatus['pre_order_strikes'] >= 3) {
+            header("Location: login.php?error=account_inactive_strikes");
+        } else {
+            header("Location: login.php?error=account_inactive");
+        }
+        exit();
+    }
+    
     $stmt = $conn->prepare("SELECT COUNT(*) FROM inquiries WHERE user_id = :uid AND reply IS NOT NULL AND student_read = 0");
     $stmt->bindParam(':uid', $_SESSION['user_id'], PDO::PARAM_INT);
     $stmt->execute();
@@ -400,10 +418,6 @@ if (isset($_SESSION['user_id'])) {
 
         // Function to clear all notifications
         async function clearAllNotifications() {
-            if (!confirm('Are you sure you want to clear all notifications?')) {
-                return;
-            }
-
             try {
                 const response = await fetch('../Includes/notification_operations.php', {
                     method: 'POST',
@@ -417,11 +431,11 @@ if (isset($_SESSION['user_id'])) {
                 if (data.success) {
                     updateNotificationContent();
                 } else {
-                    alert('Failed to clear notifications: ' + data.message);
+                    showNotification('Failed to clear notifications: ' + data.message, 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Failed to clear notifications');
+                showNotification('Failed to clear notifications', 'error');
             }
         }
 
@@ -2138,3 +2152,29 @@ document.addEventListener('DOMContentLoaded', function() {
     font-size: 0.97em;
 }
 </style>
+
+<!-- Notification Modal CSS and JS -->
+<link rel="stylesheet" href="../CSS/notification-modal.css">
+<script src="../Javascript/notification-modal.js"></script>
+
+<!-- Notification Modal HTML -->
+<div id="notificationModal" class="notification-modal">
+    <div class="notification-modal-content">
+        <button class="notification-modal-close" aria-label="Close notification">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="notification-modal-header">
+            <div class="notification-modal-icon">
+                <i class="fas fa-info-circle"></i>
+            </div>
+            <h2 class="notification-modal-title">Notification</h2>
+        </div>  
+        <p class="notification-modal-message">This is a notification message.</p>
+        <div class="notification-modal-buttons">
+            <button class="notification-btn-ok">OK</button>
+        </div>
+        <div class="notification-progress-bar" style="display: none;">
+            <div class="notification-progress-fill"></div>
+        </div>
+    </div>
+</div>

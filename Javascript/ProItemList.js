@@ -725,7 +725,7 @@ function validateAccessoryQuantity(input, enforceMax = false) {
   if (enforceMax) {
     const maxStock = parseInt(currentProduct.stock);
     if (parseInt(input.value) > maxStock) {
-      alert(`Maximum available stock is ${maxStock}.`);
+      showNotification(`Maximum available stock is ${maxStock}.`, "warning");
       input.value = ""; // require explicit correct entry
       input.dataset.invalid = "1";
     }
@@ -766,7 +766,7 @@ function addAccessoryToCart() {
     quantityInput.value === "0" ||
     quantityInput.dataset.invalid === "1"
   ) {
-    alert("Please enter a valid quantity");
+    showNotification("Please enter a valid quantity", "warning");
     return;
   }
 
@@ -775,12 +775,15 @@ function addAccessoryToCart() {
 
   // Validate quantity against stock
   if (quantity <= 0) {
-    alert("Please enter a valid quantity");
+    showNotification("Please enter a valid quantity", "warning");
     return;
   }
 
   if (quantity > availableStock) {
-    alert(`Sorry, only ${availableStock} items are available in stock.`);
+    showNotification(
+      `Sorry, only ${availableStock} items are available in stock.`,
+      "error"
+    );
     quantityInput.value = availableStock; // Set to maximum available
     return;
   }
@@ -924,7 +927,10 @@ function validateQuantityInput(input, enforceMax = false) {
   if (selectedSize && enforceMax) {
     const maxStock = parseInt(selectedSize.dataset.stock);
     if (parseInt(input.value) > maxStock) {
-      alert(`Maximum available stock for this size is ${maxStock}.`);
+      showNotification(
+        `Maximum available stock for this size is ${maxStock}.`,
+        "warning"
+      );
       input.value = ""; // require the user to re-enter a valid value
       input.dataset.invalid = "1";
       return;
@@ -984,8 +990,9 @@ function selectSize(element) {
   const currentQty = parseInt(quantityInput.value);
   if (currentQty > maxStock) {
     quantityInput.value = maxStock;
-    alert(
-      `Quantity has been adjusted to ${maxStock}, the maximum available stock for this size.`
+    showNotification(
+      `Quantity has been adjusted to ${maxStock}, the maximum available stock for this size.`,
+      "info"
     );
   }
 }
@@ -1022,7 +1029,7 @@ function addToCartWithSize() {
     !selectedSize &&
     !currentProduct.category?.toLowerCase().includes("accessories")
   ) {
-    alert("Please select a size");
+    showNotification("Please select a size", "warning");
     return;
   }
 
@@ -1034,7 +1041,7 @@ function addToCartWithSize() {
     quantityInput.value === "0" ||
     quantityInput.dataset.invalid === "1"
   ) {
-    alert("Please enter a valid quantity");
+    showNotification("Please enter a valid quantity", "warning");
     return;
   }
 
@@ -1055,13 +1062,14 @@ function addToCartWithSize() {
 
   // Validate quantity against stock (final check)
   if (quantity <= 0) {
-    alert("Please enter a valid quantity");
+    showNotification("Please enter a valid quantity", "warning");
     return;
   }
 
   if (quantity > availableStock) {
-    alert(
-      `Sorry, only ${availableStock} items are available in stock for size ${size}.`
+    showNotification(
+      `Sorry, only ${availableStock} items are available in stock for size ${size}.`,
+      "error"
     );
     quantityInput.value = availableStock; // Set to maximum available
     return;
@@ -1176,16 +1184,18 @@ async function addToCart(element, customData = null) {
       }
 
       // Show success message
-      alert("Item added to cart successfully!");
+      showNotification("Item added to cart successfully!", "success", {
+        autoClose: 2000,
+      });
 
       // Update cart popup content
       updateCartPopup();
     } else {
-      alert(data.message || "Error adding item to cart");
+      showNotification(data.message || "Error adding item to cart", "error");
     }
   } catch (error) {
     console.error("Error:", error);
-    alert("Error adding item to cart");
+    showNotification("Error adding item to cart", "error");
   }
 }
 

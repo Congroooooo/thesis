@@ -12,9 +12,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($user) {
         if ($user['status'] === 'inactive') {
+            // Check if it's due to strikes
+            if (isset($user['pre_order_strikes']) && $user['pre_order_strikes'] >= 3) {
+                header("Location: login.php?error=account_inactive_strikes");
+                exit();
+            }
             header("Location: login.php?error=account_inactive");
             exit();
         }
+        
         if (password_verify($password, $user['password'])) {
             session_start();
             $_SESSION['user_id'] = isset($user['id']) && $user['id'] !== null && $user['id'] !== ''
@@ -132,6 +138,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     break;
                                 case 'account_not_found':
                                     echo 'Account does not exist. Please check your email.';
+                                    break;
+                                case 'account_inactive_strikes':
+                                    echo 'Your account has been deactivated due to multiple voided orders (3 strikes). Please contact the administrator to reactivate your account.';
                                     break;
                                 case 'account_inactive':
                                     echo 'Your account is currently inactive. Please contact the administrator.';

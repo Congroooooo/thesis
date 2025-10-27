@@ -13,7 +13,7 @@
  * @throws Exception If user is blocked or restricted and $return_array=false
  */
 function checkUserStrikeStatus($conn, $user_id, $return_array = false) {
-    $stmt = $conn->prepare("SELECT is_strike, last_strike_time, pre_order_strikes FROM account WHERE id = ?");
+    $stmt = $conn->prepare("SELECT status, last_strike_time, pre_order_strikes FROM account WHERE id = ?");
     $stmt->execute([$user_id]);
     $userRow = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -29,11 +29,16 @@ function checkUserStrikeStatus($conn, $user_id, $return_array = false) {
     if ($userRow) {
         $result['strikes'] = (int)$userRow['pre_order_strikes'];
         
-        // Check permanent block (is_strike = 1)
-        if ($userRow['is_strike']) {
+        // Check if account is inactive (could be due to 3 strikes or other reasons)
+        if ($userRow['status'] === 'inactive') {
             $result['allowed'] = false;
             $result['blocked'] = true;
-            $result['message'] = 'Your account has been blocked due to 3 strikes from unclaimed orders. Please contact admin to reactivate your account.';
+            
+            if ($result['strikes'] >= 3) {
+                $result['message'] = 'Your account has been deactivated due to 3 strikes from unclaimed orders. Please contact admin to reactivate your account.';
+            } else {
+                $result['message'] = 'Your account is currently inactive. Please contact admin.';
+            }
             
             if (!$return_array) {
                 throw new Exception($result['message']);

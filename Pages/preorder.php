@@ -238,10 +238,13 @@ include '../Includes/loader.php';
         fd.append('quantity', qty);
         const resp = await fetch('../PAMO_PREORDER_BACKEND/api_preorder_request_create.php', { method:'POST', body: fd });
         const data = await resp.json();
-        if (!data.success) { alert(data.message || 'Failed'); return; }
+        if (!data.success) { 
+            showNotification(data.message || 'Failed to submit pre-order request', 'error'); 
+            return; 
+        }
         closePreModal();
-        alert('Your pre-order request has been submitted. Thank you!');
-        location.reload();
+        showNotification('Your pre-order request has been submitted. Thank you!', 'success', { autoClose: 3000 });
+        setTimeout(() => location.reload(), 3000);
     }
 
     document.addEventListener('DOMContentLoaded', function(){

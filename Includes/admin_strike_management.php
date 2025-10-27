@@ -17,7 +17,7 @@ function unblockUserAccount($conn, $user_id, $admin_reason = 'Admin intervention
         $conn->beginTransaction();
         
         // Get current user info
-        $stmt = $conn->prepare('SELECT first_name, last_name, pre_order_strikes, is_strike FROM account WHERE id = ?');
+        $stmt = $conn->prepare('SELECT first_name, last_name, pre_order_strikes, status FROM account WHERE id = ?');
         $stmt->execute([$user_id]);
         $user = $stmt->fetch();
         
@@ -25,8 +25,8 @@ function unblockUserAccount($conn, $user_id, $admin_reason = 'Admin intervention
             throw new Exception('User not found');
         }
         
-        // Reset strikes and unblock
-        $stmt = $conn->prepare('UPDATE account SET pre_order_strikes = 0, is_strike = 0, last_strike_time = NULL WHERE id = ?');
+        // Reset strikes and reactivate account
+        $stmt = $conn->prepare('UPDATE account SET pre_order_strikes = 0, status = "active", last_strike_time = NULL WHERE id = ?');
         $stmt->execute([$user_id]);
         
         // Log the admin action
@@ -65,7 +65,7 @@ function reduceUserStrikes($conn, $user_id, $strikes_to_remove = 1, $admin_reaso
         $conn->beginTransaction();
         
         // Get current user info
-        $stmt = $conn->prepare('SELECT first_name, last_name, pre_order_strikes, is_strike FROM account WHERE id = ?');
+        $stmt = $conn->prepare('SELECT first_name, last_name, pre_order_strikes, status FROM account WHERE id = ?');
         $stmt->execute([$user_id]);
         $user = $stmt->fetch();
         
@@ -76,10 +76,10 @@ function reduceUserStrikes($conn, $user_id, $strikes_to_remove = 1, $admin_reaso
         $old_strikes = $user['pre_order_strikes'];
         $new_strikes = max(0, $old_strikes - $strikes_to_remove);
         
-        // Update strikes
-        $stmt = $conn->prepare('UPDATE account SET pre_order_strikes = ?, is_strike = ?, last_strike_time = NULL WHERE id = ?');
-        $is_strike = ($new_strikes >= 3) ? 1 : 0;
-        $stmt->execute([$new_strikes, $is_strike, $user_id]);
+        // Update strikes and status
+        $new_status = ($new_strikes >= 3) ? 'inactive' : 'active';
+        $stmt = $conn->prepare('UPDATE account SET pre_order_strikes = ?, status = ?, last_strike_time = NULL WHERE id = ?');
+        $stmt->execute([$new_strikes, $new_status, $user_id]);
         
         // Log the admin action
         $activity_description = "Admin reduced strikes for user: {$user['first_name']} {$user['last_name']} (ID: $user_id). Strikes: $old_strikes → $new_strikes. Reason: $admin_reason";
@@ -88,7 +88,7 @@ function reduceUserStrikes($conn, $user_id, $strikes_to_remove = 1, $admin_reaso
         
         $conn->commit();
         
-        $status = $new_strikes >= 3 ? 'blocked' : 'active';
+        $status = $new_strikes >= 3 ? 'inactive' : 'active';
         return [
             'success' => true,
             'message' => "Successfully updated strikes for {$user['first_name']} {$user['last_name']}: $old_strikes → $new_strikes (Status: $status)"

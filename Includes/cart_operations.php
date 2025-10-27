@@ -22,12 +22,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $size = isset($_POST['size']) && !empty($_POST['size']) ? $_POST['size'] : null;
                 $user_id = $_SESSION['user_id'];
 
-                $stmt = $conn->prepare("SELECT is_strike, last_strike_time FROM account WHERE id = ?");
+                $stmt = $conn->prepare("SELECT status, last_strike_time, pre_order_strikes FROM account WHERE id = ?");
                 $stmt->execute([$user_id]);
                 $userRow = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($userRow) {
-                    if ($userRow['is_strike']) {
-                        $response['message'] = 'You are temporarily blocked from ordering due to repeated unclaimed orders. Please contact admin.';
+                    if ($userRow['status'] === 'inactive') {
+                        if (isset($userRow['pre_order_strikes']) && $userRow['pre_order_strikes'] >= 3) {
+                            $response['message'] = 'Your account has been deactivated due to multiple voided orders (3 strikes). Please contact admin to reactivate your account.';
+                        } else {
+                            $response['message'] = 'Your account is currently inactive. Please contact admin.';
+                        }
                         break;
                     }
                     if ($userRow['last_strike_time']) {

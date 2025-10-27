@@ -1359,7 +1359,7 @@ include("../Includes/loader.php");
     function addToCartWithSize() {
         const selectedSize = document.querySelector('.size-option.active');
         if (!selectedSize) {
-            alert('Please select a size');
+            showNotification('Please select a size', 'warning');
             return;
         }
 
@@ -1367,13 +1367,13 @@ include("../Includes/loader.php");
         const quantity = parseInt(quantityInput.value);
 
         if (!quantity || quantity <= 0) {
-            alert('Please enter a valid quantity');
+            showNotification('Please enter a valid quantity', 'warning');
             return;
         }
 
         const availableStock = parseInt(selectedSize.dataset.stock);
         if (quantity > availableStock) {
-            alert(`Sorry, only ${availableStock} items are available in stock for this size.`);
+            showNotification(`Sorry, only ${availableStock} items are available in stock for this size.`, 'error');
             return;
         }
 
@@ -1396,13 +1396,13 @@ include("../Includes/loader.php");
         const quantity = parseInt(quantityInput.value);
 
         if (!quantity || quantity <= 0) {
-            alert('Please enter a valid quantity');
+            showNotification('Please enter a valid quantity', 'warning');
             return;
         }
 
         const availableStock = parseInt(currentProduct.stock);
         if (quantity > availableStock) {
-            alert(`Sorry, only ${availableStock} items are available in stock.`);
+            showNotification(`Sorry, only ${availableStock} items are available in stock.`, 'error');
             return;
         }
 
@@ -1441,13 +1441,13 @@ include("../Includes/loader.php");
                     cartCount.style.display = Number(data.cart_count) > 0 ? 'flex' : 'none';
                 }
 
-                alert('Item added to cart successfully!');
+                showNotification('Item added to cart successfully!', 'success', { autoClose: 2000 });
             } else {
-                alert(data.message || 'Error adding item to cart');
+                showNotification(data.message || 'Error adding item to cart', 'error');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error adding item to cart');
+            showNotification('Error adding item to cart', 'error');
         }
     }
     </script>
