@@ -264,7 +264,7 @@ function page_link($page, $query_string) {
                         <i class="material-icons">swap_horiz</i> Exchange Item
                     </button>
                     <button onclick="showRemoveItemModal()" class="action-btn" style="background-color: #dc3545;">
-                        <i class="material-icons">delete_sweep</i> Remove Item
+                        <i class="material-icons">delete_sweep</i> Remove Stocks
                     </button>
                 </div>
 
@@ -1290,6 +1290,91 @@ function page_link($page, $query_string) {
         border-radius: 4px;
         border: 1px solid #ddd;
         font-size: 14px;
+    }
+
+    /* Select2 styles for removal modal */
+    #removeItemModal .select2-container {
+        width: 100% !important;
+    }
+
+    #removeItemModal .select2-container--default .select2-selection--single {
+        height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+    }
+
+    #removeItemModal .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 36px;
+        padding-left: 12px;
+        color: #495057;
+    }
+
+    #removeItemModal .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+
+    #removeItemModal .select2-dropdown {
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+    }
+
+    #removeItemModal .select2-results__option {
+        padding: 8px 12px;
+    }
+
+    /* Enhanced select2 results display */
+    .select2-result-repository {
+        padding: 4px 0;
+    }
+
+    .select2-result-repository__title {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 2px;
+    }
+
+    .select2-result-repository__description {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 2px;
+    }
+
+    .select2-result-repository__statistics {
+        margin-top: 4px;
+    }
+
+    .stock-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .stock-badge.in-stock {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .stock-badge.low-stock {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .stock-badge.out-of-stock {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    /* Style for disabled/already selected options in Select2 */
+    .select2-disabled-option {
+        opacity: 0.5;
+        pointer-events: none;
+        cursor: not-allowed;
+    }
+
+    .select2-results__option--disabled {
+        opacity: 0.5 !important;
     }
 
     /* Sortable column header styles */

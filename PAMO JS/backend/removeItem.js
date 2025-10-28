@@ -1,8 +1,11 @@
-// Remove Item functionality for PAMO Inventory System
-// Handles the removal/pullout of damaged or deteriorated items
-
 function showRemoveItemModal() {
-  document.getElementById("removeItemModal").style.display = "block";
+  const modal = document.getElementById("removeItemModal");
+  modal.style.display = "block";
+
+  // Initialize Select2 for the first dropdown when modal opens
+  setTimeout(() => {
+    initializeRemovalItemSelect2();
+  }, 100);
 }
 
 function addRemovalItem() {
@@ -17,7 +20,6 @@ function addRemovalItem() {
             <div class="input-group">
                 <label for="itemId">Product:</label>
                 <select name="itemId[]" required onchange="updateRemovalItemDetails(this)">
-                    <option value="">Select Product</option>
                     ${getInventoryItemOptions()}
                 </select>
             </div>
@@ -46,6 +48,11 @@ function addRemovalItem() {
       closeBtn.style.display = index > 0 ? "block" : "none";
     }
   });
+
+  // Initialize Select2 for the newly added dropdown
+  setTimeout(() => {
+    initializeRemovalItemSelect2();
+  }, 100);
 }
 
 function removeRemovalItem(element) {
@@ -53,6 +60,12 @@ function removeRemovalItem(element) {
   const container = document.getElementById("removalItems");
 
   if (container.querySelectorAll(".removal-item").length > 1) {
+    // Destroy Select2 before removing the element
+    const $select = $(item).find('select[name="itemId[]"]');
+    if ($select.length && $select.hasClass("select2-hidden-accessible")) {
+      $select.select2("destroy");
+    }
+
     item.remove();
 
     // Update close button visibility
@@ -67,15 +80,138 @@ function removeRemovalItem(element) {
 }
 
 function getInventoryItemOptions() {
-  // This will be populated by PHP when the modal is opened
-  // For now, return empty string - will be filled by server-side rendering
+  // Get the first select element to copy its options
   const selectElement = document.querySelector(
     '#removalItems select[name="itemId[]"]'
   );
   if (selectElement) {
     return selectElement.innerHTML;
   }
-  return '<option value="">Loading...</option>';
+  return '<option value="">Select Product</option>';
+}
+
+function initializeRemovalItemSelect2() {
+  // Initialize Select2 for all removal item dropdowns that don't have it yet
+  if (typeof $ === "undefined" || typeof $.fn.select2 === "undefined") {
+    console.error("jQuery or Select2 not loaded");
+    return;
+  }
+
+  $('#removalItems select[name="itemId[]"]').each(function () {
+    const $select = $(this);
+
+    // Only initialize if not already initialized
+    if (!$select.hasClass("select2-hidden-accessible")) {
+      $select.select2({
+        placeholder: "Search and select product...",
+        allowClear: true,
+        width: "100%",
+        dropdownParent: $("#removeItemModal"),
+        templateResult: function (data) {
+          if (!data.id || data.loading) {
+            return data.text;
+          }
+
+          // Check if this item is already selected in another dropdown
+          const selectedItems = getSelectedItems();
+          const isAlreadySelected = selectedItems.includes(data.id);
+
+          // Parse the option text to extract details
+          const text = data.text;
+          const stockMatch = text.match(/Stock:\s*(\d+)/i);
+          const sizeMatch = text.match(/Size:\s*([^-]+)/i);
+
+          let displayHtml = '<div class="select2-result-repository clearfix">';
+          displayHtml += '<div class="select2-result-repository__meta">';
+          displayHtml +=
+            '<div class="select2-result-repository__title">' +
+            text.split(" (")[0] +
+            "</div>";
+
+          if (sizeMatch) {
+            displayHtml +=
+              '<div class="select2-result-repository__description">Size: ' +
+              sizeMatch[1].trim() +
+              "</div>";
+          }
+
+          if (stockMatch) {
+            const stock = parseInt(stockMatch[1]);
+            const stockClass =
+              stock === 0
+                ? "out-of-stock"
+                : stock < 10
+                ? "low-stock"
+                : "in-stock";
+            displayHtml +=
+              '<div class="select2-result-repository__statistics">';
+            displayHtml +=
+              '<span class="stock-badge ' +
+              stockClass +
+              '">Stock: ' +
+              stock +
+              "</span>";
+            if (isAlreadySelected) {
+              displayHtml +=
+                ' <span class="stock-badge" style="background-color: #ffc107; color: #000;">Already Selected</span>';
+            }
+            displayHtml += "</div>";
+          }
+
+          displayHtml += "</div></div>";
+
+          // Disable if already selected
+          if (isAlreadySelected) {
+            return $(
+              '<span class="select2-disabled-option">' + displayHtml + "</span>"
+            );
+          }
+
+          return $(displayHtml);
+        },
+        templateSelection: function (data) {
+          return data.text || data.id;
+        },
+      });
+
+      // Re-attach the change event after Select2 initialization
+      $select.on("change", function () {
+        updateRemovalItemDetails(this);
+        // Refresh all other dropdowns to update disabled states
+        refreshAllRemovalDropdowns();
+      });
+    }
+  });
+}
+
+// Helper function to get all currently selected item codes
+function getSelectedItems() {
+  const selectedItems = [];
+  $('#removalItems select[name="itemId[]"]').each(function () {
+    const value = $(this).val();
+    if (value) {
+      selectedItems.push(value);
+    }
+  });
+  return selectedItems;
+}
+
+// Helper function to refresh all removal dropdowns (to update disabled states)
+function refreshAllRemovalDropdowns() {
+  $('#removalItems select[name="itemId[]"]').each(function () {
+    const $select = $(this);
+    if ($select.hasClass("select2-hidden-accessible")) {
+      // Store current value
+      const currentValue = $select.val();
+
+      // Close dropdown if open
+      $select.select2("close");
+
+      // Trigger a change to update the display without actually changing the value
+      // This forces Select2 to re-render the options
+      $select.trigger("change.select2");
+    }
+  });
 }
 
 function updateRemovalItemDetails(selectElement) {
@@ -212,6 +348,12 @@ function submitRemoveItem(event) {
     return;
   }
 
+  // Show loading overlay
+  const loader = document.getElementById("pamo-loader");
+  if (loader) {
+    loader.classList.remove("hidden");
+  }
+
   // Show loading state - button is outside form, use form attribute selector
   const submitBtn = document.querySelector(
     'button[form="removeItemForm"][type="submit"]'
@@ -231,6 +373,11 @@ function submitRemoveItem(event) {
   })
     .then((response) => response.json())
     .then((data) => {
+      // Hide loader
+      if (loader) {
+        loader.classList.add("hidden");
+      }
+
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = originalBtnText;
@@ -252,8 +399,16 @@ function submitRemoveItem(event) {
       }
     })
     .catch((error) => {
-      submitBtn.disabled = false;
-      submitBtn.textContent = originalBtnText;
+      // Hide loader on error
+      if (loader) {
+        loader.classList.add("hidden");
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+      }
+
       console.error("Error:", error);
       alert(
         "An error occurred while processing the removal. Please try again."
@@ -280,15 +435,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const items = container.querySelectorAll(".removal-item");
 
-      // Remove all except first
+      // Destroy Select2 and remove all except first
       for (let i = 1; i < items.length; i++) {
+        const $select = $(items[i]).find('select[name="itemId[]"]');
+        if ($select.length && $select.hasClass("select2-hidden-accessible")) {
+          $select.select2("destroy");
+        }
         items[i].remove();
       }
 
       // Reset first item
       if (items.length > 0) {
         const firstItem = items[0];
-        const select = firstItem.querySelector('select[name="itemId[]"]');
+        const $select = $(firstItem).find('select[name="itemId[]"]');
         const stockInput = firstItem.querySelector(".current-stock-display");
         const qtyInput = firstItem.querySelector(
           'input[name="quantityToRemove[]"]'
@@ -297,7 +456,13 @@ document.addEventListener("DOMContentLoaded", function () {
           'textarea[name="removalReason[]"]'
         );
 
-        if (select) select.selectedIndex = 0;
+        // Reset Select2 value
+        if ($select.length && $select.hasClass("select2-hidden-accessible")) {
+          $select.val("").trigger("change");
+        } else if ($select.length) {
+          $select[0].selectedIndex = 0;
+        }
+
         if (stockInput) stockInput.value = "0";
         if (qtyInput) {
           qtyInput.value = "";
