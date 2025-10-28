@@ -69,7 +69,7 @@
                                     <span class="item-name"><?php echo htmlspecialchars($clean_name); ?></span>
                                     <span class="item-size"><?php echo htmlspecialchars($item['size'] ?? 'N/A'); ?></span>
                                     <span class="item-quantity"><?php echo $item['quantity']; ?></span>
-                                    <span class="item-price">₱<?php echo number_format($item['price'] * $item['quantity'], 2); ?></span>
+                                    <span class="item-price">₱<?php echo number_format($item['price'], 2); ?></span>
                                 </div>
                             <?php endforeach; ?>
                             <div class="order-total">

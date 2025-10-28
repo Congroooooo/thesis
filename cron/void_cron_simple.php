@@ -114,7 +114,7 @@ try {
             // 4️⃣ Create notification
             $notif = "Your order #{$orderNumber} has been voided because payment was not made within 2 hours.{$strikeMessage}";
             createNotification($conn, $userId, $notif, $orderNumber, 'voided');
-
+ 
             // 5️⃣ Log item-level activity (optimized)
             $items = json_decode($order['items'], true);
             if (is_array($items)) {

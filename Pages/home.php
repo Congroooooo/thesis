@@ -19,6 +19,27 @@ include("../Includes/loader.php");
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <title>Homepage</title>
     <style>
+        /* Category Slideshow Styles */
+        .category-image-wrapper {
+            position: relative;
+        }
+        
+        .category-slideshow-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+        }
+        
+        .category-slideshow-img.active {
+            opacity: 1;
+            position: relative;
+        }
+        
         /* Enhanced styles for new arrivals display */
         .display-carousel-card {
             position: relative;
@@ -200,7 +221,7 @@ include("../Includes/loader.php");
             <div class="categories-carousel-container" id="categoriesCarousel">
                 <div class="categories-carousel-track" id="categoriesTrack">
                     <?php
-                    // Fetch categories from database with random product images
+                    // Fetch categories from database with multiple product images for slideshow
                     $categoriesQuery = "SELECT id, name, has_subcategories FROM categories ORDER BY name ASC";
                     $categoriesResult = $conn->query($categoriesQuery);
                     
@@ -211,7 +232,7 @@ include("../Includes/loader.php");
                         $categoryId = $category['id'];
                         $categoryName = $category['name'];
                         
-                        // Get a random product image from this category
+                        // Get multiple product images from this category for slideshow (limit to 10 images)
                         $imageQuery = "SELECT image_path, item_name 
                                       FROM inventory 
                                       WHERE category_id = ? 
@@ -219,14 +240,14 @@ include("../Includes/loader.php");
                                       AND image_path != '' 
                                       AND status = 'in stock'
                                       ORDER BY RAND() 
-                                      LIMIT 1";
+                                      LIMIT 10";
                         
                         $imageStmt = $conn->prepare($imageQuery);
                         $imageStmt->execute([$categoryId]);
-                        $imageResult = $imageStmt->fetch(PDO::FETCH_ASSOC);
+                        $imageResults = $imageStmt->fetchAll(PDO::FETCH_ASSOC);
                         
-                        // Fallback to category name search if no image with category_id
-                        if (!$imageResult) {
+                        // Fallback to category name search if no images with category_id
+                        if (empty($imageResults)) {
                             $fallbackQuery = "SELECT image_path, item_name 
                                             FROM inventory 
                                             WHERE category = ? 
@@ -234,60 +255,61 @@ include("../Includes/loader.php");
                                             AND image_path != '' 
                                             AND status = 'in stock'
                                             ORDER BY RAND() 
-                                            LIMIT 1";
+                                            LIMIT 10";
                             
                             $fallbackStmt = $conn->prepare($fallbackQuery);
                             $fallbackStmt->execute([$categoryName]);
-                            $imageResult = $fallbackStmt->fetch(PDO::FETCH_ASSOC);
+                            $imageResults = $fallbackStmt->fetchAll(PDO::FETCH_ASSOC);
                         }
                         
+                        // Process images and build array
+                        $imagePaths = [];
+                        
                         // Improved default fallback
-                        $imagePath = '';
+                        $defaultPath = '';
                         if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
-                            $imagePath = 'uploads/itemlist/default.png';
+                            $defaultPath = 'uploads/itemlist/default.png';
                         } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
-                            $imagePath = 'uploads/itemlist/default.jpg';
+                            $defaultPath = 'uploads/itemlist/default.jpg';
                         } else {
-                            $imagePath = 'data:image/svg+xml;base64,' . base64_encode(
+                            $defaultPath = 'data:image/svg+xml;base64,' . base64_encode(
                                 '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
                                     <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
                                     <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
                                 </svg>'
                             );
                         }
-                        if ($imageResult) {
-                            $rawPath = $imageResult['image_path'];
-                            
-                            // Clean up image path
-                            if (strpos($rawPath, 'uploads/') === 0) {
-                                $imagePath = $rawPath;
-                            } else if (strpos($rawPath, 'uploads/') === false) {
-                                $imagePath = 'uploads/itemlist/' . $rawPath;
-                            } else {
-                                $imagePath = $rawPath;
-                            }
-                            
-                            // Verify file exists
-                            if (!file_exists('../' . $imagePath)) {
-                                $altPath = 'uploads/itemlist/' . basename($rawPath);
-                                if (file_exists('../' . $altPath)) {
-                                    $imagePath = $altPath;
+                        
+                        if (!empty($imageResults)) {
+                            foreach ($imageResults as $imageResult) {
+                                $rawPath = $imageResult['image_path'];
+                                
+                                // Clean up image path
+                                if (strpos($rawPath, 'uploads/') === 0) {
+                                    $imagePath = $rawPath;
+                                } else if (strpos($rawPath, 'uploads/') === false) {
+                                    $imagePath = 'uploads/itemlist/' . $rawPath;
                                 } else {
-                                    // Use proper fallback logic
-                                    if (file_exists(__DIR__ . '/../uploads/itemlist/default.png')) {
-                                        $imagePath = 'uploads/itemlist/default.png';
-                                    } elseif (file_exists(__DIR__ . '/../uploads/itemlist/default.jpg')) {
-                                        $imagePath = 'uploads/itemlist/default.jpg';
+                                    $imagePath = $rawPath;
+                                }
+                                
+                                // Verify file exists
+                                if (!file_exists('../' . $imagePath)) {
+                                    $altPath = 'uploads/itemlist/' . basename($rawPath);
+                                    if (file_exists('../' . $altPath)) {
+                                        $imagePath = $altPath;
                                     } else {
-                                        $imagePath = 'data:image/svg+xml;base64,' . base64_encode(
-                                            '<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
-                                                <rect width="300" height="300" fill="#f0f0f0" stroke="#ddd" stroke-width="2"/>
-                                                <text x="150" y="150" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="16" fill="#666">No Image</text>
-                                            </svg>'
-                                        );
+                                        $imagePath = $defaultPath;
                                     }
                                 }
+                                
+                                $imagePaths[] = $imagePath;
                             }
+                        }
+                        
+                        // If no valid images found, use default
+                        if (empty($imagePaths)) {
+                            $imagePaths[] = $defaultPath;
                         }
                         
                         $title = htmlspecialchars($categoryName);
@@ -296,9 +318,16 @@ include("../Includes/loader.php");
                         // Normalize category name to match ProItemList.php format (lowercase, hyphens instead of spaces)
                         $normalizedCategory = strtolower(str_replace(' ', '-', $categoryName));
                         
-                        echo '<div class="category-card ' . $isActive . '" data-aos="fade-up" data-aos-delay="' . ($index * 100) . '">';
+                        // Convert image paths array to JSON for JavaScript
+                        $imagePathsJson = htmlspecialchars(json_encode($imagePaths), ENT_QUOTES, 'UTF-8');
+                        
+                        echo '<div class="category-card ' . $isActive . '" data-aos="fade-up" data-aos-delay="' . ($index * 100) . '" data-images=\'' . $imagePathsJson . '\'>';
                         echo '  <div class="category-image-wrapper">';
-                        echo '    <img src="../' . htmlspecialchars($imagePath) . '" alt="' . $title . '" draggable="false" />';
+                        // Output all images, first one visible, rest hidden
+                        foreach ($imagePaths as $imgIndex => $imgPath) {
+                            $imgClass = $imgIndex === 0 ? 'category-slideshow-img active' : 'category-slideshow-img';
+                            echo '    <img src="../' . htmlspecialchars($imgPath) . '" alt="' . $title . '" class="' . $imgClass . '" draggable="false" />';
+                        }
                         echo '    <div class="category-overlay">';
                         echo '      <div class="category-content">';
                         echo '        <h3>' . $title . '</h3>';
@@ -746,6 +775,35 @@ include("../Includes/loader.php");
 
         // Initialize
         updateCarousel();
+
+        // Category Image Slideshow - Auto-rotate images every second
+        function initCategorySlideshow() {
+            const categoryCards = document.querySelectorAll('.category-card');
+            
+            categoryCards.forEach(card => {
+                const images = card.querySelectorAll('.category-slideshow-img');
+                
+                // Only initialize slideshow if there are multiple images
+                if (images.length > 1) {
+                    let currentImageIndex = 0;
+                    
+                    // Rotate images every 1 second
+                    setInterval(() => {
+                        // Remove active class from current image
+                        images[currentImageIndex].classList.remove('active');
+                        
+                        // Move to next image (loop back to 0 when reaching the end)
+                        currentImageIndex = (currentImageIndex + 1) % images.length;
+                        
+                        // Add active class to new current image
+                        images[currentImageIndex].classList.add('active');
+                    }, 1000); // 1000ms = 1 second
+                }
+            });
+        }
+        
+        // Initialize category slideshow after page loads
+        initCategorySlideshow();
     </script>
 </body>
 

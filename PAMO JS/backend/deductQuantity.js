@@ -305,8 +305,8 @@ function showSalesReceipt(formData) {
     // Render each item as its own row for proper alignment
     const dataRows = formData.itemNames
       .map((name, i) => {
-        // Use the item name as-is, only add size if available and not already included
-        let itemDescription = name;
+        // Remove item code in parentheses from the name
+        let itemDescription = name.replace(/\s*\([^)]*\)\s*/g, "").trim();
         const size = formData.sizes[i];
         if (size && !itemDescription.includes(size)) {
           itemDescription += " - " + size;
@@ -563,39 +563,6 @@ function showSalesReceipt(formData) {
         font-size: 1em;
         margin-top: 2px;
       }
-      @media print {
-        @page {
-          size: A4;
-          margin: 0;
-        }
-        html, body {
-          width: 210mm;
-          height: 297mm;
-          margin: 0 !important;
-          padding: 0 !important;
-          background: #fff !important;
-          overflow: visible !important;
-        }
-        .receipt-a4 {
-          width: 210mm !important;
-          height: 297mm !important;
-          margin: 0 !important;
-          padding: 0 !important;
-        }
-        body * { visibility: hidden !important; }
-        #salesReceiptModal, #salesReceiptModal * { visibility: visible !important; }
-        #salesReceiptModal {
-          position: fixed !important;
-          left: 0; top: 0; width: 210mm; height: 297mm;
-          background: #fff !important;
-          z-index: 9999;
-          overflow: visible !important;
-          box-shadow: none !important;
-        }
-        .receipt-half { height: 148.5mm !important; overflow: hidden !important; }
-        .receipt-divider { display: none; }
-        .modal-header, .modal-footer, .save-btn, .cancel-btn, .close { display: none !important; }
-      }
     </style>
   `;
 
@@ -604,10 +571,202 @@ function showSalesReceipt(formData) {
 }
 
 function printSalesReceipt() {
-  window.print();
+  const receiptHtml = document.getElementById("salesReceiptBody").innerHTML;
+  const printWindow = window.open("", "_blank", "width=900,height=1200");
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Print Receipt</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          @page { size: A4 portrait; margin: 0; }
+          html, body { 
+            width: 210mm; 
+            height: 297mm; 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            background: #fff !important; 
+            font-family: Arial, sans-serif;
+          }
+          .receipt-a4 {
+            width: 210mm;
+            height: 297mm;
+            padding: 0;
+            margin: 0;
+            background: #fff;
+            font-family: Arial, sans-serif;
+            position: relative;
+          }
+          .receipt-half {
+            height: 148.5mm;
+            box-sizing: border-box;
+            padding: 10px 10px 6px 10px;
+            border-bottom: 2.5px dashed #333;
+            page-break-inside: avoid;
+            background: #fff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+          }
+          .receipt-divider {
+            height: 2px;
+            background: transparent;
+          }
+          .receipt-header-flex {
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 2px;
+            margin-top: 2px;
+            min-height: 60px;
+          }
+          .receipt-header-logo img {
+            height: 60px;
+            width: auto;
+            display: block;
+          }
+          .receipt-header-logo {
+            flex: 0 0 80px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+          }
+          .receipt-header-center {
+            flex: 1 1 auto;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+          }
+          .sti-lucena {
+            font-size: 1.35em;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 0px;
+          }
+          .sales-issuance-slip {
+            font-size: 1.1em;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            margin-top: 0px;
+          }
+          .receipt-header-copy {
+            flex: 0 0 100px;
+            text-align: right;
+            font-size: 1em;
+            font-weight: bold;
+            margin-top: 2px;
+            margin-right: 2px;
+          }
+          .receipt-header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 1em;
+          }
+          .receipt-header-table td {
+            padding: 2px 6px 2px 0;
+            vertical-align: bottom;
+          }
+          .receipt-main-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 1em;
+            margin-bottom: 0px;
+            table-layout: fixed;
+          }
+          .receipt-main-table th, .receipt-main-table td {
+            border: 1px solid #222;
+            padding: 6px 8px;
+            vertical-align: top;
+            word-break: break-word;
+          }
+          .receipt-main-table tbody > tr, .receipt-main-table tbody > tr > td {
+            margin: 0;
+            padding-top: 2px;
+            padding-bottom: 2px;
+          }
+          .receipt-main-table th {
+            background: #f2f2f2;
+            text-align: center;
+          }
+          .receipt-main-table td {
+            background: #fff;
+          }
+          .signature-col {
+            background: #fff;
+            vertical-align: top;
+            text-align: left;
+            min-width: 180px;
+            max-width: 220px;
+            padding: 0 !important;
+          }
+          .signature-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+          }
+          .signature-table .sig-label {
+            font-weight: bold;
+            font-size: 0.98em;
+            border: 1px solid #222;
+            border-bottom: none;
+            padding: 4px 6px 2px 6px;
+            background: #f8f8f8;
+          }
+          .signature-table .sig-box {
+            border: 1px solid #222;
+            border-top: none;
+            height: 28px;
+            padding: 2px 6px;
+            font-size: 0.97em;
+            background: #fff;
+          }
+          .signature-table .sig-name {
+            font-size: 1em;
+            margin-top: 2px;
+          }
+          @media print {
+            @page { size: A4; margin: 0; }
+            html, body { 
+              width: 210mm; 
+              height: 297mm; 
+              margin: 0 !important; 
+              padding: 0 !important; 
+              background: #fff !important; 
+            }
+            .receipt-a4 {
+              width: 210mm !important;
+              height: 297mm !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            .receipt-half {
+              height: 148.5mm !important;
+              overflow: hidden !important;
+            }
+            .receipt-divider {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body onload="window.print(); setTimeout(() => window.close(), 500);">
+        ${receiptHtml}
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
   setTimeout(function () {
-    if (document.getElementById("salesReceiptModal")) {
-      document.getElementById("salesReceiptModal").style.display = "none";
+    var modal = document.getElementById("salesReceiptModal");
+    if (modal) {
+      modal.style.display = "none";
+      document.getElementById("salesReceiptBody").innerHTML = "";
     }
   }, 500);
 }

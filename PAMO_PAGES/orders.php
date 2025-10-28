@@ -148,7 +148,7 @@ include 'includes/pamo_loader.php';
                                                     <span class="item-name"><?php echo htmlspecialchars($clean_name); ?></span>
                                                     <span class="item-size"><?php echo htmlspecialchars($item['size'] ?? 'N/A'); ?></span>
                                                     <span class="item-quantity"><?php echo $item['quantity']; ?></span>
-                                                    <span class="item-price">₱<?php echo number_format($item['price'] * $item['quantity'], 2); ?></span>
+                                                    <span class="item-price">₱<?php echo number_format($item['price'], 2); ?></span>
                                                 </div>
                                             <?php endforeach; ?>
                                         </div>
@@ -443,7 +443,7 @@ include 'includes/pamo_loader.php';
                         <span class="item-name">${cleanName}</span>
                         <span class="item-size">${item.size || 'N/A'}</span>
                         <span class="item-quantity">${item.quantity || 0}</span>
-                        <span class="item-price">₱${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</span>
+                        <span class="item-price">₱${(item.price || 0).toFixed(2)}</span>
                     </div>
                 `;
             });

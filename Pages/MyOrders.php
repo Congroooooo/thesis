@@ -220,7 +220,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
                                         </div>
                                         <div class="item-size"><?php echo htmlspecialchars($item['size'] ?? 'N/A'); ?></div>
                                         <div class="item-quantity"><?php echo $item['quantity']; ?></div>
-                                        <div class="item-price">₱<?php echo number_format($item['price'] * $item['quantity'], 2); ?></div>
+                                        <div class="item-price">₱<?php echo number_format($item['price'], 2); ?></div>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
