@@ -60,12 +60,17 @@
 /* Content Sections */
 .content-section {
   background: white;
-  padding: 25px 15px;
+  padding: 30px 20px;
   margin-bottom: 30px;
   width: 100%;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   box-sizing: border-box;
+  transition: box-shadow 0.3s ease;
+}
+
+.content-section:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .section-header {
@@ -87,8 +92,14 @@
 
 .section-content {
   color: var(--text-color);
-  line-height: 1.5;
-  font-size: 1rem;
+  line-height: 1.8;
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+
+.section-content p {
+  margin-bottom: 1rem;
+  line-height: 1.8;
 }
 
 /* Benefits Section */
@@ -101,11 +112,17 @@
 
 .benefit-card {
   background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
+  padding: 25px;
+  border-radius: 10px;
   text-align: center;
-  transition: transform 0.3s ease;
-  border: 1px solid rgba(0, 114, 188, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid rgba(0, 114, 188, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.benefit-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 114, 188, 0.15);
 }
 
 .benefit-card i {
@@ -117,7 +134,14 @@
 .benefit-card h3 {
   color: var(--primary-color);
   margin-bottom: 10px;
-  font-size: 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.benefit-card p {
+  line-height: 1.7;
+  font-size: 1rem;
+  font-weight: 400;
 }
 
 /* Mission Section */
@@ -130,19 +154,341 @@
 
 .mission-card {
   background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
+  padding: 25px;
+  border-radius: 10px;
   text-align: center;
-  border: 1px solid rgba(0, 114, 188, 0.1);
+  border: 1px solid rgba(0, 114, 188, 0.15);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.mission-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 114, 188, 0.15);
 }
 
 .mission-card h3 {
   color: var(--primary-color);
   margin-bottom: 15px;
-  font-size: 1.3rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.mission-card p {
+  line-height: 1.7;
+  font-size: 1rem;
+  font-weight: 400;
 }
 
 /* Guide Section */
+.guide-section {
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  padding: 40px 25px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.guide-section .section-header {
+  text-align: center;
+  display: block;
+  margin-bottom: 35px;
+}
+
+.guide-section .section-header i {
+  display: block;
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  color: var(--primary-color);
+}
+
+.guide-section .section-header h2 {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.section-subtitle {
+  color: #666;
+  font-size: 1.05rem;
+  font-weight: 400;
+  margin-top: 8px;
+}
+
+/* Tab Navigation */
+.role-tabs {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  background: white;
+  border: 2px solid rgba(0, 114, 188, 0.2);
+  border-radius: 50px;
+  color: var(--primary-color);
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.tab-btn i {
+  font-size: 1.2rem;
+}
+
+.tab-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 114, 188, 0.2);
+  border-color: var(--primary-color);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--primary-color), #005a94);
+  color: white;
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 16px rgba(0, 114, 188, 0.3);
+}
+
+/* Workflow Container */
+.workflow-container {
+  display: none;
+  opacity: 0;
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.workflow-container.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Timeline Design */
+.workflow-timeline {
+  position: relative;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px 0;
+}
+
+.timeline-step {
+  display: grid;
+  grid-template-columns: 60px 80px 1fr;
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 30px;
+  position: relative;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.timeline-step:hover {
+  transform: translateX(8px);
+  box-shadow: 0 6px 20px rgba(0, 114, 188, 0.15);
+}
+
+.timeline-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 90px;
+  top: 100%;
+  width: 3px;
+  height: 30px;
+  background: linear-gradient(180deg, var(--primary-color), transparent);
+}
+
+/* Step Number */
+.step-number {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffd700, #ffa500);
+  color: #333;
+  font-size: 1.4rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 12px rgba(255, 215, 0, 0.4);
+  flex-shrink: 0;
+}
+
+/* Step Icon */
+.step-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--primary-color), #005a94);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  box-shadow: 0 4px 15px rgba(0, 114, 188, 0.3);
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.timeline-step:hover .step-icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+/* Step Content */
+.step-content h3 {
+  color: var(--primary-color);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+}
+
+.step-content p {
+  color: #555;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Extra Step (Pre-Order) */
+.timeline-step.timeline-extra {
+  grid-template-columns: 80px 1fr;
+  background: linear-gradient(135deg, #fff9e6, #ffffff);
+  border: 2px dashed rgba(255, 215, 0, 0.4);
+}
+
+.timeline-step.timeline-extra::after {
+  display: none;
+}
+
+.timeline-step.timeline-extra .step-icon {
+  background: linear-gradient(135deg, #ffd700, #ffa500);
+  color: #333;
+}
+
+/* Mobile Responsive */
+@media (max-width: 767px) {
+  .timeline-step {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    padding: 20px 15px;
+  }
+
+  .timeline-step::after {
+    display: none;
+  }
+
+  .step-number {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 35px;
+    height: 35px;
+    font-size: 1rem;
+  }
+
+  .step-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+    margin: 0 auto;
+  }
+
+  .step-content {
+    text-align: center;
+  }
+
+  .step-content h3 {
+    font-size: 1.15rem;
+  }
+
+  .step-content p {
+    font-size: 0.95rem;
+  }
+
+  .timeline-step.timeline-extra {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-step:hover {
+    transform: translateX(0) translateY(-4px);
+  }
+
+  .tab-btn {
+    padding: 12px 20px;
+    font-size: 0.95rem;
+  }
+
+  .guide-section .section-header i {
+    font-size: 2rem;
+  }
+
+  .guide-section .section-header h2 {
+    font-size: 1.5rem;
+  }
+}
+
+/* Tablet */
+@media (min-width: 768px) and (max-width: 991px) {
+  .timeline-step {
+    grid-template-columns: 50px 70px 1fr;
+    gap: 18px;
+  }
+
+  .step-number {
+    width: 45px;
+    height: 45px;
+    font-size: 1.2rem;
+  }
+
+  .step-icon {
+    width: 65px;
+    height: 65px;
+    font-size: 1.6rem;
+  }
+}
+
+/* Desktop Enhancements */
+@media (min-width: 992px) {
+  .guide-section {
+    padding: 50px 40px;
+  }
+
+  .workflow-timeline {
+    padding: 30px 0;
+  }
+
+  .timeline-step {
+    padding: 25px;
+  }
+
+  .step-content h3 {
+    font-size: 1.35rem;
+  }
+
+  .step-content p {
+    font-size: 1.05rem;
+  }
+}
+
+/* Legacy Grid Styles - Keep for backwards compatibility */
 .guide-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -152,9 +498,16 @@
 
 .guide-card {
   background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 114, 188, 0.1);
+  padding: 25px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 114, 188, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.guide-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 114, 188, 0.15);
+  transform: translateY(-2px);
 }
 
 .guide-header {
@@ -170,8 +523,9 @@
 }
 
 .guide-header h3 {
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   margin: 0;
+  font-weight: 600;
 }
 
 .guide-card ul {
@@ -182,16 +536,24 @@
 .guide-card li {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 15px;
+  gap: 12px;
+  margin-bottom: 18px;
   color: var(--text-color);
-  line-height: 1.4;
-  font-size: 0.95rem;
+  line-height: 1.7;
+  font-size: 1rem;
+  font-weight: 400;
+  padding: 8px 0;
+}
+
+.guide-card li strong {
+  font-weight: 600;
 }
 
 .guide-card li i {
   color: var(--primary-color);
   margin-top: 3px;
+  font-size: 1.1rem;
+  flex-shrink: 0;
 }
 
 /* Small - ≥576px */
@@ -249,8 +611,7 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .mission-grid,
-  .guide-grid {
+  .mission-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
