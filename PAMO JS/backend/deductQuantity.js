@@ -305,10 +305,14 @@ function showSalesReceipt(formData) {
     // Render each item as its own row for proper alignment
     const dataRows = formData.itemNames
       .map((name, i) => {
-        let cleanName = name.replace(/\s*\([^)]*\)/, ""); // Remove (item_code)
-        cleanName = cleanName.replace(/\s*-\s*[^-]*$/, ""); // Remove last dash and after
+        // Use the item name as-is, only add size if available and not already included
+        let itemDescription = name;
+        const size = formData.sizes[i];
+        if (size && !itemDescription.includes(size)) {
+          itemDescription += " - " + size;
+        }
         return `<tr>
-        <td>${cleanName} ${formData.sizes[i]}</td>
+        <td>${itemDescription}</td>
         <td>${formData.itemCategories[i] || ""}</td>
         <td style="text-align:center;">${formData.quantities[i]}</td>
         <td style="text-align:right;">${parseFloat(formData.prices[i]).toFixed(
