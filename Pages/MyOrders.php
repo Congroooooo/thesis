@@ -9,7 +9,8 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Get filter parameter
+// Get tab and filter parameters
+$current_tab = isset($_GET['tab']) ? $_GET['tab'] : 'orders';
 $status_filter = isset($_GET['status']) ? $_GET['status'] : 'all';
 
 // Fetch user's orders with filter
@@ -27,6 +28,22 @@ if ($status_filter !== 'all') {
 }
 $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Fetch user's pre-orders with filter
+$preorder_query = "SELECT * FROM preorder_orders WHERE user_id = ?";
+if ($status_filter !== 'all') {
+    $preorder_query .= " AND status = ?";
+}
+$preorder_query .= " ORDER BY created_at DESC";
+
+$preorder_stmt = $conn->prepare($preorder_query);
+if ($status_filter !== 'all') {
+    $preorder_stmt->execute([$_SESSION['user_id'], $status_filter]);
+} else {
+    $preorder_stmt->execute([$_SESSION['user_id']]);
+}
+$preorders = $preorder_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Handle order cancellation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
     $cancel_order_id = $_POST['cancel_order_id'];
     // Only allow cancel if the order is still pending and belongs to this user
@@ -72,7 +89,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
         }
     }
     // Optionally, add a notification or message here
-    header("Location: MyOrders.php?status=" . urlencode($status_filter)); // Refresh page
+    header("Location: MyOrders.php?tab=" . urlencode($current_tab) . "&status=" . urlencode($status_filter)); // Refresh page
+    exit();
+}
+
+// Handle pre-order cancellation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])) {
+    $cancel_preorder_id = $_POST['cancel_preorder_id'];
+    
+    // Only allow cancel if the pre-order is still pending and belongs to this user
+    $stmt = $conn->prepare("UPDATE preorder_orders SET status = 'cancelled' WHERE id = ? AND user_id = ? AND status = 'pending'");
+    $stmt->execute([$cancel_preorder_id, $_SESSION['user_id']]);
+    
+    // Log activity
+    $preorder_stmt = $conn->prepare("SELECT * FROM preorder_orders WHERE id = ? AND user_id = ?");
+    $preorder_stmt->execute([$cancel_preorder_id, $_SESSION['user_id']]);
+    $preorder = $preorder_stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($preorder) {
+        $preorder_items = json_decode($preorder['items'], true);
+        if ($preorder_items && is_array($preorder_items)) {
+            foreach ($preorder_items as $item) {
+                $activity_description = "Cancelled Pre-Order - PRE-ORDER #: {$preorder['preorder_number']}, Item: {$item['item_name']}, Quantity: {$item['quantity']}";
+                $activityStmt = $conn->prepare(
+                    "INSERT INTO activities (
+                        action_type,
+                        description,
+                        item_code,
+                        user_id,
+                        timestamp
+                    ) VALUES (?, ?, ?, ?, NOW())"
+                );
+                $activityStmt->execute([
+                    'Cancelled',
+                    $activity_description,
+                    null,
+                    $_SESSION['user_id']
+                ]);
+            }
+        }
+    }
+    
+    header("Location: MyOrders.php?tab=preorders&status=" . urlencode($status_filter));
     exit();
 }
 ?>
@@ -82,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Orders</title>
+    <title>My Orders <?php echo $current_tab === 'preorders' ? '& Pre-Orders' : ''; ?></title>
     <link rel="stylesheet" href="../CSS/MyOrders.css">
     <link rel="stylesheet" href="../CSS/global.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -90,6 +148,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Smooch+Sans:wght@100..900&display=swap" rel="stylesheet">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Tab Navigation Styles */
+        .tab-navigation {
+            display: flex;
+            gap: 0;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+        }
+        .tab-button {
+            flex: 1;
+            background: #f5f5f5;
+            border: none;
+            padding: 15px 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .tab-button:hover {
+            background-color: #e8e8e8;
+            color: #333;
+        }
+        .tab-button.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+            background-color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
 </head>
 <body>
     <?php include("../Includes/Header.php"); ?>
@@ -97,13 +198,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
     <div class="orders-page">
         <div class="orders-header">
             <div class="header-content">
-                <h1>My Orders</h1>
+                <h1>My Orders & Pre-Orders</h1>
+                
+                <!-- Tab Navigation -->
+                <div class="tab-navigation">
+                    <button class="tab-button <?php echo $current_tab === 'orders' ? 'active' : ''; ?>" onclick="switchTab('orders')">
+                        <i class="fas fa-shopping-cart"></i>
+                        Orders
+                    </button>
+                    <button class="tab-button <?php echo $current_tab === 'preorders' ? 'active' : ''; ?>" onclick="switchTab('preorders')">
+                        <i class="fas fa-calendar-check"></i>
+                        Pre-Orders
+                    </button>
+                </div>
+                
                 <div class="filter-section">
                     <span>Filter by Status:</span>
                     <select id="statusFilter" onchange="filterOrders(this.value)">
-                        <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All Orders</option>
+                        <option value="all" <?php echo $status_filter === 'all' ? 'selected' : ''; ?>>All</option>
                         <option value="pending" <?php echo $status_filter === 'pending' ? 'selected' : ''; ?>>Pending</option>
                         <option value="approved" <?php echo $status_filter === 'approved' ? 'selected' : ''; ?>>Approved</option>
+                        <option value="delivered" <?php echo $status_filter === 'delivered' ? 'selected' : ''; ?>>Delivered/Ready</option>
                         <option value="rejected" <?php echo $status_filter === 'rejected' ? 'selected' : ''; ?>>Rejected</option>
                         <option value="completed" <?php echo $status_filter === 'completed' ? 'selected' : ''; ?>>Completed</option>
                         <option value="voided" <?php echo $status_filter === 'voided' ? 'selected' : ''; ?>>Voided</option>
@@ -113,7 +228,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
             </div>
         </div>
 
-        <div class="orders-content">
+        <!-- Orders Tab Content -->
+        <div id="tab-orders" class="tab-content orders-content <?php echo $current_tab === 'orders' ? 'active' : ''; ?>">
             <?php if (!empty($orders)): ?>
                 <div class="orders-grid">
                     <?php foreach ($orders as $order): 
@@ -249,11 +365,138 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
                 </div>
             <?php endif; ?>
         </div>
+
+        <!-- Pre-Orders Tab Content -->
+        <div id="tab-preorders" class="tab-content orders-content <?php echo $current_tab === 'preorders' ? 'active' : ''; ?>">
+            <?php if (!empty($preorders)): ?>
+                <div class="orders-grid">
+                    <?php foreach ($preorders as $preorder): 
+                        $items = json_decode($preorder['items'], true);
+                        $total_amount = $preorder['total_amount'];
+                    ?>
+                        <div class="order-card" data-preorder-id="<?php echo $preorder['id']; ?>">
+                            <div class="order-header">
+                                <div class="order-info">
+                                    <h3>PRE-ORDER #<?php echo htmlspecialchars($preorder['preorder_number']); ?></h3>
+                                    <div class="order-date">
+                                        <i class="fas fa-calendar"></i>
+                                        <?php echo date('F d, Y h:i A', strtotime($preorder['created_at'])); ?>
+                                    </div>
+                                </div>
+                                <div class="order-actions">
+                                    <span class="status-badge <?php echo $preorder['status']; ?>">
+                                        <?php 
+                                        $statusDisplay = strtoupper($preorder['status']);
+                                        if ($preorder['status'] === 'delivered') {
+                                            $statusDisplay = 'READY FOR PICKUP';
+                                        }
+                                        echo $statusDisplay; 
+                                        ?>
+                                    </span>
+                                    <?php if ($preorder['status'] === 'pending'): ?>
+                                        <form method="post" onsubmit="return confirm('Are you sure you want to cancel this pre-order?');" style="display:inline; margin-left: 10px;">
+                                            <input type="hidden" name="cancel_preorder_id" value="<?php echo $preorder['id']; ?>">
+                                            <button type="submit" class="cancel-btn">Cancel</button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+
+                            <?php if ($preorder['status'] === 'rejected' && !empty($preorder['rejection_reason'])): ?>
+                                <div class="rejection-reason-box">
+                                    <strong>Reason:</strong> <?php echo htmlspecialchars($preorder['rejection_reason']); ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if ($preorder['status'] === 'delivered' || $preorder['converted_to_order_id']): ?>
+                                <div class="alert-box <?php echo $preorder['status'] === 'delivered' ? 'alert-warning' : 'alert-info'; ?>">
+                                    <?php if ($preorder['status'] === 'delivered' && $preorder['validation_deadline']): ?>
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <span><strong>Payment Deadline:</strong> <?php echo date('F d, Y h:i A', strtotime($preorder['validation_deadline'])); ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($preorder['converted_to_order_id']): ?>
+                                        <i class="fas fa-check-circle"></i>
+                                        <span>Converted to regular order. Check "Orders" tab to complete payment.</span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="order-items-section">
+                                <?php foreach ($items as $item): ?>
+                                    <div class="order-item-row">
+                                        <div class="item-image-wrapper">
+                                            <img src="../<?php echo htmlspecialchars($item['image_path']); ?>" 
+                                                 alt="<?php echo htmlspecialchars($item['item_name']); ?>"
+                                                 onerror="this.src='../uploads/itemlist/default.png'">
+                                        </div>
+                                        <div class="item-details-wrapper">
+                                            <h4 class="item-name"><?php echo htmlspecialchars($item['item_name']); ?></h4>
+                                            <div class="item-specs">
+                                                <span class="spec-label">Size:</span>
+                                                <span class="spec-value"><?php echo htmlspecialchars($item['size']); ?></span>
+                                            </div>
+                                            <div class="item-specs">
+                                                <span class="spec-label">Quantity:</span>
+                                                <span class="spec-value"><?php echo htmlspecialchars($item['quantity']); ?></span>
+                                            </div>
+                                        </div>
+                                        <div class="item-price-wrapper">
+                                            <span class="item-price">₱<?php echo number_format($item['price'], 2); ?></span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <div class="order-footer">
+                                <div class="order-total-section">
+                                    <span class="total-label">Total Amount:</span>
+                                    <span class="total-price">₱<?php echo number_format($total_amount, 2); ?></span>
+                                </div>
+                            </div>
+
+                            <div class="customer-info-section">
+                                <div class="info-row">
+                                    <i class="fas fa-id-card"></i>
+                                    <span><?php 
+                                        $idLabel = (strtoupper($preorder['customer_role']) === 'EMPLOYEE') ? 'Employee ID' : 'Student ID';
+                                        echo $idLabel . ': ' . htmlspecialchars($preorder['customer_id_number']); 
+                                    ?></span>
+                                </div>
+                                <div class="info-row">
+                                    <i class="fas fa-envelope"></i>
+                                    <span><?php echo htmlspecialchars($preorder['customer_email']); ?></span>
+                                </div>
+                            </div>
+
+                            <?php if ($preorder['status'] === 'delivered' && $preorder['converted_to_order_id']): ?>
+                                <div class="action-buttons-section">
+                                    <a href="?tab=orders" class="btn-view-order">
+                                        <i class="fas fa-eye"></i> View in Orders Tab
+                                    </a>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php else: ?>
+                <div class="no-orders">
+                    <i class="fas fa-calendar-times"></i>
+                    <p>You haven't placed any pre-orders yet</p>
+                    <a href="preorder.php" class="shop-now-btn">Browse Pre-Order Items</a>
+                </div>
+            <?php endif; ?>
+        </div>
     </div>
 
     <script>
+        function switchTab(tab) {
+            const currentStatus = document.getElementById('statusFilter').value;
+            window.location.href = `MyOrders.php?tab=${tab}&status=${currentStatus}`;
+        }
+
         function filterOrders(status) {
-            window.location.href = `MyOrders.php${status !== 'all' ? '?status=' + status : ''}`;
+            const currentTab = '<?php echo $current_tab; ?>';
+            window.location.href = `MyOrders.php?tab=${currentTab}&status=${status}`;
         }
 
         // Real-time order updates
@@ -624,12 +867,222 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
         .status-badge {
             transition: all 0.3s ease;
         }
-        
+
         /* Smooth transitions for new elements */
         .order-card[data-order-id] {
             opacity: 1;
             transform: translateY(0);
         }
+        
+        /* Pre-order specific styles */
+        .status-badge.delivered {
+            background: #d1f2eb;
+            color: #0d6338;
+        }
+        
+        /* Alert boxes for pre-orders */
+        .alert-box {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95em;
+        }
+        
+        .alert-box i {
+            font-size: 1.2em;
+        }
+        
+        .alert-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            border: 1px solid #17a2b8;
+            color: #0c5460;
+        }
+        
+        .rejection-reason-box {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        
+        /* Pre-order item rows to match order card layout */
+        .order-items-section {
+            margin: 15px 0;
+        }
+        
+        .order-item-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .order-item-row:last-child {
+            border-bottom: none;
+        }
+        
+        .item-image-wrapper {
+            flex-shrink: 0;
+            width: 80px;
+            height: 80px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .item-image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .item-details-wrapper {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .item-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0 0 8px 0;
+        }
+        
+        .item-specs {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin: 4px 0;
+        }
+        
+        .spec-label {
+            font-weight: 500;
+            color: #495057;
+        }
+        
+        .spec-value {
+            margin-left: 5px;
+        }
+        
+        .item-price-wrapper {
+            flex-shrink: 0;
+            text-align: right;
+        }
+        
+        .item-price {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #007bff;
+        }
+        
+        /* Order footer matching order card style */
+        .order-footer {
+            border-top: 2px solid #e9ecef;
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+        
+        .order-total-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .total-label {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .total-price {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #007bff;
+        }
+        
+        /* Customer info section */
+        .customer-info-section {
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 6px 0;
+            font-size: 0.95em;
+            color: #495057;
+        }
+        
+        .info-row i {
+            color: #6c757d;
+            width: 18px;
+            text-align: center;
+        }
+        
+        /* Action buttons section */
+        .action-buttons-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+        }
+        
+        .btn-view-order {
+            display: inline-block;
+            padding: 10px 24px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,123,255,0.2);
+        }
+        
+        .btn-view-order:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+            color: white;
+        }
+        
+        .btn-view-order i {
+            margin-right: 6px;
+        }
+        
+        /* Improve order header actions alignment */
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .order-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
     </style>
 </body>
-</html> 
+</html>

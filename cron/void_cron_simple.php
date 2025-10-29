@@ -45,16 +45,20 @@ try {
 
     logMessage("Starting void unpaid orders processing");
 
-    // Only fetch necessary columns
+    // Fetch ALL unpaid approved orders created more than 5 minutes ago
+    // This includes both regular orders AND converted pre-orders
     $query = "
         SELECT 
             o.id, o.order_number, o.user_id, o.items, 
-            a.first_name, a.last_name, a.email, a.pre_order_strikes 
+            a.first_name, a.last_name, a.email, a.pre_order_strikes,
+            po.validation_deadline,
+            CASE WHEN po.id IS NOT NULL THEN 1 ELSE 0 END as is_preorder_conversion
         FROM orders o
         JOIN account a ON o.user_id = a.id
+        LEFT JOIN preorder_orders po ON po.converted_to_order_id = o.id
         WHERE o.status = 'approved'
           AND o.payment_date IS NULL
-          AND o.created_at < DATE_SUB(NOW(), INTERVAL 2 HOUR)
+          AND o.created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
         LIMIT 20
     ";
 
@@ -63,7 +67,7 @@ try {
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $count = count($orders);
-    logMessage("Found {$count} unpaid approved orders to void");
+    logMessage("Found {$count} unpaid approved orders to void (5-minute rule)");
 
     if ($count === 0) {
         logMessage("No orders to void, exiting");
@@ -86,6 +90,41 @@ try {
             // 1️⃣ Update order status to 'voided' and update timestamp
             $conn->prepare("UPDATE orders SET status = 'voided', updated_at = NOW() WHERE id = ?")
                 ->execute([$orderId]);
+
+            // 1.5️⃣ If this is a converted pre-order, update preorder_orders status to 'voided'
+            $isPreorderConversion = (bool) $order['is_preorder_conversion'];
+            $conn->prepare("UPDATE preorder_orders SET status = 'voided', updated_at = NOW() WHERE converted_to_order_id = ?")
+                ->execute([$orderId]);
+
+            // 1.6️⃣ Restore inventory if this was a converted pre-order (items were added to inventory)
+            if ($isPreorderConversion) {
+                $items = json_decode($order['items'], true);
+                if (is_array($items)) {
+                    $restoreStmt = $conn->prepare("
+                        UPDATE inventory 
+                        SET actual_quantity = actual_quantity - ?, 
+                            new_delivery = GREATEST(0, new_delivery - ?),
+                            status = CASE 
+                                WHEN (actual_quantity - ?) <= 0 THEN 'out of stock' 
+                                ELSE 'in stock' 
+                            END
+                        WHERE item_code = ? AND sizes = ?
+                    ");
+                    
+                    foreach ($items as $item) {
+                        $itemCode = $item['item_code'] ?? null;
+                        $size = $item['size'] ?? 'One Size';
+                        $quantity = $item['quantity'] ?? 0;
+                        
+                        if ($itemCode && $quantity > 0) {
+                            // Extract base code (remove -XXX suffix if present)
+                            $baseCode = preg_replace('/-\d{3}$/', '', $itemCode);
+                            $restoreStmt->execute([$quantity, $quantity, $quantity, $baseCode, $size]);
+                            logMessage("  - Restored {$quantity} units of {$baseCode} (Size: {$size})");
+                        }
+                    }
+                }
+            }
 
             // 2️⃣ Increment strikes
             $conn->prepare("
@@ -112,7 +151,7 @@ try {
             }
 
             // 4️⃣ Create notification
-            $notif = "Your order #{$orderNumber} has been voided because payment was not made within 2 hours.{$strikeMessage}";
+            $notif = "Your order #{$orderNumber} has been voided because payment was not made within 5 minutes.{$strikeMessage}";
             createNotification($conn, $userId, $notif, $orderNumber, 'voided');
  
             // 5️⃣ Log item-level activity (optimized)

@@ -136,27 +136,116 @@ try {
     $updPre = $conn->prepare("UPDATE preorder_items SET status='delivered', updated_at=CURRENT_TIMESTAMP WHERE id = ?");
     $updPre->execute([$preId]);
 
-    // Send notifications about delivery
-    try {
-        // 1. Notify customers who placed pre-orders for this item
-        $preorderCustomersStmt = $conn->prepare('
-            SELECT DISTINCT r.user_id, CONCAT(u.first_name, " ", u.last_name) as name 
-            FROM preorder_requests r 
-            JOIN account u ON r.user_id = u.id 
-            WHERE r.preorder_item_id = ? AND r.status = "active"
-        ');
-        $preorderCustomersStmt->execute([$preId]);
-        $preorderCustomers = $preorderCustomersStmt->fetchAll(PDO::FETCH_ASSOC);
+    // Convert pending pre-orders to regular orders (5 minute validation period)
+    $preorderOrdersStmt = $conn->prepare("
+        SELECT * FROM preorder_orders 
+        WHERE preorder_item_id = ? AND status = 'pending'
+        ORDER BY created_at ASC
+    ");
+    $preorderOrdersStmt->execute([$preId]);
+    $preorderOrders = $preorderOrdersStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $convertedCount = 0;
+    $validationDeadline = date('Y-m-d H:i:s', strtotime('+5 minutes'));
+    
+    // Helper function to get size number
+    $getSizeNumber = function($size) {
+        $sizeMap = [
+            'One Size' => 0, 'XS' => 1, 'S' => 2, 'M' => 3, 'L' => 4,
+            'XL' => 5, 'XXL' => 6, '3XL' => 7, '4XL' => 8,
+            '5XL' => 9, '6XL' => 10, '7XL' => 11
+        ];
+        return $sizeMap[$size] ?? 99;
+    };
+    
+    foreach ($preorderOrders as $preorder) {
+        // Generate unique order number: SI-MMDD-NNNNNN (based on conversion date)
+        // Get the highest order number from both orders and sales tables (to avoid duplicates)
+        $date = date('md');
+        $likePattern = 'SI-' . $date . '-%';
+        $maxStmt = $conn->prepare("
+            SELECT MAX(seq) AS max_seq FROM (
+                SELECT CAST(SUBSTRING(order_number, 10) AS UNSIGNED) AS seq
+                FROM orders
+                WHERE order_number LIKE ?
+                UNION ALL
+                SELECT CAST(SUBSTRING(transaction_number, 10) AS UNSIGNED) AS seq
+                FROM sales
+                WHERE transaction_number LIKE ?
+            ) AS all_orders
+        ");
+        $maxStmt->execute([$likePattern, $likePattern]);
+        $row = $maxStmt->fetch(PDO::FETCH_ASSOC);
+        $maxNumber = $row && $row['max_seq'] ? (int)$row['max_seq'] : 0;
+        $orderNumber = 'SI-' . $date . '-' . str_pad($maxNumber + 1, 6, '0', STR_PAD_LEFT);
         
-        // Notification for customers who placed pre-orders
-        $preorderMessage = "🎉 Your Pre-Order is Ready! '{$itemName}' (Order: {$orderNumber}) has been delivered and is now available for pickup/purchase!";
-        
-        foreach ($preorderCustomers as $customer) {
-            createNotification($conn, $customer['user_id'], $preorderMessage, $orderNumber, 'preorder_delivered');
+        // Update items JSON to use proper inventory item codes and add category
+        $items = json_decode($preorder['items'], true);
+        if (is_array($items)) {
+            foreach ($items as &$item) {
+                $size = $item['size'] ?? 'One Size';
+                $sizeNumber = $getSizeNumber($size);
+                $item['item_code'] = $base . '-' . str_pad($sizeNumber, 3, '0', STR_PAD_LEFT);
+                $item['category'] = $catName ?? 'Uncategorized';
+            }
+            unset($item);
         }
+        $updatedItemsJson = json_encode($items);
         
-        // 2. Notify all other customers (who didn't place pre-orders)
-        $preorderCustomerIds = array_column($preorderCustomers, 'user_id');
+        // Create entry in orders table with status 'approved' (ready for payment)
+        $insertOrderStmt = $conn->prepare("
+            INSERT INTO orders (
+                order_number,
+                user_id,
+                items,
+                phone,
+                total_amount,
+                status,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, 'approved', NOW())
+        ");
+        
+        $insertOrderStmt->execute([
+            $generatedOrderNumber,
+            $preorder['user_id'],
+            $updatedItemsJson,
+            '',
+            $preorder['total_amount']
+        ]);
+        
+        $newOrderId = $conn->lastInsertId();
+        
+        // Update preorder_orders: mark as delivered and link to converted order
+        $updatePreorderStmt = $conn->prepare("
+            UPDATE preorder_orders 
+            SET status = 'delivered',
+                delivered_at = NOW(),
+                validation_deadline = ?,
+                converted_to_order_id = ?,
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+        
+        $updatePreorderStmt->execute([
+            $validationDeadline,
+            $newOrderId,
+            $preorder['id']
+        ]);
+        
+        // Send notification to customer about order conversion
+        $notificationMessage = "🎉 Great news! Your pre-order '{$itemName}' (PRE-ORDER #: {$preorder['preorder_number']}) has been delivered and is ready for pickup! " .
+                             "Your order has been automatically approved (ORDER #: {$generatedOrderNumber}). " .
+                             "Please download your e-slip, pay at the cashier, and claim your item within 5 minutes.";
+        
+        createNotification($conn, $preorder['user_id'], $notificationMessage, $generatedOrderNumber, 'preorder_delivered');
+        
+        $convertedCount++;
+    }
+
+    // Send notifications to OTHER customers (who didn't pre-order) about new stock
+    try {
+        // Get list of customers who placed pre-orders (already notified above)
+        $preorderCustomerIds = array_column($preorderOrders, 'user_id');
         
         if (!empty($preorderCustomerIds)) {
             $placeholders = str_repeat('?,', count($preorderCustomerIds) - 1) . '?';

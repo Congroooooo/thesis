@@ -53,16 +53,38 @@ include '../Includes/loader.php';
                     echo '  </div>';
                     echo '</div>';
                 } else {
-                    $sql = "
-                        SELECT pi.*, 
-                               COALESCE((SELECT SUM(quantity) FROM preorder_requests r WHERE r.preorder_item_id = pi.id AND r.status='active'),0) AS total_requests
-                        FROM preorder_items pi
-                        WHERE pi.status='pending'
-                        ORDER BY pi.created_at DESC
-                        LIMIT $limit OFFSET $offset
-                    ";
-                    $result = $conn->query($sql);
-                    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+                    // Check if user is logged in before querying
+                    $userId = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : 0;
+                    
+                    if ($userId > 0) {
+                        // Query with user-specific data (for logged-in users)
+                        $sql = "
+                            SELECT pi.*, 
+                                   COALESCE((SELECT SUM(quantity) FROM preorder_requests r WHERE r.preorder_item_id = pi.id AND r.status='active'),0) AS total_requests,
+                                   EXISTS(SELECT 1 FROM preorder_orders po WHERE po.preorder_item_id = pi.id AND po.user_id = ? AND po.status IN ('pending', 'delivered')) AS has_pending_order
+                            FROM preorder_items pi
+                            WHERE pi.status='pending'
+                            ORDER BY pi.created_at DESC
+                            LIMIT $limit OFFSET $offset
+                        ";
+                        $stmt = $conn->prepare($sql);
+                        $stmt->execute([$userId]);
+                    } else {
+                        // Query without user-specific data (for guests)
+                        $sql = "
+                            SELECT pi.*, 
+                                   COALESCE((SELECT SUM(quantity) FROM preorder_requests r WHERE r.preorder_item_id = pi.id AND r.status='active'),0) AS total_requests,
+                                   0 AS has_pending_order
+                            FROM preorder_items pi
+                            WHERE pi.status='pending'
+                            ORDER BY pi.created_at DESC
+                            LIMIT $limit OFFSET $offset
+                        ";
+                        $stmt = $conn->prepare($sql);
+                        $stmt->execute();
+                    }
+                    
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     // Improved image path handling
                     if (!empty($row['image_path'])) {
                         $imgPath = '../' . $row['image_path'];
@@ -109,7 +131,9 @@ include '../Includes/loader.php';
                     $allSizes = 'XS,S,M,L,XL,XXL,3XL,4XL,5XL,6XL,7XL,One Size';
                     $preId = (int)$row['id'];
                     $requests = (int)$row['total_requests'];
-                    echo '<div class="product-container" data-preorder-id="' . $preId . '" data-sizes="' . $allSizes . '" data-item-name="' . $title . '" data-price="' . $row['price'] . '">';
+                    $hasPending = (bool)$row['has_pending_order'];
+                    
+                    echo '<div class="product-container" data-preorder-id="' . $preId . '" data-sizes="' . $allSizes . '" data-item-name="' . $title . '" data-price="' . $row['price'] . '" data-has-pending="' . ($hasPending ? '1' : '0') . '">';
                     echo '  <img src="' . htmlspecialchars($imgPath) . '" alt="' . $title . '" onerror="this.onerror=null; this.src=\'data:image/svg+xml;base64,' . base64_encode('<svg width=\'300\' height=\'300\' xmlns=\'http://www.w3.org/2000/svg\'><rect width=\'300\' height=\'300\' fill=\'#f0f0f0\' stroke=\'#ddd\' stroke-width=\'2\'/><text x=\'150\' y=\'150\' text-anchor=\'middle\' dominant-baseline=\'middle\' font-family=\'Arial\' font-size=\'16\' fill=\'#666\'>No Image</text></svg>') . '\'">';
                     echo '  <div class="product-overlay">';
                     echo '      <div class="items"></div>';
@@ -124,10 +148,18 @@ include '../Includes/loader.php';
                     echo '      <div class="items stock">';
                     echo '          <p>Pre-orders: ' . $requests . '</p>';
                     echo '      </div>';
-                    echo '      <div class="items cart request-preorder">';
-                    echo '          <i class="fa fa-calendar-plus"></i>';
-                    echo '          <span>REQUEST PRE-ORDER</span>';
-                    echo '      </div>';
+                    
+                    if ($hasPending) {
+                        echo '      <div class="items cart request-preorder already-ordered" style="background: #9e9e9e; cursor: not-allowed;">';
+                        echo '          <i class="fa fa-check-circle"></i>';
+                        echo '          <span>ALREADY REQUESTED</span>';
+                        echo '      </div>';
+                    } else {
+                        echo '      <div class="items cart request-preorder">';
+                        echo '          <i class="fa fa-calendar-plus"></i>';
+                        echo '          <span>REQUEST PRE-ORDER</span>';
+                        echo '      </div>';
+                    }
                     echo '  </div>';
                     echo '</div>';
                     }
@@ -229,13 +261,21 @@ include '../Includes/loader.php';
 
     async function submitPreorderRequest(){
         const qty = parseInt(document.getElementById('preQuantity').value||'1',10);
+        
         let selectedSize = null;
         const sel = document.querySelector('#preSizeOptions .size-option.selected');
         if (sel) selectedSize = sel.dataset.size;
+        
+        if (!selectedSize) {
+            showNotification('Please select a size', 'error');
+            return;
+        }
+        
         const fd = new FormData();
         fd.append('preorder_item_id', currentPreId);
-        if (selectedSize) fd.append('size', selectedSize);
+        fd.append('size', selectedSize);
         fd.append('quantity', qty);
+        
         const resp = await fetch('../PAMO_PREORDER_BACKEND/api_preorder_request_create.php', { method:'POST', body: fd });
         const data = await resp.json();
         if (!data.success) { 
@@ -243,15 +283,25 @@ include '../Includes/loader.php';
             return; 
         }
         closePreModal();
-        showNotification('Your pre-order request has been submitted. Thank you!', 'success', { autoClose: 3000 });
-        setTimeout(() => location.reload(), 3000);
+        showNotification('Your pre-order request has been submitted successfully! Pre-Order #: ' + (data.preorder_number || 'N/A'), 'success', { autoClose: 4000 });
+        setTimeout(() => location.reload(), 4000);
     }
 
     document.addEventListener('DOMContentLoaded', function(){
         document.querySelectorAll('.product-container .request-preorder').forEach(btn => {
             btn.addEventListener('click', function(e){
                 e.preventDefault();
-                openPreModal(this.closest('.product-container'));
+                
+                // Check if this item already has a pending order
+                const container = this.closest('.product-container');
+                const hasPending = container.dataset.hasPending === '1';
+                
+                if (hasPending || this.classList.contains('already-ordered')) {
+                    showNotification('You already have a pending pre-order for this item.', 'warning');
+                    return;
+                }
+                
+                openPreModal(container);
             });
         });
         document.querySelector('#preorderRequestModal .modal-content').addEventListener('click', function(e){ e.stopPropagation(); });

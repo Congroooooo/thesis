@@ -29,32 +29,233 @@ $basePath = '';
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="../Javascript/logout-modal.js"></script>
+    <style>
+        /* Tab Navigation Styles */
+        .tab-navigation {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 25px;
+            background: white;
+            border-radius: 8px 8px 0 0;
+        }
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 15px 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tab-button:hover {
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .tab-button.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Pre-Order Management Styles */
+        .preorder-summary-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .item-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .item-info img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .sizes-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .size-badge {
+            background: #f5f5f5;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .size-badge strong {
+            display: block;
+            font-size: 1.2em;
+            color: #1976d2;
+        }
+        .customer-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .customer-table th,
+        .customer-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .customer-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+        .status-pending {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .status-delivered {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .status-completed {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        .status-voided {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .btn-mark-delivered {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-mark-delivered:hover {
+            background: #45a049;
+        }
+        .btn-mark-delivered:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .filter-tab {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .filter-tab.active {
+            background: #1976d2;
+            color: white;
+            border-color: #1976d2;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .empty-state i {
+            font-size: 64px;
+            color: #ccc;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <?php include 'includes/sidebar.php'; ?>
         <main class="main-content">
             <div class="page-header">
-                <h2>Pre-Order Items</h2>
-                <button class="action-btn" id="addPreItemBtn"><i class="material-icons">add_circle</i> New Pre-Order</button>
+                <h2>Pre-Order Management</h2>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="action-btn" id="addPreItemBtn"><i class="material-icons">add_circle</i> New Pre-Order Item</button>
+                </div>
             </div>
 
-            <div id="preorderList" class="card" style="padding:16px;">
-                <table class="datatable">
-                    <thead>
-                        <tr>
-                            <th>Image</th>
-                            <th>Name</th>
-                            <th>Base Code</th>
-                            <th>Price</th>
-                            <th>Sizes</th>
-                            <th>Requests</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="preorderRows"></tbody>
-                </table>
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class="tab-button active" onclick="switchPreOrderTab('items')">
+                    <i class="material-icons">inventory_2</i>
+                    Pre-Order Items
+                </button>
+                <button class="tab-button" onclick="switchPreOrderTab('requests')">
+                    <i class="material-icons">list_alt</i>
+                    Pre-Order Requests
+                </button>
+            </div>
+
+            <!-- Pre-Order Items Tab -->
+            <div id="tab-items" class="tab-content active">
+                <div id="preorderList" class="card" style="padding:16px;">
+                    <table class="datatable">
+                        <thead>
+                            <tr>
+                                <th>Image</th>
+                                <th>Name</th>
+                                <th>Base Code</th>
+                                <th>Price</th>
+                                <th>Sizes</th>
+                                <th>Requests</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preorderRows"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pre-Order Requests Tab -->
+            <div id="tab-requests" class="tab-content">
+                <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="margin: 0 0 10px 0; color: #495057;">
+                        <i class="material-icons" style="vertical-align: middle;">info</i>
+                        Pending Pre-Orders
+                    </h3>
+                    <p style="margin: 0; color: #6c757d;">
+                        This section displays all pending pre-order requests from customers. Use this information to determine quantities needed when ordering from suppliers. 
+                        To mark items as delivered, go to the <strong>Pre-Order Items</strong> tab.
+                    </p>
+                </div>
+
+                <div id="preorderContainer">
+                    <!-- Pre-order requests will be loaded here -->
+                </div>
             </div>
         </main>
     </div>
@@ -188,7 +389,7 @@ $basePath = '';
                 $s.select2({ placeholder: 'Select subcategories…', width: '100%' });
             });
     }
-    function loadPreorders() {
+    function loadPreorderItems() {
         $('#preorderList').addClass('loading');
         
         $.ajax({
@@ -263,7 +464,7 @@ $basePath = '';
                             <i class="material-icons">wifi_off</i>
                             <h3>Connection Error</h3>
                             <p>Failed to load pre-order items. Please check your connection and try again.</p>
-                            <button class="action-btn" onclick="loadPreorders()">Retry</button>
+                            <button class="action-btn" onclick="loadPreorderItems()">Retry</button>
                         </div>
                     </td>
                 </tr>
@@ -496,7 +697,7 @@ $basePath = '';
         }).done((response) => { 
             closeDeliverModal(); 
             showAlert('Pre-order marked as delivered successfully!', 'success');
-            loadPreorders(); 
+            loadPreorderItems(); 
         })
         .fail(xhr => showAlert(xhr.responseJSON?.message || 'Failed to mark as delivered', 'error'))
         .always(() => {
@@ -549,7 +750,7 @@ $basePath = '';
         }).done((response)=>{ 
             $('#addPreModal').hide(); 
             showAlert('Pre-order item created successfully!', 'success');
-            loadPreorders(); 
+            loadPreorderItems(); 
             
             // Force hide loader immediately
             setTimeout(() => {
@@ -630,7 +831,7 @@ $basePath = '';
             if (!$('#preCategory').data('select2')) {
                 $('#preCategory').select2({ placeholder: 'Select category…', width: '100%' });
             }
-            await loadPreorders();
+            await loadPreorderItems();
         } catch (error) {
             console.error('Error initializing page:', error);
             showAlert('Error loading page data', 'error');
@@ -972,6 +1173,154 @@ $basePath = '';
         display: block !important;
     }
     </style>
+
+
+    <script>
+    // Tab switching function
+    function switchPreOrderTab(tabName) {
+        // Remove active class from all tabs
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        // Add active class to selected tab
+        event.target.classList.add('active');
+        document.getElementById('tab-' + tabName).classList.add('active');
+        
+        // Load appropriate data
+        if (tabName === 'requests') {
+            loadPreorderRequests();
+        } else {
+            loadPreorderItems();
+        }
+    }
+
+    // Pre-Order Requests Management
+    let currentStatus = 'pending'; // Always show pending requests only
+
+    function loadPreorderRequests() {
+        $.ajax({
+            url: '../PAMO_PREORDER_BACKEND/api_preorder_orders_list.php',
+            method: 'GET',
+            data: { status: 'pending' }, // Always load pending only
+            dataType: 'json',
+            success: function(response) {
+                if (!response.success) {
+                    alert('Error: ' + response.message);
+                    return;
+                }
+
+                const groupedItems = response.grouped_by_item || [];
+
+                if (groupedItems.length === 0) {
+                    $('#preorderContainer').html(`
+                        <div class="empty-state">
+                            <i class="material-icons">inbox</i>
+                            <h3>No pending pre-orders found</h3>
+                            <p>Pre-order requests will appear here when customers submit their orders.</p>
+                        </div>
+                    `);
+                    return;
+                }
+
+                let html = '';
+                groupedItems.forEach(item => {
+                    html += renderPreorderItem(item);
+                });
+
+                $('#preorderContainer').html(html);
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading pre-orders:', error);
+                console.error('Response:', xhr.responseText);
+                alert('Failed to load pre-orders. Please try again.');
+            }
+        });
+    }
+
+    function renderPreorderItem(item) {
+        let sizesHtml = '';
+        if (item.sizes_breakdown) {
+            for (const [size, qty] of Object.entries(item.sizes_breakdown)) {
+                sizesHtml += `
+                    <div class="size-badge">
+                        <span style="font-size: 0.9em; color: #666;">${size}</span>
+                        <strong>${qty}</strong>
+                    </div>
+                `;
+            }
+        }
+
+        let customersHtml = '';
+        if (item.orders) {
+            item.orders.forEach(order => {
+                const items = order.items_decoded || [];
+                const itemDetails = items.map(i => `${i.size} (${i.quantity}x)`).join(', ');
+                const idLabel = order.customer_role === 'EMPLOYEE' ? 'Employee ID' : 'Student ID';
+                
+                customersHtml += `
+                    <tr>
+                        <td>${order.preorder_number}</td>
+                        <td>${order.customer_name}</td>
+                        <td>${idLabel}: ${order.customer_id_number}</td>
+                        <td>${order.customer_email}</td>
+                        <td>${itemDetails}</td>
+                        <td>₱${order.formatted_total}</td>
+                        <td><span class="status-badge status-${order.status}">${ucfirst(order.status)}</span></td>
+                        <td>${order.formatted_date}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        return `
+            <div class="preorder-summary-card">
+                <div class="summary-header">
+                    <div class="item-info">
+                        <img src="../${item.image_path || 'uploads/itemlist/default.png'}" 
+                             alt="${item.item_name}"
+                             onerror="this.src='../uploads/itemlist/default.png'">
+                        <div>
+                            <h3 style="margin: 0 0 5px 0;">${item.item_name}</h3>
+                            <p style="margin: 0; color: #666;">Code: ${item.base_item_code} | Price: ₱${parseFloat(item.item_price).toFixed(2)}</p>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 2em; font-weight: bold; color: #1976d2;">${item.total_orders}</div>
+                        <div style="color: #666;">Pre-Orders</div>
+                    </div>
+                </div>
+
+                <h4 style="margin: 15px 0 10px 0;">Size Breakdown (Total Quantity: ${item.total_quantity})</h4>
+                <div class="sizes-breakdown">
+                    ${sizesHtml}
+                </div>
+
+                <h4 style="margin: 20px 0 10px 0;">Customer Details</h4>
+                <table class="customer-table">
+                    <thead>
+                        <tr>
+                            <th>PRE-ORDER #</th>
+                            <th>Customer Name</th>
+                            <th>ID Number</th>
+                            <th>Email</th>
+                            <th>Size & Qty</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${customersHtml}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function ucfirst(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+    </script>
 
 </body>
 </html>

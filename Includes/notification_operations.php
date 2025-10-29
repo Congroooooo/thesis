@@ -11,11 +11,14 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once 'connection.php';
 require_once 'notifications.php';
 
-// Clean any previous output
-ob_clean();
-header('Content-Type: application/json');
+// Only handle direct requests, not when included by other files
+if (basename($_SERVER['PHP_SELF']) === 'notification_operations.php') {
+    // Clean any previous output
+    ob_clean();
+    header('Content-Type: application/json');
+}
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && basename($_SERVER['PHP_SELF']) === 'notification_operations.php') {
     $response = ['success' => false, 'message' => '', 'notifications' => [], 'count' => 0];
     
     if (!isset($_SESSION['user_id'])) {

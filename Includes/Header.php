@@ -51,13 +51,8 @@ if (isset($_SESSION['user_id'])) {
                     class="<?php echo ($current_page == 'home.php') ? 'active' : ''; ?>">Homepage</a></li>
             <li><a href="ProItemList.php"
                     class="<?php echo ($current_page == 'ProItemList.php') ? 'active' : ''; ?>">Products</a></li>
-            <?php if (isset($_SESSION['user_id'])): ?>
             <li><a href="preorder.php"
                     class="<?php echo ($current_page == 'preorder.php') ? 'active' : ''; ?>">Pre Order</a></li>
-            <?php else: ?>
-            <li><a href="javascript:void(0)" onclick="redirectToLogin('preorder.php')"
-                    class="<?php echo ($current_page == 'preorder.php') ? 'active' : ''; ?>">Pre Order</a></li>
-            <?php endif; ?>
             <?php if (isset($_SESSION['user_id'])): ?>
             <li><a href="ProPreOrder.php"
                     class="<?php echo ($current_page == 'ProPreOrder.php') ? 'active' : ''; ?>">Place Order</a></li>
