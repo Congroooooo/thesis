@@ -15,7 +15,9 @@
             <ul class="footer-links">
                 <li><a href="../Pages/home.php">Home</a></li>
                 <li><a href="../Pages/ProItemList.php">Products</a></li>
-                <li><a href="../Pages/preorder.php">PreOrder</a></li>
+                <li><a href="../Pages/preorder.php">PreOrder</a></li> 
+                <li><a href="../Pages/ProPreOrder.php">Place Order</a></li>
+                <li><a href="../Pages/MyOrders.php">My Orders</a></li>
                 <li><a href="../Pages/about.php">About Us</a></li>
                 <li><a href="../Pages/faq.php">FAQ</a></li>
             </ul>

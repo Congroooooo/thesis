@@ -148,6 +148,14 @@ try {
     $convertedCount = 0;
     $validationDeadline = date('Y-m-d H:i:s', strtotime('+5 minutes'));
     
+    // Get category name for adding to order items
+    $catName = null;
+    if (!empty($categoryId)) {
+        $catStmt = $conn->prepare('SELECT name FROM categories WHERE id = ?');
+        $catStmt->execute([$categoryId]);
+        $catName = $catStmt->fetchColumn();
+    }
+    
     // Helper function to get size number
     $getSizeNumber = function($size) {
         $sizeMap = [
@@ -206,7 +214,7 @@ try {
         ");
         
         $insertOrderStmt->execute([
-            $generatedOrderNumber,
+            $orderNumber,
             $preorder['user_id'],
             $updatedItemsJson,
             '',

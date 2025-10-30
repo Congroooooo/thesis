@@ -101,33 +101,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <div class="login-container">
         <div class="content-wrapper">
-            <div class="logo-section">
-                <div class="logo-container">
-                    <img src="../Images/STI-LOGO.png" alt="STI Logo">
+            <!-- Left Section: Visual/Branding -->
+            <div class="left-section">
+                <div class="brand-content">
+                    <div class="decorative-circles">
+                        <div class="circle circle-1"></div>
+                        <div class="circle circle-2"></div>
+                        <div class="circle circle-3"></div>
+                        <div class="circle circle-4"></div>
+                    </div>
+                    <div class="logo-container">
+                        <img src="../Images/STI-LOGO.png" alt="STI Logo">
+                    </div>
+                    <div class="brand-text">
+                        <h1 class="brand-title">STI PROWARE</h1>
+                        <div class="divider"></div>
+                        <p class="brand-tagline">We are</p>
+                        <p class="brand-highlight">Your trusted campus marketplace.</p>
+                        <p class="brand-description">Connect with your college community and access quality products designed for students.</p>
+                    </div>
+                    <div class="signup-prompt">
+                        <p>Don't have an account?</p>
+                        <a href="home.php" class="signup-link">Explore as Guest</a>
+                    </div>
                 </div>
             </div>
-            <div class="form-container">
-                <h2>Welcome Back!</h2>
-                <p class="subtitle">Please login to your account</p>
-                <form method="POST" action="">
-                    <div class="form-group">
-                        <div class="input-icon">
-                            <i class="fas fa-envelope"></i>
-                            <input type="email" id="email" name="email" placeholder="School Account" required 
-                                value="<?php echo isset($_GET['error']) && $_GET['error'] === 'incorrect_password' ? htmlspecialchars($_GET['email']) : ''; ?>">
+            
+            <!-- Right Section: Login Form -->
+            <div class="right-section">
+                <div class="form-container">
+                    <h2>Welcome Back!</h2>
+                    <p class="subtitle">Please login to your account</p>
+                    <form method="POST" action="">
+                        <div class="form-group">
+                            <label for="email">Email address</label>
+                            <div class="input-icon">
+                                <i class="fas fa-envelope"></i>
+                                <input type="email" id="email" name="email" placeholder="Enter your email" required 
+                                    value="<?php echo isset($_GET['error']) && $_GET['error'] === 'incorrect_password' ? htmlspecialchars($_GET['email']) : ''; ?>">
+                            </div>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <div class="input-icon">
-                            <i class="fas fa-lock"></i>
-                            <input type="password" id="password" name="password" placeholder="Password" required>
-                            <i class="fas fa-eye-slash toggle-password" id="togglePassword"></i>
+                        <div class="form-group">
+                            <label for="password">Set password</label>
+                            <div class="input-icon">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="password" name="password" placeholder="Enter password" required>
+                                <i class="fas fa-eye-slash toggle-password" id="togglePassword"></i>
+                            </div>
                         </div>
-                    </div>
-                    <button type="submit" class="login-btn">
-                        <span>Login</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </button>
+                        <button type="submit" class="login-btn">
+                            <span>Login</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </form>
                     <?php if (isset($_GET['error'])): ?>
                         <div class="error-message">
                             <i class="fas fa-exclamation-circle"></i>
@@ -149,11 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ?>
                         </div>
                     <?php endif; ?>
-                </form>
-                <a href="home.php" class="back-btn">
-                    <i class="fas fa-arrow-left"></i>
-                    <span>Back to Home</span>
-                </a>
+                </div>
             </div>
         </div>
     </div>
