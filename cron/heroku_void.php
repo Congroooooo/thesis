@@ -30,8 +30,8 @@ try {
         JOIN account a ON o.user_id = a.id
         WHERE o.status = 'approved'
           AND o.payment_date IS NULL
-          AND o.created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
-        ORDER BY o.created_at ASC
+          AND o.updated_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+        ORDER BY o.updated_at ASC
         LIMIT 10
     ";
 

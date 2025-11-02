@@ -48,6 +48,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('Order not found');
         }
 
+        // If status is being changed to approved, validate stock availability first
+        if ($status === 'approved') {
+            // Decode the items JSON
+            $order_items = json_decode($order['items'], true);
+            if (!$order_items || !is_array($order_items)) {
+                throw new Exception('Invalid order items data');
+            }
+            
+            // Check stock availability for each item
+            $insufficientStockItems = [];
+            foreach ($order_items as $item) {
+                // Get current inventory with lock to prevent race conditions
+                $stockCheckStmt = $conn->prepare("SELECT item_name, actual_quantity FROM inventory WHERE item_code = ? FOR UPDATE");
+                if (!$stockCheckStmt->execute([$item['item_code']])) {
+                    throw new Exception('Failed to check inventory for item: ' . $item['item_code']);
+                }
+                
+                $inventory = $stockCheckStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$inventory) {
+                    throw new Exception('Item no longer exists in inventory: ' . $item['item_code']);
+                }
+                
+                // Check if there's sufficient stock
+                $requestedQty = $item['quantity'];
+                $availableQty = $inventory['actual_quantity'];
+                
+                if ($availableQty < $requestedQty) {
+                    $insufficientStockItems[] = [
+                        'item_name' => $inventory['item_name'],
+                        'size' => $item['size'] ?? 'N/A',
+                        'requested' => $requestedQty,
+                        'available' => $availableQty
+                    ];
+                }
+            }
+            
+            // If any items have insufficient stock, automatically reject the order
+            if (!empty($insufficientStockItems)) {
+                // Build rejection reason message for database (plain text)
+                $rejectionMessage = "Order automatically rejected due to insufficient stock:\n\n";
+                foreach ($insufficientStockItems as $stockItem) {
+                    $rejectionMessage .= "• {$stockItem['item_name']} (Size: {$stockItem['size']}) - Requested: {$stockItem['requested']}, Available: {$stockItem['available']}\n";
+                }
+                
+                // Build HTML formatted message for notification
+                $notificationHtml = "Your order #{$order['order_number']} has been automatically rejected due to insufficient stock.<br><br><span class='rejection-reason'><strong>Details:</strong><br>";
+                foreach ($insufficientStockItems as $stockItem) {
+                    $notificationHtml .= "• <strong>{$stockItem['item_name']}</strong> (Size: {$stockItem['size']})<br>";
+                    $notificationHtml .= "&nbsp;&nbsp;Requested: {$stockItem['requested']} | Available: <strong>{$stockItem['available']}</strong><br>";
+                }
+                $notificationHtml .= "</span>";
+                
+                // Update order status to rejected with auto-generated reason
+                $updateStmt = $conn->prepare("UPDATE orders SET status = 'rejected', rejection_reason = ?, updated_at = NOW() WHERE id = ?");
+                if (!$updateStmt->execute([$rejectionMessage, $order_id])) {
+                    throw new Exception('Failed to auto-reject order due to insufficient stock');
+                }
+                
+                // Log the rejection activity
+                foreach ($order_items as $item) {
+                    $activity_description = "Order Rejected (Auto) - Order #: {$order['order_number']}, Item: {$item['item_name']}, Quantity: {$item['quantity']} - Insufficient Stock";
+                    $activity_user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+                    
+                    $activityStmt = $conn->prepare(
+                        "INSERT INTO activities (
+                            action_type,
+                            description,
+                            item_code,
+                            user_id,
+                            timestamp
+                        ) VALUES (?, ?, ?, ?, NOW())"
+                    );
+                    $activityStmt->execute([
+                        'Order Rejected',
+                        $activity_description,
+                        $item['item_code'],
+                        $activity_user_id
+                    ]);
+                }
+                
+                // Send notification to customer
+                try {
+                    createNotification($conn, $order['user_id'], $notificationHtml, $order['order_number'], 'rejected');
+                } catch (Exception $e) {
+                    error_log("Failed to create notification: " . $e->getMessage());
+                }
+                
+                // Commit the auto-rejection
+                $conn->commit();
+                
+                // Return response indicating auto-rejection
+                $response['success'] = false;
+                $response['auto_rejected'] = true;
+                $response['message'] = 'Order cannot be approved due to insufficient stock and has been automatically rejected.';
+                $response['insufficient_items'] = $insufficientStockItems;
+                $response['rejection_reason'] = $rejectionMessage;
+                
+                echo json_encode($response);
+                ob_end_flush();
+                exit;
+            }
+        }
+
         // If status is being changed to completed, process inventory updates
         if ($status === 'completed') {
 

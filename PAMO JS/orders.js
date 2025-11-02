@@ -477,6 +477,36 @@ function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
             callback();
           }
         }
+      } else if (data.auto_rejected) {
+        // Handle automatic rejection due to insufficient stock
+        if (targetButton) {
+          targetButton.innerHTML =
+            '<i class="fas fa-exclamation-triangle"></i> Auto-Rejected';
+          targetButton.classList.remove("processing");
+          targetButton.classList.add("error");
+        }
+
+        // Build detailed message about insufficient stock
+        let stockMessage =
+          "Order automatically rejected due to insufficient stock:\n\n";
+        if (data.insufficient_items && Array.isArray(data.insufficient_items)) {
+          data.insufficient_items.forEach((item) => {
+            stockMessage += `• ${item.item_name} (Size: ${item.size}) - Requested: ${item.requested}, Available: ${item.available}\n`;
+          });
+        }
+
+        // Show alert with detailed information
+        alert(stockMessage);
+
+        // Update the order card to show rejected status
+        setTimeout(() => {
+          updateOrderCardUI(orderId, "rejected");
+
+          // Update notification badge
+          if (typeof updatePendingOrdersBadge === "function") {
+            updatePendingOrdersBadge();
+          }
+        }, 1500);
       } else {
         // Restore both buttons on error
         if (acceptBtn) {

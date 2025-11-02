@@ -45,8 +45,9 @@ try {
 
     logMessage("Starting void unpaid orders processing");
 
-    // Fetch ALL unpaid approved orders created more than 5 minutes ago
+    // Fetch ALL unpaid approved orders where updated_at (approval time) is more than 5 minutes ago
     // This includes both regular orders AND converted pre-orders
+    // NOTE: updated_at is set when order status changes to 'approved', so we check against that
     $query = "
         SELECT 
             o.id, o.order_number, o.user_id, o.items, 
@@ -58,7 +59,7 @@ try {
         LEFT JOIN preorder_orders po ON po.converted_to_order_id = o.id
         WHERE o.status = 'approved'
           AND o.payment_date IS NULL
-          AND o.created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+          AND o.updated_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
         LIMIT 20
     ";
 
@@ -67,7 +68,7 @@ try {
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $count = count($orders);
-    logMessage("Found {$count} unpaid approved orders to void (5-minute rule)");
+    logMessage("Found {$count} unpaid approved orders to void (5 minutes after approval)");
 
     if ($count === 0) {
         logMessage("No orders to void, exiting");
