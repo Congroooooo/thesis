@@ -1,5 +1,78 @@
 // New Delivery Modal Backend Functions
 
+// Notification functions
+function showSuccessMessage(message) {
+  // Remove any existing notifications
+  const existingNotification = document.querySelector(".pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  // Create notification element
+  const notification = document.createElement("div");
+  notification.className = "pamo-notification success";
+  notification.innerHTML = `
+    <span class="material-icons" style="font-size: 24px; margin-right: 12px;">check_circle</span>
+    <span>${message}</span>
+  `;
+
+  // Add to body
+  document.body.appendChild(notification);
+
+  // Trigger animation
+  setTimeout(() => {
+    notification.style.transform = "translateX(0)";
+    notification.style.opacity = "1";
+  }, 10);
+
+  // Auto remove after 5 seconds
+  setTimeout(() => {
+    notification.style.transform = "translateX(400px)";
+    notification.style.opacity = "0";
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 300);
+  }, 5000);
+}
+
+function showErrorMessage(message) {
+  // Remove any existing notifications
+  const existingNotification = document.querySelector(".pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  // Create notification element
+  const notification = document.createElement("div");
+  notification.className = "pamo-notification error";
+  notification.innerHTML = `
+    <span class="material-icons" style="font-size: 24px; margin-right: 12px;">error</span>
+    <span>${message}</span>
+  `;
+
+  // Add to body
+  document.body.appendChild(notification);
+
+  // Trigger animation
+  setTimeout(() => {
+    notification.style.transform = "translateX(0)";
+    notification.style.opacity = "1";
+  }, 10);
+
+  // Auto remove after 5 seconds
+  setTimeout(() => {
+    notification.style.transform = "translateX(400px)";
+    notification.style.opacity = "0";
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 300);
+  }, 5000);
+}
+
 function showAddQuantityModal() {
   document.getElementById("addQuantityModal").style.display = "block";
   document.getElementById("addQuantityForm").reset();
@@ -104,18 +177,19 @@ function validateProductSelection(selectElement) {
 
 function submitAddQuantity(event) {
   event.preventDefault();
+  event.stopPropagation();
 
   try {
     const orderNumber = document.getElementById("orderNumber").value;
     const deliveryItems = document.querySelectorAll(".delivery-item");
 
     if (!orderNumber || orderNumber.trim() === "") {
-      alert("Please enter a delivery order number");
+      showErrorMessage("Please enter a delivery order number");
       return false;
     }
 
     if (!deliveryItems || deliveryItems.length === 0) {
-      alert("Please add at least one item");
+      showErrorMessage("Please add at least one item");
       return false;
     }
 
@@ -131,25 +205,27 @@ function submitAddQuantity(event) {
       const quantityInput = item.querySelector('input[name="quantityToAdd[]"]');
 
       if (!itemSelect || !quantityInput) {
-        alert(`Invalid form elements for item ${i + 1}`);
+        showErrorMessage(`Invalid form elements for item ${i + 1}`);
         return false;
       }
 
       if (!itemSelect.value) {
-        alert(`Please select a product for item ${i + 1}`);
+        showErrorMessage(`Please select a product for item ${i + 1}`);
         itemSelect.focus();
         return false;
       }
 
       const quantity = parseInt(quantityInput.value);
       if (!quantity || quantity <= 0) {
-        alert(`Please enter a valid quantity greater than 0 for item ${i + 1}`);
+        showErrorMessage(
+          `Please enter a valid quantity greater than 0 for item ${i + 1}`
+        );
         quantityInput.focus();
         return false;
       }
 
       if (itemIds.includes(itemSelect.value)) {
-        alert(
+        showErrorMessage(
           `Duplicate product selected for item ${
             i + 1
           }. Please select different products.`
@@ -167,10 +243,18 @@ function submitAddQuantity(event) {
       formData.append("quantityToAdd[]", quantities[index]);
     });
 
-    const submitButton = document.querySelector('button[type="submit"]');
+    const submitButton = document.querySelector(
+      'button[form="addQuantityForm"]'
+    );
+    const originalButtonText = submitButton
+      ? submitButton.textContent
+      : "Record Delivery";
+
     if (submitButton) {
       submitButton.disabled = true;
-      submitButton.textContent = "Processing...";
+      submitButton.textContent = "Recording Delivery...";
+      submitButton.style.cursor = "not-allowed";
+      submitButton.style.opacity = "0.6";
     }
 
     fetch("../PAMO Inventory backend/process_add_quantity.php", {
@@ -185,24 +269,47 @@ function submitAddQuantity(event) {
       })
       .then((data) => {
         if (data.success) {
-          alert("Delivery recorded successfully!");
+          // Reset form
+          document.getElementById("addQuantityForm").reset();
+          const deliveryItemsContainer =
+            document.getElementById("deliveryItems");
+          const items =
+            deliveryItemsContainer.querySelectorAll(".delivery-item");
+          for (let i = 1; i < items.length; i++) {
+            items[i].remove();
+          }
+
+          // Close modal and show notification
           closeModal("addQuantityModal");
-          location.reload();
+          showSuccessMessage(
+            "Delivery recorded successfully! Refreshing inventory..."
+          );
+
+          // Refresh inventory table without page reload
+          setTimeout(() => {
+            if (typeof refreshInventoryTable === "function") {
+              refreshInventoryTable();
+            } else {
+              location.reload();
+            }
+          }, 800);
         } else {
           throw new Error(data.message || "Failed to record delivery");
         }
       })
       .catch((error) => {
-        alert(error.message);
+        showErrorMessage("Error: " + error.message);
       })
       .finally(() => {
         if (submitButton) {
           submitButton.disabled = false;
-          submitButton.textContent = "Record Delivery";
+          submitButton.textContent = originalButtonText;
+          submitButton.style.cursor = "pointer";
+          submitButton.style.opacity = "1";
         }
       });
   } catch (error) {
-    alert("An error occurred while processing your request");
+    showErrorMessage("An error occurred while processing your request");
     return false;
   }
 }

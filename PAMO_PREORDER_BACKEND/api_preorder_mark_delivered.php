@@ -79,14 +79,17 @@ try {
         $sizeData = $deliveredData[$size] ?? [];
         $deliveredPrice = isset($sizeData['price']) ? floatval($sizeData['price']) : $price;
         $deliveredDamage = isset($sizeData['damage']) ? intval($sizeData['damage']) : 0;
-        $specificItemCode = isset($sizeData['item_code']) ? trim($sizeData['item_code']) : $base;
+        
+        // Use the suffixed item code from frontend (e.g., PREORDER2-001 for XS)
+        // This matches the format used when adding items through Inventory page
+        $itemCode = isset($sizeData['item_code']) && !empty($sizeData['item_code']) 
+                    ? trim($sizeData['item_code']) 
+                    : $base; // fallback to base if not provided
 
-        // Item code should remain the pure base code (no size suffix) for consistency
-        $itemCode = $base;
-
-        // Check existing
-        $check = $conn->prepare('SELECT id, actual_quantity, image_path, damage FROM inventory WHERE item_code = ? AND sizes = ? LIMIT 1');
-        $check->execute([$itemCode, $size]);
+        // Check existing inventory by item_code (suffixed code like PREORDER2-001)
+        // No need to check by sizes column since item_code is unique per size
+        $check = $conn->prepare('SELECT id, actual_quantity, image_path, damage FROM inventory WHERE item_code = ? LIMIT 1');
+        $check->execute([$itemCode]);
         $existing = $check->fetch(PDO::FETCH_ASSOC);
 
         if ($existing) {
@@ -119,9 +122,16 @@ try {
     if (!empty($subRows)) {
         foreach ($delivered as $size => $qty) {
             if ($qty <= 0) continue;
-            $itemCode = $base; // pure base code
-            $invIdStmt = $conn->prepare('SELECT id FROM inventory WHERE item_code = ? AND sizes = ? LIMIT 1');
-            $invIdStmt->execute([$itemCode, $size]);
+            
+            // Get the suffixed item code for this size from deliveredData
+            $sizeData = $deliveredData[$size] ?? [];
+            $itemCode = isset($sizeData['item_code']) && !empty($sizeData['item_code']) 
+                        ? trim($sizeData['item_code']) 
+                        : $base; // fallback
+            
+            // Find inventory ID by the suffixed item_code
+            $invIdStmt = $conn->prepare('SELECT id FROM inventory WHERE item_code = ? LIMIT 1');
+            $invIdStmt->execute([$itemCode]);
             $invId = $invIdStmt->fetchColumn();
             if ($invId) {
                 $insLink = $conn->prepare('INSERT IGNORE INTO inventory_subcategory (inventory_id, subcategory_id) VALUES (?, ?)');
@@ -187,13 +197,19 @@ try {
         $maxNumber = $row && $row['max_seq'] ? (int)$row['max_seq'] : 0;
         $orderNumber = 'SI-' . $date . '-' . str_pad($maxNumber + 1, 6, '0', STR_PAD_LEFT);
         
-        // Update items JSON to use proper inventory item codes and add category
+        // Update items JSON to use proper suffixed inventory item codes and add category
         $items = json_decode($preorder['items'], true);
         if (is_array($items)) {
             foreach ($items as &$item) {
                 $size = $item['size'] ?? 'One Size';
+                
+                // Generate suffixed item code (e.g., PREORDER2-001 for XS)
+                // This matches the format used in inventory
                 $sizeNumber = $getSizeNumber($size);
-                $item['item_code'] = $base . '-' . str_pad($sizeNumber, 3, '0', STR_PAD_LEFT);
+                $suffixedItemCode = $base . '-' . str_pad($sizeNumber, 3, '0', STR_PAD_LEFT);
+                
+                $item['item_code'] = $suffixedItemCode;
+                $item['size'] = $size; // Ensure size is preserved
                 $item['category'] = $catName ?? 'Uncategorized';
             }
             unset($item);
@@ -242,10 +258,10 @@ try {
         
         // Send notification to customer about order conversion
         $notificationMessage = "🎉 Great news! Your pre-order '{$itemName}' (PRE-ORDER #: {$preorder['preorder_number']}) has been delivered and is ready for pickup! " .
-                             "Your order has been automatically approved (ORDER #: {$generatedOrderNumber}). " .
+                             "Your order has been automatically approved (ORDER #: {$orderNumber}). " .
                              "Please download your e-slip, pay at the cashier, and claim your item within 5 minutes.";
         
-        createNotification($conn, $preorder['user_id'], $notificationMessage, $generatedOrderNumber, 'preorder_delivered');
+        createNotification($conn, $preorder['user_id'], $notificationMessage, $orderNumber, 'preorder_delivered');
         
         $convertedCount++;
     }
@@ -282,6 +298,100 @@ try {
         // Non-critical error, don't fail the request 
     }
 
+    // Update monthly inventory snapshots
+    try {
+        require_once __DIR__ . '/../Includes/MonthlyInventoryManager.php';
+        $monthlyInventory = new MonthlyInventoryManager($conn);
+        
+        // Get current active period
+        $currentYear = date('Y');
+        $currentMonth = date('n');
+        
+        // Check if period exists, if not create it
+        $periodStmt = $conn->prepare("SELECT id FROM monthly_inventory_periods WHERE year = ? AND month = ?");
+        $periodStmt->execute([$currentYear, $currentMonth]);
+        $period = $periodStmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$period) {
+            // Create period for current month
+            $periodStart = date('Y-m-01');
+            $periodEnd = date('Y-m-t');
+            $createPeriodStmt = $conn->prepare("
+                INSERT INTO monthly_inventory_periods (year, month, period_start, period_end, is_closed)
+                VALUES (?, ?, ?, ?, 0)
+            ");
+            $createPeriodStmt->execute([$currentYear, $currentMonth, $periodStart, $periodEnd]);
+            $periodId = $conn->lastInsertId();
+        } else {
+            $periodId = $period['id'];
+        }
+        
+        // Update snapshots for each delivered item
+        foreach ($delivered as $size => $qty) {
+            $size = trim($size);
+            $qty = intval($qty);
+            if ($qty <= 0 || $size === '') continue;
+            
+            // Get the suffixed item code for this size
+            $sizeData = $deliveredData[$size] ?? [];
+            $itemCode = isset($sizeData['item_code']) && !empty($sizeData['item_code']) 
+                        ? trim($sizeData['item_code']) 
+                        : $base; // fallback
+            
+            // Check if snapshot exists
+            $snapshotStmt = $conn->prepare("
+                SELECT id, new_delivery_total, ending_quantity 
+                FROM monthly_inventory_snapshots 
+                WHERE period_id = ? AND item_code = ?
+            ");
+            $snapshotStmt->execute([$periodId, $itemCode]);
+            $snapshot = $snapshotStmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($snapshot) {
+                // Update existing snapshot - add to deliveries and ending quantity
+                $updateSnapshotStmt = $conn->prepare("
+                    UPDATE monthly_inventory_snapshots 
+                    SET new_delivery_total = new_delivery_total + ?,
+                        ending_quantity = ending_quantity + ?
+                    WHERE id = ?
+                ");
+                $updateSnapshotStmt->execute([$qty, $qty, $snapshot['id']]);
+            } else {
+                // Create new snapshot for this item
+                // Get current inventory quantities
+                $invStmt = $conn->prepare("
+                    SELECT actual_quantity, beginning_quantity, sold_quantity 
+                    FROM inventory 
+                    WHERE item_code = ? AND sizes = ?
+                    LIMIT 1
+                ");
+                $invStmt->execute([$itemCode, $size]);
+                $invData = $invStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($invData) {
+                    $insertSnapshotStmt = $conn->prepare("
+                        INSERT INTO monthly_inventory_snapshots (
+                            period_id, item_code, beginning_quantity, 
+                            new_delivery_total, sales_total, ending_quantity
+                        ) VALUES (?, ?, ?, ?, ?, ?)
+                    ");
+                    
+                    $beginningQty = intval($invData['beginning_quantity']);
+                    $salesTotal = intval($invData['sold_quantity']);
+                    $endingQty = intval($invData['actual_quantity']);
+                    
+                    $insertSnapshotStmt->execute([
+                        $periodId, $itemCode, $beginningQty, 
+                        $qty, $salesTotal, $endingQty
+                    ]);
+                }
+            }
+        }
+    } catch (Throwable $e) { 
+        // Non-critical - log error but don't fail the transaction
+        error_log("Monthly inventory snapshot update failed: " . $e->getMessage());
+    }
+    
     // Audit trail: log this delivery action
     try {
         $userId = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : null;

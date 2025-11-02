@@ -420,6 +420,17 @@
 
 <script>
 (function() {
+    // Check if we should skip the loader (after successful AJAX action)
+    if (sessionStorage.getItem('skipPAMOLoader') === 'true') {
+        sessionStorage.removeItem('skipPAMOLoader');
+        const loader = document.getElementById('pamo-loader');
+        if (loader) {
+            loader.style.display = 'none';
+            loader.classList.add('hidden');
+        }
+        return; // Exit early, don't show loader
+    }
+
     'use strict';
 
     function enforceLoaderVisibility() {

@@ -22,6 +22,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
 
 require_once '../Includes/connection.php';
 require_once '../Includes/MonthlyInventoryManager.php';
+require_once '../Includes/period_helper.php';
 
 header('Content-Type: application/json');
 
@@ -40,11 +41,49 @@ try {
             $periodInfo = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$periodInfo) {
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'No data available for the selected period'
-                ]);
-                break;
+                $currentYear = date('Y');
+                $currentMonth = date('n');
+                $isCurrentOrPast = ($year < $currentYear) || ($year == $currentYear && $month <= $currentMonth);
+                
+                // Get the latest existing period
+                $stmt = $conn->query("
+                    SELECT year, month 
+                    FROM monthly_inventory_periods 
+                    ORDER BY year DESC, month DESC 
+                    LIMIT 1
+                ");
+                $latestPeriod = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                // Calculate if selected month is the next month after latest period
+                $isNextMonth = false;
+                if ($latestPeriod) {
+                    $latestDate = mktime(0, 0, 0, $latestPeriod['month'], 1, $latestPeriod['year']);
+                    $selectedDate = mktime(0, 0, 0, $month, 1, $year);
+                    $nextMonthDate = strtotime('+1 month', $latestDate);
+                    $isNextMonth = ($selectedDate == $nextMonthDate);
+                }
+                
+                // Only create if it's current/past AND it's the next month in sequence
+                if ($isCurrentOrPast && $isNextMonth) {
+                    try {
+                        $periodId = createMonthlyPeriod($conn, $year, $month);
+                        $stmt = $conn->prepare("SELECT * FROM monthly_inventory_periods WHERE id = ?");
+                        $stmt->execute([$periodId]);
+                        $periodInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            'success' => false,
+                            'message' => 'No data available for the selected period'
+                        ]);
+                        break;
+                    }
+                } else {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'No data available for the selected period'
+                    ]);
+                    break;
+                }
             }
             
             $periodId = $periodInfo['id'];
@@ -56,6 +95,7 @@ try {
                     SUM(mis.beginning_quantity) as total_beginning,
                     SUM(mis.new_delivery_total) as total_deliveries,
                     SUM(mis.sales_total) as total_sales,
+                    SUM(mis.removals_total) as total_removals,
                     SUM(mis.ending_quantity) as total_ending,
                     SUM(mis.ending_quantity * i.price) as total_value
                 FROM monthly_inventory_snapshots mis
@@ -86,11 +126,29 @@ try {
             $periodInfo = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$periodInfo) {
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'No data available for the selected period'
-                ]);
-                break;
+                // Auto-create the period ONLY if it's current month or past
+                $currentYear = date('Y');
+                $currentMonth = date('n');
+                $isCurrentOrPast = ($year < $currentYear) || ($year == $currentYear && $month <= $currentMonth);
+                
+                if ($isCurrentOrPast) {
+                    try {
+                        $periodId = createMonthlyPeriod($conn, $year, $month);
+                        $periodInfo = ['id' => $periodId];
+                    } catch (Exception $e) {
+                        echo json_encode([
+                            'success' => false,
+                            'message' => 'No data available for the selected period'
+                        ]);
+                        break;
+                    }
+                } else {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'No data available for the selected period'
+                    ]);
+                    break;
+                }
             }
             
             $periodId = $periodInfo['id'];
@@ -129,6 +187,7 @@ try {
                     mis.beginning_quantity,
                     mis.new_delivery_total,
                     mis.sales_total,
+                    mis.removals_total,
                     mis.ending_quantity,
                     i.price,
                     (mis.ending_quantity * i.price) as ending_value
@@ -195,6 +254,46 @@ try {
             echo json_encode([
                 'success' => true,
                 'categories' => $categories
+            ]);
+            break;
+            
+        case 'get_removal_details':
+            // Get period information
+            $stmt = $conn->prepare("SELECT id FROM monthly_inventory_periods WHERE year = ? AND month = ?");
+            $stmt->execute([$year, $month]);
+            $periodInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$periodInfo) {
+                echo json_encode([
+                    'success' => true,
+                    'removals' => []
+                ]);
+                break;
+            }
+            
+            $periodId = $periodInfo['id'];
+            
+            // Get all removals for the period with item details
+            $stmt = $conn->prepare("
+                SELECT 
+                    ir.id,
+                    ir.item_code,
+                    i.item_name,
+                    ir.quantity_removed,
+                    ir.removal_reason,
+                    ir.removed_at,
+                    ir.pullout_order_number
+                FROM inventory_removals ir
+                JOIN inventory i ON ir.item_code COLLATE utf8mb4_unicode_ci = i.item_code COLLATE utf8mb4_unicode_ci
+                WHERE ir.period_id = ?
+                ORDER BY ir.removed_at DESC
+            ");
+            $stmt->execute([$periodId]);
+            $removals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            echo json_encode([
+                'success' => true,
+                'removals' => $removals
             ]);
             break;
             

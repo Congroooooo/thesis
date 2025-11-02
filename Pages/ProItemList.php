@@ -1356,7 +1356,7 @@ include("../Includes/loader.php");
     }
     
     // Add to cart functions
-    function addToCartWithSize() {
+    async function addToCartWithSize() {
         const selectedSize = document.querySelector('.size-option.active');
         if (!selectedSize) {
             showNotification('Please select a size', 'warning');
@@ -1380,18 +1380,30 @@ include("../Includes/loader.php");
         const itemCode = selectedSize.dataset.itemCode;
         const size = selectedSize.textContent;
 
-        addToCart({
-            itemCode: itemCode,
-            size: size,
-            quantity: quantity
-        });
+        // Get the button and show loading state
+        const addButton = document.querySelector('#sizeModal .add-to-cart-btn');
+        const originalText = addButton.innerHTML;
+        addButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding to Cart...';
+        addButton.disabled = true;
 
-        // Close modal
-        document.getElementById('sizeModal').classList.remove('show');
-        quantityInput.value = 1;
+        try {
+            await addToCart({
+                itemCode: itemCode,
+                size: size,
+                quantity: quantity
+            });
+
+            // Close modal after successful addition
+            document.getElementById('sizeModal').classList.remove('show');
+            quantityInput.value = 1;
+        } finally {
+            // Restore button state
+            addButton.innerHTML = originalText;
+            addButton.disabled = false;
+        }
     }
     
-    function addAccessoryToCart() {
+    async function addAccessoryToCart() {
         const quantityInput = document.getElementById('accessoryQuantity');
         const quantity = parseInt(quantityInput.value);
 
@@ -1406,13 +1418,25 @@ include("../Includes/loader.php");
             return;
         }
 
-        addToCart({
-            itemCode: currentProduct.itemCode,
-            quantity: quantity,
-            size: 'One Size'
-        });
+        // Get the button and show loading state
+        const addButton = document.querySelector('#accessoryModal .add-to-cart-btn');
+        const originalText = addButton.innerHTML;
+        addButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding to Cart...';
+        addButton.disabled = true;
 
-        closeAccessoryModal();
+        try {
+            await addToCart({
+                itemCode: currentProduct.itemCode,
+                quantity: quantity,
+                size: 'One Size'
+            });
+
+            closeAccessoryModal();
+        } finally {
+            // Restore button state
+            addButton.innerHTML = originalText;
+            addButton.disabled = false;
+        }
     }
     
     async function addToCart(customData) {

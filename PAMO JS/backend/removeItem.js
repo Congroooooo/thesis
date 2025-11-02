@@ -1,3 +1,66 @@
+// Notification functions
+function showSuccessMessage(message) {
+  const existingNotification = document.querySelector(".pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  const notification = document.createElement("div");
+  notification.className = "pamo-notification success";
+  notification.innerHTML = `
+    <span class="material-icons" style="font-size: 20px; flex-shrink: 0;">check_circle</span>
+    <span>${message}</span>
+  `;
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.style.transform = "translateX(0)";
+    notification.style.opacity = "1";
+  }, 10);
+
+  setTimeout(() => {
+    notification.style.transform = "translateX(400px)";
+    notification.style.opacity = "0";
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 300);
+  }, 5000);
+}
+
+function showErrorMessage(message) {
+  const existingNotification = document.querySelector(".pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  const notification = document.createElement("div");
+  notification.className = "pamo-notification error";
+  notification.innerHTML = `
+    <span class="material-icons" style="font-size: 20px; flex-shrink: 0;">error</span>
+    <span>${message}</span>
+  `;
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.style.transform = "translateX(0)";
+    notification.style.opacity = "1";
+  }, 10);
+
+  setTimeout(() => {
+    notification.style.transform = "translateX(400px)";
+    notification.style.opacity = "0";
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 300);
+  }, 5000);
+}
+
 function showRemoveItemModal() {
   const modal = document.getElementById("removeItemModal");
   modal.style.display = "block";
@@ -292,6 +355,7 @@ function updateRemovalItemDetails(selectElement) {
 
 function submitRemoveItem(event) {
   event.preventDefault();
+  event.stopPropagation();
 
   const form = document.getElementById("removeItemForm");
   const formData = new FormData(form);
@@ -299,7 +363,7 @@ function submitRemoveItem(event) {
   // Validation
   const pulloutOrderNumber = formData.get("pulloutOrderNumber");
   if (!pulloutOrderNumber || pulloutOrderNumber.trim() === "") {
-    alert("Please enter a Pullout Order Number");
+    showErrorMessage("Please enter a Pullout Order Number");
     return;
   }
 
@@ -313,18 +377,18 @@ function submitRemoveItem(event) {
   // Validate each item
   for (let i = 0; i < itemIds.length; i++) {
     if (!itemIds[i]) {
-      alert(`Please select a product for item #${i + 1}`);
+      showErrorMessage(`Please select a product for item #${i + 1}`);
       return;
     }
 
     const qty = parseInt(quantities[i]);
     if (!qty || qty <= 0) {
-      alert(`Please enter a valid quantity for item #${i + 1}`);
+      showErrorMessage(`Please enter a valid quantity for item #${i + 1}`);
       return;
     }
 
     if (qty > currentStocks[i]) {
-      alert(
+      showErrorMessage(
         `Quantity to remove (${qty}) exceeds current stock (${
           currentStocks[i]
         }) for item #${i + 1}`
@@ -333,37 +397,100 @@ function submitRemoveItem(event) {
     }
 
     if (!reasons[i] || reasons[i].trim() === "") {
-      alert(`Please enter a removal reason for item #${i + 1}`);
+      showErrorMessage(`Please enter a removal reason for item #${i + 1}`);
       return;
     }
   }
 
-  // Confirmation dialog
+  // Show custom confirmation modal
   const itemCount = itemIds.length;
   const totalQuantity = quantities.reduce((sum, qty) => sum + parseInt(qty), 0);
 
-  const confirmMessage = `Are you sure you want to remove ${totalQuantity} item(s) across ${itemCount} product(s) from inventory?\n\nPullout Order #: ${pulloutOrderNumber}\n\nThis action cannot be undone.`;
+  showRemoveConfirmationModal(
+    pulloutOrderNumber,
+    totalQuantity,
+    itemCount,
+    formData
+  );
+}
 
-  if (!confirm(confirmMessage)) {
-    return;
-  }
+// Custom confirmation modal function
+function showRemoveConfirmationModal(
+  pulloutOrderNumber,
+  totalQuantity,
+  itemCount,
+  formData
+) {
+  const confirmModal = document.createElement("div");
+  confirmModal.className = "custom-confirm-modal";
+  confirmModal.innerHTML = `
+    <div class="custom-confirm-overlay"></div>
+    <div class="custom-confirm-content">
+      <div class="custom-confirm-icon">
+        <span class="material-icons" style="font-size: 48px; color: #dc3545;">warning</span>
+      </div>
+      <h3 class="custom-confirm-title">Confirm Item Removal</h3>
+      <p class="custom-confirm-message">
+        Are you sure you want to remove <strong>${totalQuantity} item(s)</strong> across <strong>${itemCount} product(s)</strong> from inventory?
+      </p>
+      <p class="custom-confirm-detail">
+        <strong>Pullout Order #:</strong> ${pulloutOrderNumber}
+      </p>
+      <p class="custom-confirm-warning">
+        <span class="material-icons" style="font-size: 18px; vertical-align: middle;">info</span>
+        This action cannot be undone.
+      </p>
+      <div class="custom-confirm-buttons">
+        <button class="custom-confirm-btn confirm-yes">OK</button>
+        <button class="custom-confirm-btn confirm-no">Cancel</button>
+      </div>
+    </div>
+  `;
 
-  // Show loading overlay
-  const loader = document.getElementById("pamo-loader");
-  if (loader) {
-    loader.classList.remove("hidden");
-  }
+  document.body.appendChild(confirmModal);
 
-  // Show loading state - button is outside form, use form attribute selector
+  // Animate in
+  setTimeout(() => {
+    confirmModal.style.opacity = "1";
+    const content = confirmModal.querySelector(".custom-confirm-content");
+    if (content) {
+      content.style.transform = "scale(1)";
+    }
+  }, 10);
+
+  // Handle buttons
+  const yesBtn = confirmModal.querySelector(".confirm-yes");
+  const noBtn = confirmModal.querySelector(".confirm-no");
+
+  yesBtn.onclick = () => {
+    confirmModal.remove();
+    processRemoveItem(formData);
+  };
+
+  noBtn.onclick = () => {
+    confirmModal.style.opacity = "0";
+    setTimeout(() => confirmModal.remove(), 300);
+  };
+
+  // Close on overlay click
+  confirmModal.querySelector(".custom-confirm-overlay").onclick = () => {
+    confirmModal.style.opacity = "0";
+    setTimeout(() => confirmModal.remove(), 300);
+  };
+}
+
+// Process the removal
+function processRemoveItem(formData) {
   const submitBtn = document.querySelector(
     'button[form="removeItemForm"][type="submit"]'
   );
-  let originalBtnText = "Remove Items";
+  const originalBtnText = submitBtn ? submitBtn.textContent : "Remove Items";
 
   if (submitBtn) {
-    originalBtnText = submitBtn.textContent;
     submitBtn.disabled = true;
-    submitBtn.textContent = "Processing...";
+    submitBtn.textContent = "Removing Items...";
+    submitBtn.style.cursor = "not-allowed";
+    submitBtn.style.opacity = "0.6";
   }
 
   // Submit form via AJAX
@@ -373,44 +500,57 @@ function submitRemoveItem(event) {
   })
     .then((response) => response.json())
     .then((data) => {
-      // Hide loader
-      if (loader) {
-        loader.classList.add("hidden");
-      }
-
+      // Restore button state
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = originalBtnText;
+        submitBtn.style.cursor = "pointer";
+        submitBtn.style.opacity = "1";
       }
 
       if (data.success) {
-        alert(
-          `Success! ${data.total_items} item(s) removed from inventory.\n\nPullout Order #: ${data.pullout_order_number}`
+        // Reset form
+        const form = document.getElementById("removeItemForm");
+        if (form) form.reset();
+
+        // Reset to single item
+        const container = document.getElementById("removalItems");
+        if (container) {
+          const items = container.querySelectorAll(".removal-item");
+          for (let i = 1; i < items.length; i++) {
+            items[i].remove();
+          }
+        }
+
+        // Close modal and show notification
+        closeModal("removeItemModal");
+        showSuccessMessage(
+          `Success! ${data.total_items} item(s) removed from inventory. Refreshing...`
         );
 
-        // Close modal and reset form
-        closeModal("removeItemModal");
-        form.reset();
-
-        // Reload the page to reflect updated quantities
-        location.reload();
+        // Refresh inventory table without page reload
+        setTimeout(() => {
+          if (typeof refreshInventoryTable === "function") {
+            refreshInventoryTable();
+          } else {
+            location.reload();
+          }
+        }, 800);
       } else {
-        alert("Error: " + data.message);
+        showErrorMessage("Error: " + data.message);
       }
     })
     .catch((error) => {
-      // Hide loader on error
-      if (loader) {
-        loader.classList.add("hidden");
-      }
-
+      // Restore button state
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = originalBtnText;
+        submitBtn.style.cursor = "pointer";
+        submitBtn.style.opacity = "1";
       }
 
       console.error("Error:", error);
-      alert(
+      showErrorMessage(
         "An error occurred while processing the removal. Please try again."
       );
     });

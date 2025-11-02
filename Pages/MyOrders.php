@@ -97,14 +97,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])) {
     $cancel_preorder_id = $_POST['cancel_preorder_id'];
     
+    // Get pre-order details before cancelling
+    $preorder_stmt = $conn->prepare("SELECT * FROM preorder_orders WHERE id = ? AND user_id = ?");
+    $preorder_stmt->execute([$cancel_preorder_id, $_SESSION['user_id']]);
+    $preorder = $preorder_stmt->fetch(PDO::FETCH_ASSOC);
+    
     // Only allow cancel if the pre-order is still pending and belongs to this user
     $stmt = $conn->prepare("UPDATE preorder_orders SET status = 'cancelled' WHERE id = ? AND user_id = ? AND status = 'pending'");
     $stmt->execute([$cancel_preorder_id, $_SESSION['user_id']]);
     
+    // Also update the preorder_requests table to mark as cancelled/inactive
+    if ($preorder && isset($preorder['preorder_item_id'])) {
+        $updateRequestStmt = $conn->prepare("
+            UPDATE preorder_requests 
+            SET status = 'cancelled' 
+            WHERE preorder_item_id = ? AND user_id = ? AND status = 'active'
+        ");
+        $updateRequestStmt->execute([$preorder['preorder_item_id'], $_SESSION['user_id']]);
+    }
+    
     // Log activity
-    $preorder_stmt = $conn->prepare("SELECT * FROM preorder_orders WHERE id = ? AND user_id = ?");
-    $preorder_stmt->execute([$cancel_preorder_id, $_SESSION['user_id']]);
-    $preorder = $preorder_stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($preorder) {
         $preorder_items = json_decode($preorder['items'], true);

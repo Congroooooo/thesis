@@ -103,8 +103,8 @@ try {
     ]);
     
     // Also keep the old preorder_requests for backwards compatibility
-    $stmt = $conn->prepare('INSERT INTO preorder_requests (preorder_item_id, user_id, size, quantity) VALUES (?, ?, ?, ?)');
-    $stmt->execute([$preId, $userId, $size, $qty]);
+    $stmt = $conn->prepare('INSERT INTO preorder_requests (preorder_item_id, user_id, size, quantity, status) VALUES (?, ?, ?, ?, ?)');
+    $stmt->execute([$preId, $userId, $size, $qty, 'active']);
     
     // Send notification to user
     require_once __DIR__ . '/../Includes/notification_operations.php';

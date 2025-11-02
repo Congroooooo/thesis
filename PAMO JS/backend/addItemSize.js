@@ -1,5 +1,62 @@
 // Add Item Size Modal Backend Functions
 
+// Notification helper functions
+function showSuccessMessage(message) {
+  // Remove any existing notification
+  const existingNotification = document.getElementById("pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  // Create notification element
+  const notification = document.createElement("div");
+  notification.id = "pamo-notification";
+  notification.className = "pamo-notification success";
+  notification.innerHTML = `
+    <i class="material-icons">check_circle</i>
+    <span>${message}</span>
+  `;
+
+  document.body.appendChild(notification);
+
+  // Trigger animation
+  setTimeout(() => notification.classList.add("show"), 10);
+
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    notification.classList.remove("show");
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
+}
+
+function showErrorMessage(message) {
+  // Remove any existing notification
+  const existingNotification = document.getElementById("pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  // Create notification element
+  const notification = document.createElement("div");
+  notification.id = "pamo-notification";
+  notification.className = "pamo-notification error";
+  notification.innerHTML = `
+    <i class="material-icons">error</i>
+    <span>${message}</span>
+  `;
+
+  document.body.appendChild(notification);
+
+  // Trigger animation
+  setTimeout(() => notification.classList.add("show"), 10);
+
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    notification.classList.remove("show");
+    setTimeout(() => notification.remove(), 300);
+  }, 5000);
+}
+
 const allSizes = [
   "XS",
   "S",
@@ -542,19 +599,40 @@ document.addEventListener("DOMContentLoaded", function () {
 
 function submitNewItemSize(event) {
   event.preventDefault();
+  event.stopPropagation();
 
   // Validate delivery order
   const deliveryOrder = document.getElementById("deliveryOrderNumberSize");
   if (!deliveryOrder.value.trim()) {
-    alert("Please enter a delivery order number");
-    return;
+    showErrorMessage("Please enter a delivery order number");
+    return false;
+  }
+
+  // Show loading state on button
+  const form = document.getElementById("addItemSizeForm");
+  const submitButton =
+    form.querySelector('button[type="submit"]') ||
+    document.querySelector('button[form="addItemSizeForm"]');
+  const originalButtonText = submitButton ? submitButton.innerHTML : "";
+  if (submitButton) {
+    submitButton.innerHTML = "Adding Sizes...";
+    submitButton.disabled = true;
+    submitButton.style.cursor = "not-allowed";
+    submitButton.style.opacity = "0.7";
   }
 
   // Get all item entries
   const itemEntries = document.querySelectorAll(".item-entry");
   if (itemEntries.length === 0) {
-    alert("Please add at least one item");
-    return;
+    showErrorMessage("Please add at least one item");
+    // Restore button state
+    if (submitButton) {
+      submitButton.innerHTML = originalButtonText;
+      submitButton.disabled = false;
+      submitButton.style.cursor = "pointer";
+      submitButton.style.opacity = "1";
+    }
+    return false;
   }
 
   // Validate each item and collect data
@@ -638,8 +716,17 @@ function submitNewItemSize(event) {
   });
 
   if (!isValid) {
-    alert("Please fix the following issues:\n\n" + invalidFields.join("\n"));
-    return;
+    showErrorMessage(
+      "Please fix the following issues:\n\n" + invalidFields.join("\n")
+    );
+    // Restore button state
+    if (submitButton) {
+      submitButton.innerHTML = originalButtonText;
+      submitButton.disabled = false;
+      submitButton.style.cursor = "pointer";
+      submitButton.style.opacity = "1";
+    }
+    return false;
   }
 
   // Create form data
@@ -654,24 +741,59 @@ function submitNewItemSize(event) {
 
   xhr.onreadystatechange = function () {
     if (xhr.readyState === 4) {
+      // Restore button state
+      if (submitButton) {
+        submitButton.innerHTML = originalButtonText;
+        submitButton.disabled = false;
+        submitButton.style.cursor = "pointer";
+        submitButton.style.opacity = "1";
+      }
+
       if (xhr.status === 200) {
         try {
           const response = JSON.parse(xhr.responseText);
           if (response.success) {
-            alert("New sizes added successfully!");
-            location.reload();
+            // Reset the form
+            form.reset();
+
+            // Reset to single entry
+            const itemsContainer = document.getElementById("itemsContainer");
+            const itemEntries = itemsContainer.querySelectorAll(".item-entry");
+            for (let i = 1; i < itemEntries.length; i++) {
+              itemEntries[i].remove();
+            }
+            resetItemEntry(0);
+
+            // Close the modal
+            closeModal("addItemSizeModal");
+
+            // Show success message
+            showSuccessMessage(
+              "New sizes added successfully! Refreshing inventory..."
+            );
+
+            // Refresh the inventory table without reloading the page
+            setTimeout(() => {
+              if (typeof refreshInventoryTable === "function") {
+                refreshInventoryTable();
+              } else {
+                // Fallback to page reload if function doesn't exist
+                location.reload();
+              }
+            }, 800);
           } else {
-            alert("Error: " + response.message);
+            showErrorMessage("Error: " + response.message);
           }
         } catch (e) {
           console.error("Parse error:", e);
-          alert("Error processing response: " + xhr.responseText);
+          showErrorMessage("Error processing response: " + xhr.responseText);
         }
       } else {
-        alert("Error: " + xhr.statusText);
+        showErrorMessage("Error: " + xhr.statusText);
       }
     }
   };
 
   xhr.send(formData);
+  return false;
 }

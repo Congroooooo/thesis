@@ -32,42 +32,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
     exit();
 }
 
-// Handle low stock threshold update
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_threshold'])) {
-    $newThreshold = intval($_POST['low_stock_threshold']);
-    $oldThreshold = getLowStockThreshold($conn);
-    
-    if ($newThreshold > 0) {
-        try {
-            // Check if system_config table exists
-            $tableCheck = $conn->query("SHOW TABLES LIKE 'system_config'");
-            if ($tableCheck->rowCount() == 0) {
-                // Create table if it doesn't exist
-                $createTable = "CREATE TABLE IF NOT EXISTS system_config (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    config_key VARCHAR(50) UNIQUE NOT NULL,
-                    config_value VARCHAR(255) NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                )";
-                $conn->exec($createTable);
-            }
-            
-            if (updateLowStockThreshold($conn, $newThreshold)) {
-                $success_message = "Low stock threshold updated successfully!";
-                $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
-                $desc = "Low stock threshold changed from $oldThreshold to $newThreshold.";
-                logActivity($conn, 'Low Stock Update', $desc, $user_id);
-            } else {
-                $error_message = "Failed to update low stock threshold. Please check database permissions.";
-            }
-        } catch (Exception $e) {
-            $error_message = "Database error: " . $e->getMessage();
-        }
-    } else {
-        $error_message = "Threshold must be greater than 0.";
-    }
-}
+// Low stock threshold is now handled via AJAX (see includes/update_threshold.php)
 
 // Handle category deletion
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_category'])) {
@@ -125,231 +90,10 @@ include 'includes/pamo_loader.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PAMO - Settings</title>
     <link rel="stylesheet" href="../PAMO CSS/styles.css">
+    <link rel="stylesheet" href="../PAMO CSS/settings.css">
     <link rel="stylesheet" href="../CSS/logout-modal.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        .settings-container {
-            padding: 20px;
-        }
-        .settings-card {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .settings-title {
-            font-size: 1.5em;
-            margin-bottom: 20px;
-            color: #333;
-        }
-        
-        /* Tab Navigation */
-        .tab-navigation {
-            display: flex;
-            border-bottom: 2px solid #e0e0e0;
-            margin-bottom: 25px;
-        }
-        .tab-button {
-            background: none;
-            border: none;
-            padding: 15px 25px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 500;
-            color: #666;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .tab-button:hover {
-            background-color: #f8f9fa;
-            color: #333;
-        }
-        .tab-button.active {
-            color: #007bff;
-            border-bottom-color: #007bff;
-            background-color: #f8f9fa;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        
-        /* Category Management Styles */
-        .category-section {
-            margin-bottom: 30px;
-        }
-        .add-category-form {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-        }
-        .categories-list {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        .category-item {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            transition: box-shadow 0.2s;
-        }
-        .category-item:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .category-header {
-            display: flex;
-            justify-content: between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .category-name {
-            font-weight: bold;
-            font-size: 16px;
-            color: #333;
-            flex: 1;
-        }
-        .category-actions {
-            display: flex;
-            gap: 8px;
-        }
-        .subcategories-list {
-            margin-top: 15px;
-            padding-left: 20px;
-            border-left: 3px solid #e0e0e0;
-        }
-        .subcategory-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .subcategory-item:last-child {
-            border-bottom: none;
-        }
-        .add-subcategory-form {
-            margin-top: 15px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 6px;
-        }
-        
-        /* Form Styles */
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        .form-row {
-            display: flex;
-            gap: 15px;
-            align-items: end;
-        }
-        .form-row .form-group {
-            flex: 1;
-            margin-bottom: 0;
-        }
-        
-        /* Button Styles */
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            transition: background-color 0.2s;
-        }
-        .btn-primary {
-            background: #007bff;
-            color: white;
-        }
-        .btn-primary:hover {
-            background: #0056b3;
-        }
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-        .btn-secondary:hover {
-            background: #545b62;
-        }
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-        .btn-success:hover {
-            background: #1e7e34;
-        }
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-        .btn-danger:hover {
-            background: #c82333;
-        }
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-        
-        .save-btn {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .save-btn:hover {
-            background: #0056b3;
-        }
-        .message {
-            padding: 10px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-        }
-        .success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .loading {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-        .hidden {
-            display: none !important;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
@@ -358,21 +102,21 @@ include 'includes/pamo_loader.php';
         <main class="main-content">
             <div class="settings-container">
                 <div class="settings-card">
-                    <div class="settings-header" style="display: flex; align-items: center; gap: 12px; margin-bottom: 25px;">
-                        <i class="material-icons" style="font-size: 2.2em; color: #007bff;">settings</i>
+                    <div class="settings-header">
+                        <i class="material-icons">settings</i>
                         <div>
-                            <h2 class="settings-title" style="margin: 0;">Settings</h2>
-                            <p style="margin: 2px 0 0 0; color: #666; font-size: 1.08em;">Configure categories and system settings for inventory management.</p>
+                            <h2 class="settings-title">Settings</h2>
+                            <p>Configure categories and system settings for inventory management.</p>
                         </div>
                     </div>
 
                     <?php if (isset($success_message)): ?>
-                        <div class="message success" style="display: flex; align-items: center; gap: 8px;">
+                        <div class="message success">
                             <i class="material-icons">check_circle</i> <?php echo $success_message; ?>
                         </div>
                     <?php endif; ?>
                     <?php if (isset($error_message)): ?>
-                        <div class="message error" style="display: flex; align-items: center; gap: 8px;">
+                        <div class="message error">
                             <i class="material-icons">error</i> <?php echo $error_message; ?>
                         </div>
                     <?php endif; ?>
@@ -394,7 +138,7 @@ include 'includes/pamo_loader.php';
                         <div class="category-section">
                             <!-- Add New Category Form -->
                             <div class="add-category-form">
-                                <h3 style="margin-top: 0;">Add New Category</h3>
+                                <h3>Add New Category</h3>
                                 <form id="addCategoryForm">
                                     <div class="form-row">
                                         <div class="form-group">
@@ -427,23 +171,57 @@ include 'includes/pamo_loader.php';
                     <!-- Low Stock Threshold Tab -->
                     <div id="low-stock-threshold" class="tab-content">
                         <h3>Low Stock Threshold Configuration</h3>
-                        <form method="POST" style="max-width: 400px; margin-top: 18px;">
-                            <div class="form-group" style="margin-bottom: 24px;">
-                                <label for="low_stock_threshold" style="font-size: 1.1em;">Low Stock Threshold</label>
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <input type="number" id="low_stock_threshold" name="low_stock_threshold" value="<?php echo $current_threshold; ?>" min="1" required style="flex: 1; font-size: 1.1em; padding: 10px; border: 1.5px solid #bfc9d1; border-radius: 6px;">
-                                    <span style="color: #888; font-size: 1.1em;">units</span>
+                        <div class="threshold-display-group">
+                            <div class="threshold-display-wrapper">
+                                <div class="threshold-display-value">
+                                    <span class="value" id="currentThresholdDisplay"><?php echo $current_threshold; ?></span>
+                                    <span class="unit">units</span>
                                 </div>
-                                <small style="color: #888; margin-top: 6px; display: block;">Items with quantity at or below this number will be marked as <b>Low Stock</b>.</small>
+                                <button type="button" class="btn-edit-threshold" onclick="openThresholdModal()">
+                                    <i class="material-icons">edit</i>
+                                    Edit Threshold
+                                </button>
                             </div>
-                            <button type="submit" name="update_threshold" class="save-btn" style="width: 100%; font-size: 1.1em; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                <i class="material-icons">save</i> Save Changes
-                            </button>
-                        </form>
+                            <div class="threshold-display-description">
+                                Items with quantity at or below this number will be marked as <b>Low Stock</b>.
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Threshold Edit Modal -->
+    <div id="thresholdModal" class="threshold-modal">
+        <div class="threshold-modal-content">
+            <div class="threshold-modal-header">
+                <i class="material-icons">warning</i>
+                <h3>Edit Low Stock Threshold</h3>
+            </div>
+            <div class="threshold-modal-body">
+                <form id="thresholdForm">
+                    <div class="form-group">
+                        <label for="modal_threshold_input">Low Stock Threshold</label>
+                        <div class="threshold-input-wrapper">
+                            <input type="number" id="modal_threshold_input" name="modal_threshold_input" min="1" required>
+                            <span>units</span>
+                        </div>
+                        <small>Items with quantity at or below this number will be marked as <b>Low Stock</b>.</small>
+                    </div>
+                </form>
+            </div>
+            <div class="threshold-modal-footer">
+                <button type="button" class="btn-cancel" onclick="closeThresholdModal()">
+                    <i class="material-icons">close</i>
+                    Cancel
+                </button>
+                <button type="button" class="btn-save" id="saveThresholdBtn" onclick="saveThreshold()">
+                    <i class="material-icons">save</i>
+                    <span id="saveThresholdText">Save Changes</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <script src="../Javascript/logout-modal.js"></script>
@@ -726,15 +504,143 @@ include 'includes/pamo_loader.php';
             const settingsCard = document.querySelector('.settings-card');
             settingsCard.insertBefore(messageDiv, settingsCard.querySelector('.tab-navigation'));
             
-            // Remove after 5 seconds
+            // Auto-remove after 5 seconds with fade-out animation
             setTimeout(() => {
-                messageDiv.remove();
+                messageDiv.style.opacity = '0';
+                messageDiv.style.transform = 'translateY(-10px)';
+                messageDiv.style.transition = 'all 0.3s ease';
+                setTimeout(() => {
+                    messageDiv.remove();
+                }, 300);
             }, 5000);
         }
 
         // Load categories on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadCategories();
+        });
+
+        // Threshold Modal Functions
+        function openThresholdModal() {
+            const modal = document.getElementById('thresholdModal');
+            const input = document.getElementById('modal_threshold_input');
+            const currentValue = document.getElementById('currentThresholdDisplay').textContent;
+            
+            // Set current value in modal input
+            input.value = currentValue;
+            
+            // Show modal
+            modal.classList.add('active');
+            
+            // Focus on input
+            setTimeout(() => {
+                input.focus();
+                input.select();
+            }, 100);
+        }
+
+        function closeThresholdModal() {
+            const modal = document.getElementById('thresholdModal');
+            modal.classList.remove('active');
+            
+            // Reset button state
+            const saveBtn = document.getElementById('saveThresholdBtn');
+            const saveText = document.getElementById('saveThresholdText');
+            saveBtn.disabled = false;
+            saveBtn.classList.remove('loading');
+            saveText.textContent = 'Save Changes';
+        }
+
+        async function saveThreshold() {
+            const input = document.getElementById('modal_threshold_input');
+            const newThreshold = parseInt(input.value);
+            
+            // Validation
+            if (!newThreshold || newThreshold <= 0) {
+                alert('Please enter a valid threshold value (greater than 0)');
+                // Hide loader if validation fails
+                setTimeout(() => {
+                    if (window.PAMOLoader) {
+                        window.PAMOLoader.hide();
+                    }
+                }, 50);
+                return;
+            }
+            
+            const saveBtn = document.getElementById('saveThresholdBtn');
+            const saveText = document.getElementById('saveThresholdText');
+            const saveIcon = saveBtn.querySelector('i.material-icons');
+            
+            // Disable button and show loading state
+            saveBtn.disabled = true;
+            saveBtn.classList.add('loading');
+            saveIcon.textContent = 'hourglass_empty';
+            saveText.textContent = 'Saving changes...';
+            
+            try {
+                const response = await fetch('includes/update_threshold.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        low_stock_threshold: newThreshold
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Update display value
+                    document.getElementById('currentThresholdDisplay').textContent = newThreshold;
+                    
+                    // Close modal
+                    closeThresholdModal();
+                    
+                    // Show success message
+                    showMessage(result.message, 'success');
+                } else {
+                    // Reset button state
+                    saveBtn.disabled = false;
+                    saveBtn.classList.remove('loading');
+                    saveIcon.textContent = 'save';
+                    saveText.textContent = 'Save Changes';
+                    
+                    // Show error message
+                    alert('Error: ' + (result.message || 'Failed to update threshold'));
+                }
+            } catch (error) {
+                // Reset button state
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('loading');
+                saveIcon.textContent = 'save';
+                saveText.textContent = 'Save Changes';
+                
+                console.error('Error:', error);
+                alert('An error occurred while updating the threshold');
+            } finally {
+                // Always hide the loader when the operation completes
+                setTimeout(() => {
+                    if (window.PAMOLoader) {
+                        window.PAMOLoader.hide();
+                    }
+                }, 100);
+            }
+        }
+
+        // Allow Enter key to submit in modal
+        document.getElementById('modal_threshold_input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveThreshold();
+            }
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('thresholdModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeThresholdModal();
+            }
         });
     </script>
 </body>

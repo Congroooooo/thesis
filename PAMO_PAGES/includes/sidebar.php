@@ -160,10 +160,10 @@ try {
 <style>
     .sidebar {
         width: 250px;
-        background-color: #cfcecf;
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        box-shadow: 4px 0 24px rgba(0, 114, 188, 0.08), 2px 0 8px rgba(0, 0, 0, 0.04);
         margin-right: 0px;
-        font-size: 20px;
+        font-size: 16px;
         display: flex;
         flex-direction: column;
         position: fixed;
@@ -171,83 +171,106 @@ try {
         left: 0;
         height: 100vh;
         z-index: 100;
+        border-right: 1px solid rgba(0, 114, 188, 0.08);
     }
     .notif-badge {
-        background: #d32f2f;
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         color: #fff;
-        border-radius: 50%;
-        padding: 2px 8px;
-        font-size: 0.9em;
-        margin-left: 8px;
+        border-radius: 12px;
+        padding: 3px 9px;
+        font-size: 11px;
+        margin-left: auto;
         vertical-align: middle;
-        display: inline-block;
-        min-width: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        height: 22px;
         text-align: center;
-        font-weight: bold;
-        position: relative;
-        top: -2px;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        animation: pulse 2s infinite;
     }
     .nav-links li.active {
-        background: #534f54 !important;
-        color: yellow !important;
+        background: linear-gradient(135deg, #0072bc 0%, #005a94 100%) !important;
+        color: #ffffff !important;
         border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 114, 188, 0.25);
+        font-weight: 600;
     }
-    .nav-links li.active i,
-    .nav-links li.active .notif-badge {
-        color: yellow !important;
+    .nav-links li.active i {
+        color: #fdf005 !important;
+        filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
     }
     .nav-links li.active .notif-badge {
-        background: #d32f2f !important;
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+        color: #ffffff !important;
     }
     .nav-links li .notif-badge {
-        margin-left: 8px;
+        margin-left: auto;
     }
     .logo-area {
-        background: #cfcecf;
-        padding: 18px 0 10px 0;
-        margin-bottom: 8px;
+        background: linear-gradient(135deg, #0072bc 0%, #005a94 100%);
+        padding: 20px 0 18px 0;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 12px rgba(0, 114, 188, 0.15);
     }
 
     .logo {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 16px;
+        gap: 12px;
     }
 
     .logo img {
-        width: 56px;
-        height: 56px;
+        width: 52px;
+        height: 52px;
         border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         background: #fff;
+        padding: 4px;
     }
 
     .logo h2 {
         font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
         font-weight: 800;
-        font-size: 2.1rem;
-        color: yellow;
-        letter-spacing: 2px;
+        font-size: 2rem;
+        color: #fdf005;
+        letter-spacing: 3px;
         margin: 0;
-        text-shadow: 0 1px 0 #fff, 0 2px 8px rgba(0,0,0,0.04);
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .nav-links {
+        padding: 0 12px;
     }
 
     .nav-links li {
         position: relative;
-        padding-left: 18px;
-        transition: background 0.2s;
+        padding: 14px 16px;
+        margin: 6px 0;
+        border-radius: 12px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        color: #475569;
+        font-weight: 500;
+        font-size: 15px;
     }
 
     .nav-links li .active-bar {
         display: none;
         position: absolute;
-        left: 0;
-        top: 0;
-        height: 100%;
-        width: 6px;
-        background: #534f54;
-        border-radius: 6px 0 0 6px;
+        left: -12px;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 60%;
+        width: 4px;
+        background: linear-gradient(180deg, #0072bc 0%, #005a94 100%);
+        border-radius: 0 4px 4px 0;
+        box-shadow: 2px 0 8px rgba(0, 114, 188, 0.3);
     }
 
     .nav-links li.active .active-bar {
@@ -255,35 +278,89 @@ try {
     }
 
     .nav-links li:hover {
-        background: #f0f4fa;
+        background: linear-gradient(135deg, #f1f5f9 0%, #e0f2fe 100%);
+        transform: translateX(4px);
+        color: #0072bc;
+    }
+
+    .nav-links li:hover i {
+        color: #0072bc;
+        transform: scale(1.1);
+    }
+
+    .nav-links li i {
+        font-size: 22px;
+        transition: all 0.3s ease;
+        color: #64748b;
     }
 
     .logout-btn.improved-logout {
-        background: linear-gradient(90deg, #b02a37 60%, #dc3545 100%);
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         color: #fff;
-        border: 1.5px solid #dc3545;
-        border-radius: 32px;
-        font-size: 1.1rem;
-        font-weight: 700;
-        padding: 14px 0;
-        box-shadow: 0 2px 12px rgba(0,114,188,0.08);
-        transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+        border: none;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        padding: 14px 24px;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         margin-top: 10px;
         margin-bottom: 0;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3px;
+        cursor: pointer;
     }
 
     .logout-btn.improved-logout:hover {
-        background: linear-gradient(90deg, #dc3545 60%, #b02a37 100%);
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
         color: #fff;
-        box-shadow: 0 4px 18px rgba(220,53,69,0.2);
-        border-color: #b02a37;
+        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.35);
+        transform: translateY(-2px);
+    }
+
+    .logout-btn.improved-logout:active {
+        transform: translateY(0);
     }
 
     .logout-btn.improved-logout i {
-        font-size: 24px;
+        font-size: 20px;
         color: #fff;
-        margin-right: 2px;
+        margin-right: 6px;
+    }
+
+    .user-info {
+        padding: 16px;
+        margin: 16px 12px;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .user-details h4 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .user-details p {
+        margin: 4px 0 0 0;
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
     }
 </style>
 

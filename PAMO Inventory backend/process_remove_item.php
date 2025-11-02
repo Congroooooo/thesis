@@ -138,14 +138,18 @@ try {
             throw new Exception("Failed to update inventory quantity for item: $itemId");
         }
 
+        // Get current period ID
+        $current_period_id = $monthlyInventory->getCurrentPeriodId();
+        
         // Record the removal in inventory_removals table (audit trail)
         $insertSql = "INSERT INTO inventory_removals 
-                     (pullout_order_number, item_code, item_name, category, size, quantity_removed, removal_reason, removed_by) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                     (pullout_order_number, item_code, period_id, item_name, category, size, quantity_removed, removal_reason, removed_by) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $insertStmt = $conn->prepare($insertSql);
         $insertStmt->execute([
             $pulloutOrderNumber,
             $item['item_code'],
+            $current_period_id,
             $item['item_name'],
             $item['category'],
             $item['sizes'],

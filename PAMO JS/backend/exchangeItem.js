@@ -1,5 +1,78 @@
 // Exchange Item Modal Backend Functions
 
+// Notification functions
+function showSuccessMessage(message) {
+  // Remove any existing notifications
+  const existingNotification = document.querySelector(".pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  // Create notification element
+  const notification = document.createElement("div");
+  notification.className = "pamo-notification success";
+  notification.innerHTML = `
+    <span class="material-icons" style="font-size: 24px; margin-right: 12px;">check_circle</span>
+    <span>${message}</span>
+  `;
+
+  // Add to body
+  document.body.appendChild(notification);
+
+  // Trigger animation
+  setTimeout(() => {
+    notification.style.transform = "translateX(0)";
+    notification.style.opacity = "1";
+  }, 10);
+
+  // Auto remove after 5 seconds
+  setTimeout(() => {
+    notification.style.transform = "translateX(400px)";
+    notification.style.opacity = "0";
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 300);
+  }, 5000);
+}
+
+function showErrorMessage(message) {
+  // Remove any existing notifications
+  const existingNotification = document.querySelector(".pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  // Create notification element
+  const notification = document.createElement("div");
+  notification.className = "pamo-notification error";
+  notification.innerHTML = `
+    <span class="material-icons" style="font-size: 24px; margin-right: 12px;">error</span>
+    <span>${message}</span>
+  `;
+
+  // Add to body
+  document.body.appendChild(notification);
+
+  // Trigger animation
+  setTimeout(() => {
+    notification.style.transform = "translateX(0)";
+    notification.style.opacity = "1";
+  }, 10);
+
+  // Auto remove after 5 seconds
+  setTimeout(() => {
+    notification.style.transform = "translateX(400px)";
+    notification.style.opacity = "0";
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 300);
+  }, 5000);
+}
+
 function showExchangeItemModal() {
   document.getElementById("exchangeItemModal").style.display = "block";
   // Reset form when modal opens
@@ -69,7 +142,7 @@ function loadCustomerPurchases() {
     })
     .catch((error) => {
       console.error("Error loading purchases:", error);
-      alert("Error loading customer purchases");
+      showErrorMessage("Error loading customer purchases");
       customerFilterNote.textContent = "Error loading customer purchases";
       customerFilterNote.style.color = "#dc3545";
     });
@@ -112,7 +185,7 @@ function loadAvailableSizes() {
       })
       .catch((error) => {
         console.error("Error loading sizes:", error);
-        alert("Error loading available sizes");
+        showErrorMessage("Error loading available sizes");
       });
   } catch (error) {
     console.error("Error parsing purchase data:", error);
@@ -121,6 +194,7 @@ function loadAvailableSizes() {
 
 function submitExchangeItem(event) {
   event.preventDefault();
+  event.stopPropagation();
 
   const customerSelect = document.getElementById("exchangeCustomerName");
   const customerId = customerSelect.value;
@@ -135,8 +209,20 @@ function submitExchangeItem(event) {
   const remarks = document.getElementById("exchangeRemarks").value;
 
   if (!customerId || !selectedPurchase || !newSizeItemCode) {
-    alert("Please fill in all required fields");
+    showErrorMessage("Please fill in all required fields");
     return;
+  }
+
+  const submitBtn = document.querySelector('button[form="exchangeItemForm"]');
+  const originalButtonText = submitBtn
+    ? submitBtn.textContent
+    : "Process Exchange";
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Processing Exchange...";
+    submitBtn.style.cursor = "not-allowed";
+    submitBtn.style.opacity = "0.6";
   }
 
   try {
@@ -164,23 +250,67 @@ function submitExchangeItem(event) {
         return response.json();
       })
       .then((data) => {
+        // Restore button state
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalButtonText;
+          submitBtn.style.cursor = "pointer";
+          submitBtn.style.opacity = "1";
+        }
+
         if (data.success) {
-          alert("Exchange processed successfully!");
+          // Reset form
+          document.getElementById("exchangeItemForm").reset();
+          document.getElementById("exchangeItemBought").innerHTML =
+            '<option value="">Please select a customer first</option>';
+          document.getElementById("exchangeNewSize").innerHTML =
+            '<option value="">Select New Size</option>';
+
+          // Close modal and show notification
           closeModal("exchangeItemModal");
-          location.reload();
+          showSuccessMessage(
+            "Exchange processed successfully! Refreshing inventory..."
+          );
+
+          // Refresh inventory table without page reload
+          setTimeout(() => {
+            if (typeof refreshInventoryTable === "function") {
+              refreshInventoryTable();
+            } else {
+              location.reload();
+            }
+          }, 800);
         } else {
           console.error("Exchange error details:", data);
-          alert(
+          showErrorMessage(
             "Error processing exchange: " + (data.message || "Unknown error")
           );
         }
       })
       .catch((error) => {
         console.error("Exchange processing error:", error);
-        alert("Error processing exchange: " + error.message);
+
+        // Restore button state
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalButtonText;
+          submitBtn.style.cursor = "pointer";
+          submitBtn.style.opacity = "1";
+        }
+
+        showErrorMessage("Error processing exchange: " + error.message);
       });
   } catch (error) {
     console.error("Error parsing purchase data:", error);
-    alert("Error processing exchange data");
+
+    // Restore button state
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalButtonText;
+      submitBtn.style.cursor = "pointer";
+      submitBtn.style.opacity = "1";
+    }
+
+    showErrorMessage("Error processing exchange data");
   }
 }

@@ -21,12 +21,15 @@
 }
 
 body {
-  background-color: var(--background-light);
+  background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 50%, #fef3c7 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 .container {
   display: flex;
   min-height: 100vh;
+  position: relative;
 }
 
 .logo h2 {
@@ -65,9 +68,10 @@ body {
 
 .main-content {
   flex: 1;
-  padding: 20px;
-  background-color: #f8f9fa;
+  padding: 24px;
+  background: transparent;
   margin-left: 250px;
+  min-height: 100vh;
 }
 
 header {

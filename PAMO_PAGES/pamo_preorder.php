@@ -229,7 +229,6 @@ $basePath = '';
                                 <th>Name</th>
                                 <th>Base Code</th>
                                 <th>Price</th>
-                                <th>Sizes</th>
                                 <th>Requests</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -415,7 +414,6 @@ $basePath = '';
                             <td><strong>${it.item_name}</strong></td>
                             <td><code>${it.base_item_code}</code></td>
                             <td><strong>₱${parseFloat(it.price).toFixed(2)}</strong></td>
-                            <td><span class="sizes-badge">${it.sizes}</span></td>
                             <td><strong>${it.total_requests}</strong></td>
                             <td><span class="status-badge status-${it.status.toLowerCase()}">${it.status}</span></td>
                             <td>
@@ -667,7 +665,7 @@ $basePath = '';
                     price: price,
                     quantity: quantity,
                     damage: damage,
-                    item_code: `${orderNumber}-${getSizeNumber(size).toString().padStart(3, '0')}`,
+                    item_code: `${currentPreorderBaseCode}-${getSizeNumber(size).toString().padStart(3, '0')}`,
                     size: size
                 };
                 hasValidQuantities = true;

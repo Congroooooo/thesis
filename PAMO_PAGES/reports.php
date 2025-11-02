@@ -120,6 +120,45 @@ include 'includes/pamo_loader.php';
                             $stmt->execute([$selectedYear, $selectedMonth]);
                             $periodInfo = $stmt->fetch(PDO::FETCH_ASSOC);
                             
+                            // Auto-create period ONLY if it's the current month or follows the last existing period
+                            if (!$periodInfo) {
+                                $currentYear = date('Y');
+                                $currentMonth = date('n');
+                                $isCurrentOrPast = ($selectedYear < $currentYear) || 
+                                                  ($selectedYear == $currentYear && $selectedMonth <= $currentMonth);
+                                
+                                // Get the latest existing period
+                                $stmt = $conn->query("
+                                    SELECT year, month 
+                                    FROM monthly_inventory_periods 
+                                    ORDER BY year DESC, month DESC 
+                                    LIMIT 1
+                                ");
+                                $latestPeriod = $stmt->fetch(PDO::FETCH_ASSOC);
+                                
+                                // Calculate if selected month is the next month after latest period
+                                $isNextMonth = false;
+                                if ($latestPeriod) {
+                                    $latestDate = mktime(0, 0, 0, $latestPeriod['month'], 1, $latestPeriod['year']);
+                                    $selectedDate = mktime(0, 0, 0, $selectedMonth, 1, $selectedYear);
+                                    $nextMonthDate = strtotime('+1 month', $latestDate);
+                                    $isNextMonth = ($selectedDate == $nextMonthDate);
+                                }
+                                
+                                // Only create if it's current/past AND it's the next month in sequence
+                                if ($isCurrentOrPast && $isNextMonth) {
+                                    try {
+                                        require_once '../Includes/period_helper.php';
+                                        $periodId = createMonthlyPeriod($conn, $selectedYear, $selectedMonth);
+                                        $stmt = $conn->prepare("SELECT * FROM monthly_inventory_periods WHERE id = ?");
+                                        $stmt->execute([$periodId]);
+                                        $periodInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+                                    } catch (Exception $e) {
+                                        // Period creation failed, will show no data message
+                                    }
+                                }
+                            }
+                            
                             if ($periodInfo) {
                                 $periodId = $periodInfo['id'];
                                 
@@ -130,6 +169,7 @@ include 'includes/pamo_loader.php';
                                         SUM(beginning_quantity) as total_beginning,
                                         SUM(new_delivery_total) as total_deliveries,
                                         SUM(sales_total) as total_sales,
+                                        SUM(removals_total) as total_removals,
                                         SUM(ending_quantity) as total_ending
                                     FROM monthly_inventory_snapshots 
                                     WHERE period_id = ?
@@ -146,6 +186,7 @@ include 'includes/pamo_loader.php';
                                         mis.beginning_quantity,
                                         mis.new_delivery_total,
                                         mis.sales_total,
+                                        mis.removals_total,
                                         mis.ending_quantity,
                                         i.price,
                                         (mis.ending_quantity * i.price) as ending_value
@@ -156,6 +197,24 @@ include 'includes/pamo_loader.php';
                                 ");
                                 $stmt->execute([$periodId]);
                                 $inventoryData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                                
+                                // Get removal details for this period
+                                $stmt = $conn->prepare("
+                                    SELECT 
+                                        ir.id,
+                                        ir.item_code,
+                                        i.item_name,
+                                        ir.quantity_removed,
+                                        ir.removal_reason,
+                                        ir.removed_at,
+                                        ir.pullout_order_number
+                                    FROM inventory_removals ir
+                                    JOIN inventory i ON ir.item_code COLLATE utf8mb4_unicode_ci = i.item_code COLLATE utf8mb4_unicode_ci
+                                    WHERE ir.period_id = ?
+                                    ORDER BY ir.removed_at DESC
+                                ");
+                                $stmt->execute([$periodId]);
+                                $removalDetails = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             } else {
                                 $summary = null;
                                 $inventoryData = [];
@@ -164,22 +223,38 @@ include 'includes/pamo_loader.php';
                             
                             <!-- Monthly Report Header -->
                             <div class="monthly-report-header" style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 20px;">
-                                    <h3 style="margin: 0;">Monthly Inventory Report - <?php echo $monthName; ?></h3>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <h3 style="margin: 0; color: #0072bc; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; font-weight: 700; font-size: 1.3rem;">
+                                        <span style="display: inline-flex; align-items: center; gap: 10px;">
+                                            <span class="material-icons" style="font-size: 28px;">calendar_month</span>
+                                            Monthly Inventory Report - <?php echo $monthName; ?>
+                                        </span>
+                                    </h3>
                                     <div style="display: flex; gap: 10px;">
-                                        <select id="monthSelector" onchange="changeMonth()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                        <select id="monthSelector" onchange="changeMonth()">
                                             <?php for($m = 1; $m <= 12; $m++): ?>
                                                 <option value="<?php echo $m; ?>" <?php echo $m == $selectedMonth ? 'selected' : ''; ?>>
                                                     <?php echo date('F', mktime(0, 0, 0, $m, 1)); ?>
                                                 </option>
                                             <?php endfor; ?>
                                         </select>
-                                        <select id="yearSelector" onchange="changeMonth()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                            <?php for($y = date('Y') - 2; $y <= date('Y') + 1; $y++): ?>
+                                        <select id="yearSelector" onchange="changeMonth()">
+                                            <?php 
+                                            // Get available years from database
+                                            $stmt = $conn->query("SELECT DISTINCT year FROM monthly_inventory_periods ORDER BY year ASC");
+                                            $availableYears = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                                            
+                                            // If no years exist, show current year
+                                            if (empty($availableYears)) {
+                                                $availableYears = [date('Y')];
+                                            }
+                                            
+                                            foreach($availableYears as $y): 
+                                            ?>
                                                 <option value="<?php echo $y; ?>" <?php echo $y == $selectedYear ? 'selected' : ''; ?>>
                                                     <?php echo $y; ?>
                                                 </option>
-                                            <?php endfor; ?>
+                                            <?php endforeach; ?>
                                         </select>
                                     </div>
                                 </div>
@@ -189,7 +264,7 @@ include 'includes/pamo_loader.php';
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px;">
                                     <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
                                         <div style="font-size: 24px; font-weight: 600; color: #1976d2; margin-bottom: 5px;">
-                                            <?php echo number_format($summary['total_items']); ?>
+                                            <?php echo number_format((int)($summary['total_items'] ?? 0)); ?>
                                         </div>
                                         <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">
                                             Total Items
@@ -197,7 +272,7 @@ include 'includes/pamo_loader.php';
                                     </div>
                                     <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
                                         <div style="font-size: 24px; font-weight: 600; color: #7b1fa2; margin-bottom: 5px;">
-                                            <?php echo number_format($summary['total_beginning']); ?>
+                                            <?php echo number_format((int)($summary['total_beginning'] ?? 0)); ?>
                                         </div>
                                         <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">
                                             Beginning Stock
@@ -205,7 +280,7 @@ include 'includes/pamo_loader.php';
                                     </div>
                                     <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; text-align: center;">
                                         <div style="font-size: 24px; font-weight: 600; color: #388e3c; margin-bottom: 5px;">
-                                            <?php echo number_format($summary['total_deliveries']); ?>
+                                            <?php echo number_format((int)($summary['total_deliveries'] ?? 0)); ?>
                                         </div>
                                         <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">
                                             Deliveries
@@ -213,15 +288,23 @@ include 'includes/pamo_loader.php';
                                     </div>
                                     <div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
                                         <div style="font-size: 24px; font-weight: 600; color: #f57c00; margin-bottom: 5px;">
-                                            <?php echo number_format($summary['total_sales']); ?>
+                                            <?php echo number_format((int)($summary['total_sales'] ?? 0)); ?>
                                         </div>
                                         <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">
                                             Sales
                                         </div>
                                     </div>
+                                    <div style="background: #ffebee; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <div style="font-size: 24px; font-weight: 600; color: #d32f2f; margin-bottom: 5px;">
+                                            <?php echo number_format((int)($summary['total_removals'] ?? 0)); ?>
+                                        </div>
+                                        <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">
+                                            Removed
+                                        </div>
+                                    </div>
                                     <div style="background: #fce4ec; padding: 15px; border-radius: 8px; text-align: center;">
                                         <div style="font-size: 24px; font-weight: 600; color: #c2185b; margin-bottom: 5px;">
-                                            <?php echo number_format($summary['total_ending']); ?>
+                                            <?php echo number_format((int)($summary['total_ending'] ?? 0)); ?>
                                         </div>
                                         <div style="font-size: 12px; color: #666; text-transform: uppercase; font-weight: 600;">
                                             Ending Stock
@@ -245,17 +328,18 @@ include 'includes/pamo_loader.php';
                             
                             <?php if ($periodInfo && !empty($inventoryData)): ?>
                             <!-- Detailed Inventory Table -->
-                            <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
                                 <table style="width: 100%; border-collapse: collapse;">
                                     <thead>
-                                        <tr style="background: #f8f9fa;">
-                                            <th style="padding: 15px 12px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Item Code</th>
-                                            <th style="padding: 15px 12px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Item Name</th>
-                                            <th style="padding: 15px 12px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Category</th>
-                                            <th style="padding: 15px 12px; text-align: center; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Beginning</th>
-                                            <th style="padding: 15px 12px; text-align: center; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Deliveries</th>
-                                            <th style="padding: 15px 12px; text-align: center; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Sales</th>
-                                            <th style="padding: 15px 12px; text-align: center; font-weight: 600; color: #495057; border-bottom: 2px solid #dee2e6;">Ending</th>
+                                        <tr>
+                                            <th style="text-align: left;">Item Code</th>
+                                            <th style="text-align: left;">Item Name</th>
+                                            <th style="text-align: left;">Category</th>
+                                            <th style="text-align: center;">Beginning</th>
+                                            <th style="text-align: center;">Deliveries</th>
+                                            <th style="text-align: center;">Sales</th>
+                                            <th style="text-align: center;">Removed</th>
+                                            <th style="text-align: center;">Ending</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -266,7 +350,7 @@ include 'includes/pamo_loader.php';
                                                 $currentCategory = $item['category'];
                                         ?>
                                             <tr style="background: #e9ecef;">
-                                                <td colspan="7" style="padding: 10px 12px; font-weight: 600; color: #495057;">
+                                                <td colspan="8" style="padding: 10px 12px; font-weight: 600; color: #495057;">
                                                     <?php echo htmlspecialchars($item['category']); ?>
                                                 </td>
                                             </tr>
@@ -278,6 +362,9 @@ include 'includes/pamo_loader.php';
                                             <td style="padding: 12px; text-align: center; color: #495057;"><?php echo number_format($item['beginning_quantity']); ?></td>
                                             <td style="padding: 12px; text-align: center; color: #28a745;"><?php echo number_format($item['new_delivery_total']); ?></td>
                                             <td style="padding: 12px; text-align: center; color: #dc3545;"><?php echo number_format($item['sales_total']); ?></td>
+                                            <td style="padding: 12px; text-align: center; color: #d32f2f; font-weight: <?php echo $item['removals_total'] > 0 ? '600' : 'normal'; ?>;">
+                                                <?php echo number_format($item['removals_total']); ?>
+                                            </td>
                                             <td style="padding: 12px; text-align: center; font-weight: 600; color: <?php echo $item['ending_quantity'] > 0 ? '#28a745' : '#dc3545'; ?>;">
                                                 <?php echo number_format($item['ending_quantity']); ?>
                                             </td>
@@ -286,6 +373,69 @@ include 'includes/pamo_loader.php';
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            <!-- Removal Details Section -->
+                            <?php if (!empty($removalDetails)): ?>
+                            <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px;">
+                                <h4 style="margin: 0 0 15px 0; color: #d32f2f; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; font-weight: 600; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
+                                    <span class="material-icons" style="font-size: 24px;">remove_circle_outline</span>
+                                    Removed Items Details
+                                </h4>
+                                <div style="overflow-x: auto;">
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                                                <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Item Code</th>
+                                                <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Item Name</th>
+                                                <th style="padding: 12px; text-align: center; font-weight: 600; color: #495057;">Quantity</th>
+                                                <th style="padding: 12px; text-align: center; font-weight: 600; color: #495057;">Status</th>
+                                                <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Reason</th>
+                                                <th style="padding: 12px; text-align: center; font-weight: 600; color: #495057;">Date Removed</th>
+                                                <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Pullout Order #</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($removalDetails as $removal): ?>
+                                            <tr style="border-bottom: 1px solid #dee2e6;">
+                                                <td style="padding: 12px; color: #495057; font-family: 'Courier New', monospace;">
+                                                    <?php echo htmlspecialchars($removal['item_code']); ?>
+                                                </td>
+                                                <td style="padding: 12px; color: #495057;">
+                                                    <?php echo htmlspecialchars($removal['item_name']); ?>
+                                                </td>
+                                                <td style="padding: 12px; text-align: center; color: #d32f2f; font-weight: 600;">
+                                                    <?php echo number_format($removal['quantity_removed']); ?>
+                                                </td>
+                                                <td style="padding: 12px; text-align: center;">
+                                                    <span style="display: inline-block; padding: 4px 12px; background: #ffebee; color: #d32f2f; border-radius: 12px; font-size: 13px; font-weight: 600;">
+                                                        Removed
+                                                    </span>
+                                                </td>
+                                                <td style="padding: 12px; color: #6c757d;">
+                                                    <?php echo htmlspecialchars($removal['removal_reason'] ?? 'N/A'); ?>
+                                                </td>
+                                                <td style="padding: 12px; text-align: center; color: #6c757d; font-size: 14px;">
+                                                    <?php echo date('M j, Y g:i A', strtotime($removal['removed_at'])); ?>
+                                                </td>
+                                                <td style="padding: 12px; color: #495057; font-family: 'Courier New', monospace; font-size: 13px;">
+                                                    <?php echo htmlspecialchars($removal['pullout_order_number']); ?>
+                                                </td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div style="margin-top: 15px; padding: 12px; background: #f8f9fa; border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+                                    <span class="material-icons" style="color: #d32f2f;">info</span>
+                                    <span style="color: #495057; font-size: 14px;">
+                                        <strong>Total Items Removed:</strong> <?php echo count($removalDetails); ?> 
+                                        | 
+                                        <strong>Total Quantity:</strong> <?php echo number_format(array_sum(array_column($removalDetails, 'quantity_removed'))); ?> units
+                                    </span>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+                            
                             <?php endif; ?>
                             
                         <?php endif; ?>

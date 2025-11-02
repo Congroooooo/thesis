@@ -1,5 +1,62 @@
 let productCounter = 1;
 
+// Notification helper functions
+function showSuccessMessage(message) {
+  // Remove any existing notification
+  const existingNotification = document.getElementById("pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  // Create notification element
+  const notification = document.createElement("div");
+  notification.id = "pamo-notification";
+  notification.className = "pamo-notification success";
+  notification.innerHTML = `
+    <i class="material-icons">check_circle</i>
+    <span>${message}</span>
+  `;
+
+  document.body.appendChild(notification);
+
+  // Trigger animation
+  setTimeout(() => notification.classList.add("show"), 10);
+
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    notification.classList.remove("show");
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
+}
+
+function showErrorMessage(message) {
+  // Remove any existing notification
+  const existingNotification = document.getElementById("pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  // Create notification element
+  const notification = document.createElement("div");
+  notification.id = "pamo-notification";
+  notification.className = "pamo-notification error";
+  notification.innerHTML = `
+    <i class="material-icons">error</i>
+    <span>${message}</span>
+  `;
+
+  document.body.appendChild(notification);
+
+  // Trigger animation
+  setTimeout(() => notification.classList.add("show"), 10);
+
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    notification.classList.remove("show");
+    setTimeout(() => notification.remove(), 300);
+  }, 5000);
+}
+
 function showAddItemModal() {
   document.getElementById("addItemModal").style.display = "flex";
   document.getElementById("addItemForm").reset();
@@ -543,25 +600,27 @@ async function validateAndPrepareFiles(form) {
 
 async function submitNewItem(event) {
   event.preventDefault();
+  event.stopPropagation();
 
   const form = document.getElementById("addItemForm");
   const formData = new FormData(form);
 
   const deliveryOrderNumber = formData.get("deliveryOrderNumber");
   if (!deliveryOrderNumber) {
-    alert("Please enter a delivery order number");
-    return;
+    showErrorMessage("Please enter a delivery order number");
+    return false;
   }
 
-  // Show loading state
+  // Show loading state on button
   const submitButton =
     form.querySelector('button[type="submit"]') ||
     document.querySelector('button[form="addItemForm"]');
   const originalButtonText = submitButton ? submitButton.innerHTML : "";
   if (submitButton) {
-    submitButton.innerHTML =
-      '<i class="material-icons">hourglass_empty</i> Processing Images...';
+    submitButton.innerHTML = "Adding All Products...";
     submitButton.disabled = true;
+    submitButton.style.cursor = "not-allowed";
+    submitButton.style.opacity = "0.7";
   }
 
   // Validate and prepare files
@@ -569,18 +628,27 @@ async function submitNewItem(event) {
   try {
     processedFiles = await validateAndPrepareFiles(form);
   } catch (error) {
-    alert(error.message);
+    showErrorMessage(error.message);
     // Restore button state
     if (submitButton) {
       submitButton.innerHTML = originalButtonText;
       submitButton.disabled = false;
+      submitButton.style.cursor = "pointer";
+      submitButton.style.opacity = "1";
     }
     return;
   }
 
   const productContainers = document.querySelectorAll(".product-item");
   if (productContainers.length === 0) {
-    alert("No products found to add");
+    showErrorMessage("No products found to add");
+    // Restore button state
+    if (submitButton) {
+      submitButton.innerHTML = originalButtonText;
+      submitButton.disabled = false;
+      submitButton.style.cursor = "pointer";
+      submitButton.style.opacity = "1";
+    }
     return;
   }
 
@@ -599,7 +667,7 @@ async function submitNewItem(event) {
     ).value;
 
     if (!baseItemCode || !categoryId || !itemName) {
-      alert(
+      showErrorMessage(
         `Please fill in all required basic information for product ${
           parseInt(productIndex) + 1
         }`
@@ -610,7 +678,7 @@ async function submitNewItem(event) {
 
     // Validate base item code format
     if (!validateBaseItemCode(baseItemCode)) {
-      alert(
+      showErrorMessage(
         `Invalid base item code for product ${
           parseInt(productIndex) + 1
         }. Only letters and numbers are allowed (no special characters like -, !, ~, etc.)`
@@ -621,7 +689,7 @@ async function submitNewItem(event) {
 
     // Validate base item code length
     if (baseItemCode.length < 3) {
-      alert(
+      showErrorMessage(
         `Base item code for product ${
           parseInt(productIndex) + 1
         } should be at least 3 characters long`
@@ -634,7 +702,7 @@ async function submitNewItem(event) {
       '.size-checkboxes input[type="checkbox"]:checked'
     );
     if (checkedSizes.length === 0) {
-      alert(
+      showErrorMessage(
         `Please select at least one size for product ${
           parseInt(productIndex) + 1
         }`
@@ -653,7 +721,7 @@ async function submitNewItem(event) {
       );
 
       if (!priceInput.value || parseFloat(priceInput.value) <= 0) {
-        alert(
+        showErrorMessage(
           `Please enter a valid price for size ${size} in product ${
             parseInt(productIndex) + 1
           }`
@@ -663,7 +731,7 @@ async function submitNewItem(event) {
       }
 
       if (!quantityInput.value || parseInt(quantityInput.value) < 0) {
-        alert(
+        showErrorMessage(
           `Please enter a valid initial stock for size ${size} in product ${
             parseInt(productIndex) + 1
           }`
@@ -700,7 +768,16 @@ async function submitNewItem(event) {
     }
   });
 
-  if (!allProductsValid) return;
+  if (!allProductsValid) {
+    // Restore button state
+    if (submitButton) {
+      submitButton.innerHTML = originalButtonText;
+      submitButton.disabled = false;
+      submitButton.style.cursor = "pointer";
+      submitButton.style.opacity = "1";
+    }
+    return false;
+  }
 
   // Replace files in formData with compressed versions
   for (let [fieldName, compressedFile] of processedFiles) {
@@ -718,32 +795,60 @@ async function submitNewItem(event) {
       if (submitButton) {
         submitButton.innerHTML = originalButtonText;
         submitButton.disabled = false;
+        submitButton.style.cursor = "pointer";
+        submitButton.style.opacity = "1";
       }
 
       if (xhr.status === 200) {
         try {
           const data = JSON.parse(xhr.responseText);
           if (data.success) {
-            alert("New product(s) added successfully!");
-            location.reload();
+            // Reset the form
+            form.reset();
+
+            // Reset product counter and remove extra products
+            const productsContainer =
+              document.getElementById("productsContainer");
+            const productItems =
+              productsContainer.querySelectorAll(".product-item");
+            for (let i = 1; i < productItems.length; i++) {
+              productItems[i].remove();
+            }
+            resetProduct(0);
+
+            // Close the modal
+            closeModal("addItemModal");
+
+            // Show success message
+            showSuccessMessage(
+              "New product(s) added successfully! Refreshing inventory..."
+            );
+
+            // Refresh the inventory table without reloading the page
+            setTimeout(() => {
+              refreshInventoryTable();
+            }, 800);
           } else {
             throw new Error(data.message || "Unknown error");
           }
         } catch (e) {
           console.error("Parse error:", e);
-          alert("Error adding product: " + xhr.responseText);
+          showErrorMessage(
+            "Error adding product: " + (e.message || xhr.responseText)
+          );
         }
       } else if (xhr.status === 413) {
-        alert(
+        showErrorMessage(
           "Files are too large. Please use smaller images (under 5MB each)."
         );
       } else {
-        alert("Error: " + xhr.statusText);
+        showErrorMessage("Error: " + xhr.statusText);
       }
     }
   };
 
   xhr.send(formData);
+  return false;
 }
 
 window.loadCategoriesForProduct = function (productIndex) {
@@ -1268,3 +1373,543 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 });
+
+/**
+ * Refresh the inventory table without reloading the entire page
+ * Fetches updated HTML for the table and updates the DOM
+ */
+function refreshInventoryTable() {
+  // Show a subtle loading indicator on the table
+  const inventoryTable = document.querySelector(".inventory-table");
+  if (inventoryTable) {
+    inventoryTable.style.opacity = "0.6";
+    inventoryTable.style.pointerEvents = "none";
+  }
+
+  // Fetch the current page with existing filters to get updated inventory
+  fetch(window.location.href, {
+    method: "GET",
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  })
+    .then((response) => response.text())
+    .then((html) => {
+      // Parse the HTML response
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      // Extract the new table content
+      const newTableContent = doc.querySelector(".inventory-table");
+      const newPagination = doc.querySelector(".pagination");
+
+      if (newTableContent) {
+        // Replace the old table with the new one
+        const oldTable = document.querySelector(".inventory-table");
+        if (oldTable) {
+          oldTable.innerHTML = newTableContent.innerHTML;
+          oldTable.style.opacity = "1";
+          oldTable.style.pointerEvents = "auto";
+        }
+
+        // Update pagination if it exists
+        if (newPagination) {
+          const oldPagination = document.querySelector(".pagination");
+          if (oldPagination) {
+            oldPagination.innerHTML = newPagination.innerHTML;
+          } else {
+            // Insert pagination if it didn't exist before
+            const inventoryContent =
+              document.querySelector(".inventory-content");
+            if (inventoryContent) {
+              const paginationDiv = document.createElement("div");
+              paginationDiv.className = "pagination";
+              paginationDiv.innerHTML = newPagination.innerHTML;
+              inventoryContent.appendChild(paginationDiv);
+            }
+          }
+        }
+
+        // Refresh Select2 dropdowns to include newly added items
+        refreshSelect2Dropdowns();
+
+        // Update the success message to show completion
+        showSuccessMessage("Inventory updated successfully!");
+      } else {
+        // Fallback: reload the page if parsing fails
+        console.warn("Could not parse updated table, reloading page...");
+        location.reload();
+      }
+    })
+    .catch((error) => {
+      console.error("Error refreshing inventory:", error);
+      // Restore table state
+      if (inventoryTable) {
+        inventoryTable.style.opacity = "1";
+        inventoryTable.style.pointerEvents = "auto";
+      }
+      // Show error but don't fail completely
+      showErrorMessage(
+        "Could not refresh inventory. Please refresh the page manually."
+      );
+    });
+}
+
+/**
+ * Refresh all Select2 dropdowns that display inventory items
+ * This ensures newly added items appear in dropdowns without page reload
+ */
+function refreshSelect2Dropdowns() {
+  // Refresh Add Item Size modal dropdowns
+  refreshAddItemSizeDropdowns();
+
+  // Refresh Restock Item (Add Quantity) modal dropdowns
+  refreshAddQuantityDropdowns();
+
+  // Refresh Sales Entry (Deduct Quantity) modal dropdowns
+  refreshDeductQuantityDropdowns();
+
+  // Refresh Exchange Item modal dropdowns
+  refreshExchangeItemDropdowns();
+
+  // Refresh Remove Stocks modal dropdowns
+  refreshRemoveItemDropdowns();
+}
+/**
+ * Refresh the Add Item Size modal Select2 dropdowns
+ */
+function refreshAddItemSizeDropdowns() {
+  const itemSizeSelects = document.querySelectorAll(
+    "#addItemSizeModal .item-size-select"
+  );
+
+  if (itemSizeSelects.length === 0) return;
+
+  // Fetch the updated page to get current inventory options
+  fetch(window.location.href, {
+    method: "GET",
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  })
+    .then((response) => response.text())
+    .then((html) => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      // Find the select element in the refreshed HTML to get updated options
+      const newSelect = doc.querySelector(
+        "#addItemSizeModal .item-size-select"
+      );
+
+      if (newSelect && newSelect.options) {
+        // Update each existing select with new options
+        itemSizeSelects.forEach((select) => {
+          const $select = $(select);
+          const currentValue = $select.val(); // Store current selection
+
+          // Destroy Select2 to update options
+          if ($select.hasClass("select2-hidden-accessible")) {
+            $select.select2("destroy");
+          }
+
+          // Clear existing options
+          $select.empty();
+
+          // Copy options from the refreshed HTML
+          Array.from(newSelect.options).forEach((option) => {
+            const newOption = new Option(
+              option.text,
+              option.value,
+              false,
+              false
+            );
+            // Copy data attributes
+            if (option.dataset.name) {
+              newOption.dataset.name = option.dataset.name;
+            }
+            if (option.dataset.category) {
+              newOption.dataset.category = option.dataset.category;
+            }
+            $select.append(newOption);
+          });
+
+          // Restore selection if the item still exists
+          if (
+            currentValue &&
+            $select.find(`option[value="${currentValue}"]`).length > 0
+          ) {
+            $select.val(currentValue);
+          }
+
+          // Reinitialize Select2
+          $select.select2({
+            placeholder: "Search and select an item...",
+            allowClear: true,
+            width: "100%",
+            dropdownParent: $("#addItemSizeModal"),
+            templateResult: function (data) {
+              if (data.loading) {
+                return data.text;
+              }
+
+              var $container = $(
+                '<div class="select2-result-item">' +
+                  '<div class="item-name">' +
+                  data.text +
+                  "</div>" +
+                  "</div>"
+              );
+              return $container;
+            },
+          });
+
+          // Reattach change event
+          $select.off("change").on("change", function () {
+            const itemIndex = this.id.split("_")[1];
+            if (typeof fetchAndUpdateSizesForItem === "function") {
+              fetchAndUpdateSizesForItem(parseInt(itemIndex));
+            }
+          });
+        });
+
+        console.log("Add Item Size dropdowns refreshed successfully");
+      }
+    })
+    .catch((error) => {
+      console.warn("Could not refresh Add Item Size dropdowns:", error);
+    });
+}
+
+/**
+ * Refresh the Deduct Quantity modal Select2 dropdowns (Sales Entry)
+ */
+function refreshDeductQuantityDropdowns() {
+  // Only refresh product select dropdowns (not student name select)
+  const productSelects = document.querySelectorAll(
+    "#deductQuantityModal select[name='itemId[]']"
+  );
+
+  if (productSelects.length === 0) return;
+
+  fetch(window.location.href, {
+    method: "GET",
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  })
+    .then((response) => response.text())
+    .then((html) => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      // Find the product select in the refreshed HTML
+      const newSelect = doc.querySelector(
+        "#deductQuantityModal select[name='itemId[]']"
+      );
+
+      if (newSelect && newSelect.options) {
+        productSelects.forEach((select) => {
+          const $select = $(select);
+          const currentValue = $select.val();
+
+          // Destroy Select2 if it exists
+          if ($select.hasClass("select2-hidden-accessible")) {
+            $select.select2("destroy");
+          }
+
+          // Clear and update options
+          $select.empty();
+          Array.from(newSelect.options).forEach((option) => {
+            const newOption = new Option(
+              option.text,
+              option.value,
+              false,
+              false
+            );
+            if (option.dataset.category) {
+              newOption.dataset.category = option.dataset.category;
+            }
+            $select.append(newOption);
+          });
+
+          // Restore selection if item still exists
+          if (
+            currentValue &&
+            $select.find(`option[value="${currentValue}"]`).length > 0
+          ) {
+            $select.val(currentValue);
+          }
+
+          // Reinitialize Select2 with proper configuration
+          $select.select2({
+            placeholder: "Select Product",
+            allowClear: true,
+            width: "100%",
+          });
+        });
+
+        console.log("Sales Entry dropdowns refreshed successfully");
+      }
+    })
+    .catch((error) => {
+      console.warn("Could not refresh Sales Entry dropdowns:", error);
+    });
+}
+
+/**
+ * Refresh the Restock Item (Add Quantity) modal Select2 dropdowns
+ */
+function refreshAddQuantityDropdowns() {
+  const productSelects = document.querySelectorAll(
+    "#addQuantityModal select[name='itemId[]']"
+  );
+
+  if (productSelects.length === 0) return;
+
+  fetch(window.location.href, {
+    method: "GET",
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  })
+    .then((response) => response.text())
+    .then((html) => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      const newSelect = doc.querySelector(
+        "#addQuantityModal select[name='itemId[]']"
+      );
+
+      if (newSelect && newSelect.options) {
+        productSelects.forEach((select) => {
+          const $select = $(select);
+          const currentValue = $select.val();
+
+          if ($select.hasClass("select2-hidden-accessible")) {
+            $select.select2("destroy");
+          }
+
+          $select.empty();
+          Array.from(newSelect.options).forEach((option) => {
+            const newOption = new Option(
+              option.text,
+              option.value,
+              false,
+              false
+            );
+            $select.append(newOption);
+          });
+
+          if (
+            currentValue &&
+            $select.find(`option[value="${currentValue}"]`).length > 0
+          ) {
+            $select.val(currentValue);
+          }
+
+          // Reinitialize Select2 with proper configuration
+          $select.select2({
+            placeholder: "Select Product",
+            allowClear: true,
+            width: "100%",
+          });
+        });
+
+        console.log("Restock Item dropdowns refreshed successfully");
+      }
+    })
+    .catch((error) => {
+      console.warn("Could not refresh Restock Item dropdowns:", error);
+    });
+}
+
+/**
+ * Refresh the Exchange Item modal Select2 dropdowns
+ */
+function refreshExchangeItemDropdowns() {
+  // Exchange modal has customer select and item selects
+  // We only need to refresh item selects, not customer select
+  const itemSelects = document.querySelectorAll(
+    "#exchangeItemModal select[id^='returnItem'], #exchangeItemModal select[id^='replacementItem']"
+  );
+
+  if (itemSelects.length === 0) return;
+
+  fetch(window.location.href, {
+    method: "GET",
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  })
+    .then((response) => response.text())
+    .then((html) => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      itemSelects.forEach((select) => {
+        const selectId = select.id;
+        const newSelect = doc.getElementById(selectId);
+
+        if (newSelect && newSelect.options) {
+          const $select = $(select);
+          const currentValue = $select.val();
+
+          if ($select.hasClass("select2-hidden-accessible")) {
+            $select.select2("destroy");
+          }
+
+          $select.empty();
+          Array.from(newSelect.options).forEach((option) => {
+            const newOption = new Option(
+              option.text,
+              option.value,
+              false,
+              false
+            );
+            if (option.dataset.category) {
+              newOption.dataset.category = option.dataset.category;
+            }
+            if (option.dataset.stock) {
+              newOption.dataset.stock = option.dataset.stock;
+            }
+            $select.append(newOption);
+          });
+
+          if (
+            currentValue &&
+            $select.find(`option[value="${currentValue}"]`).length > 0
+          ) {
+            $select.val(currentValue);
+          }
+
+          $select.trigger("change");
+        }
+      });
+
+      console.log("Exchange Item dropdowns refreshed successfully");
+    })
+    .catch((error) => {
+      console.warn("Could not refresh Exchange Item dropdowns:", error);
+    });
+}
+
+/**
+ * Refresh the Remove Item modal Select2 dropdowns
+ */
+function refreshRemoveItemDropdowns() {
+  const productSelects = document.querySelectorAll(
+    "#removeItemModal select[name='itemId[]']"
+  );
+
+  if (productSelects.length === 0) return;
+
+  fetch(window.location.href, {
+    method: "GET",
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  })
+    .then((response) => response.text())
+    .then((html) => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      const newSelect = doc.querySelector(
+        "#removeItemModal select[name='itemId[]']"
+      );
+
+      if (newSelect && newSelect.options) {
+        productSelects.forEach((select) => {
+          const $select = $(select);
+          const currentValue = $select.val();
+
+          if ($select.hasClass("select2-hidden-accessible")) {
+            $select.select2("destroy");
+          }
+
+          $select.empty();
+          Array.from(newSelect.options).forEach((option) => {
+            const newOption = new Option(
+              option.text,
+              option.value,
+              false,
+              false
+            );
+            if (option.dataset.stock) {
+              newOption.dataset.stock = option.dataset.stock;
+            }
+            $select.append(newOption);
+          });
+
+          if (
+            currentValue &&
+            $select.find(`option[value="${currentValue}"]`).length > 0
+          ) {
+            $select.val(currentValue);
+          }
+
+          // Reinitialize Select2 with proper configuration
+          $select.select2({
+            placeholder: "Search and select product...",
+            allowClear: true,
+            width: "100%",
+            dropdownParent: $("#removeItemModal"),
+            templateResult: function (data) {
+              if (!data.id || data.loading) {
+                return data.text;
+              }
+
+              // Parse the option text to extract details
+              const text = data.text;
+              const stockMatch = text.match(/Stock:\s*(\d+)/i);
+              const sizeMatch = text.match(/Size:\s*([^-]+)/i);
+
+              let displayHtml =
+                '<div class="select2-result-repository clearfix">';
+              displayHtml += '<div class="select2-result-repository__meta">';
+              displayHtml +=
+                '<div class="select2-result-repository__title">' +
+                text.split(" (")[0] +
+                "</div>";
+
+              if (sizeMatch) {
+                displayHtml +=
+                  '<div class="select2-result-repository__description">Size: ' +
+                  sizeMatch[1].trim() +
+                  "</div>";
+              }
+
+              if (stockMatch) {
+                const stock = parseInt(stockMatch[1]);
+                const stockClass =
+                  stock === 0
+                    ? "out-of-stock"
+                    : stock < 10
+                    ? "low-stock"
+                    : "in-stock";
+                displayHtml +=
+                  '<div class="select2-result-repository__statistics">';
+                displayHtml +=
+                  '<span class="stock-badge ' +
+                  stockClass +
+                  '">Stock: ' +
+                  stock +
+                  "</span>";
+                displayHtml += "</div>";
+              }
+
+              displayHtml += "</div></div>";
+              return $(displayHtml);
+            },
+          });
+        });
+
+        console.log("Remove Stocks dropdowns refreshed successfully");
+      }
+    })
+    .catch((error) => {
+      console.warn("Could not refresh Remove Stocks dropdowns:", error);
+    });
+}

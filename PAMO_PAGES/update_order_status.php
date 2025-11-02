@@ -190,6 +190,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception('Failed to log activity for item: ' . $inventory['item_name']);
                 }
                 
+                // Update monthly inventory snapshots
+                try {
+                    $currentYear = date('Y');
+                    $currentMonth = date('n');
+                    
+                    // Get or create current period
+                    $periodStmt = $conn->prepare("SELECT id FROM monthly_inventory_periods WHERE year = ? AND month = ?");
+                    $periodStmt->execute([$currentYear, $currentMonth]);
+                    $period = $periodStmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if (!$period) {
+                        // Create period if it doesn't exist
+                        $periodStart = date('Y-m-01');
+                        $periodEnd = date('Y-m-t');
+                        $createPeriodStmt = $conn->prepare("
+                            INSERT INTO monthly_inventory_periods (year, month, period_start, period_end, is_closed)
+                            VALUES (?, ?, ?, ?, 0)
+                        ");
+                        $createPeriodStmt->execute([$currentYear, $currentMonth, $periodStart, $periodEnd]);
+                        $periodId = $conn->lastInsertId();
+                    } else {
+                        $periodId = $period['id'];
+                    }
+                    
+                    // Check if snapshot exists for this item
+                    $snapshotStmt = $conn->prepare("
+                        SELECT id, sales_total, ending_quantity 
+                        FROM monthly_inventory_snapshots 
+                        WHERE period_id = ? AND item_code = ?
+                    ");
+                    $snapshotStmt->execute([$periodId, $item['item_code']]);
+                    $snapshot = $snapshotStmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($snapshot) {
+                        // Update existing snapshot - add to sales and update ending quantity
+                        $updateSnapshotStmt = $conn->prepare("
+                            UPDATE monthly_inventory_snapshots 
+                            SET sales_total = sales_total + ?,
+                                ending_quantity = ending_quantity - ?,
+                                updated_at = NOW()
+                            WHERE id = ?
+                        ");
+                        $updateSnapshotStmt->execute([
+                            $item['quantity'],
+                            $item['quantity'],
+                            $snapshot['id']
+                        ]);
+                    } else {
+                        // Create new snapshot for this item
+                        // Get current inventory values
+                        $invStmt = $conn->prepare("
+                            SELECT actual_quantity, new_delivery, beginning_quantity, damage, sold_quantity 
+                            FROM inventory 
+                            WHERE item_code = ?
+                        ");
+                        $invStmt->execute([$item['item_code']]);
+                        $invData = $invStmt->fetch(PDO::FETCH_ASSOC);
+                        
+                        if ($invData) {
+                            $insertSnapshotStmt = $conn->prepare("
+                                INSERT INTO monthly_inventory_snapshots (
+                                    period_id, item_code, beginning_quantity, new_delivery_total, 
+                                    sales_total, damage_total, ending_quantity, created_at, updated_at
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                            ");
+                            $insertSnapshotStmt->execute([
+                                $periodId,
+                                $item['item_code'],
+                                $invData['beginning_quantity'],
+                                $invData['new_delivery'],
+                                $item['quantity'], // This sale
+                                $invData['damage'],
+                                $invData['actual_quantity'] // Current quantity after deduction
+                            ]);
+                        }
+                    }
+                } catch (Exception $snapshotError) {
+                    // Log error but don't fail the transaction
+                    error_log("Failed to update monthly snapshot: " . $snapshotError->getMessage());
+                }
 
             }
         }

@@ -196,7 +196,7 @@ include '../Includes/loader.php';
                 <label for="preQuantity">Quantity:</label>
                 <div class="quantity-controls">
                     <button type="button" onclick="adjustPreQty(-1)">-</button>
-                    <input type="number" id="preQuantity" value="1" min="1">
+                    <input type="number" id="preQuantity" value="1" min="1" oninput="validatePreQuantity(this)">
                     <button type="button" onclick="adjustPreQty(1)">+</button>
                 </div>
             </div>
@@ -212,7 +212,17 @@ include '../Includes/loader.php';
     </script>
     <script>
     let currentPreId = null;
-    function closePreModal(){ document.getElementById('preorderRequestModal').classList.remove('show'); }
+    function closePreModal(){ 
+        document.getElementById('preorderRequestModal').classList.remove('show'); 
+        
+        // Reset button state when modal is closed
+        const submitBtn = document.querySelector('.add-to-cart-btn');
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitBtn.innerHTML = 'Submit Request';
+    }
+    
     function openPreModal(card){
         if (!window.isLoggedIn) { 
             window.location.href = "login.php?redirect=preorder.php"; 
@@ -224,9 +234,20 @@ include '../Includes/loader.php';
         const price = parseFloat(card.getAttribute('data-price')||'0');
         const img = card.querySelector('img')?.getAttribute('src') || '';
         currentPreId = preId;
+        
+        // Reset form
         document.getElementById('preModalName').textContent = name;
         document.getElementById('preModalPrice').textContent = 'Price: ₱' + price.toFixed(2);
         document.getElementById('preModalImage').setAttribute('src', img);
+        document.getElementById('preQuantity').value = 1;
+        
+        // Reset button state
+        const submitBtn = document.querySelector('.add-to-cart-btn');
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitBtn.innerHTML = 'Submit Request';
+        
         const sizes = sizesCsv.split(',').map(s=>s.trim()).filter(Boolean);
         const container = document.getElementById('preSizeOptions');
         container.innerHTML = '';
@@ -258,6 +279,18 @@ include '../Includes/loader.php';
         const el = document.getElementById('preQuantity');
         let v = parseInt(el.value||'1',10)+delta; if (v<1) v=1; el.value=v;
     }
+    
+    function validatePreQuantity(input) {
+        // Remove any non-numeric characters except digits
+        let value = parseInt(input.value);
+        
+        // If value is invalid, empty, or less than 1, reset to 1
+        if (isNaN(value) || value < 1) {
+            input.value = 1;
+        } else {
+            input.value = value; // This removes leading zeros
+        }
+    }
 
     async function submitPreorderRequest(){
         const qty = parseInt(document.getElementById('preQuantity').value||'1',10);
@@ -271,20 +304,81 @@ include '../Includes/loader.php';
             return;
         }
         
-        const fd = new FormData();
-        fd.append('preorder_item_id', currentPreId);
-        fd.append('size', selectedSize);
-        fd.append('quantity', qty);
-        
-        const resp = await fetch('../PAMO_PREORDER_BACKEND/api_preorder_request_create.php', { method:'POST', body: fd });
-        const data = await resp.json();
-        if (!data.success) { 
-            showNotification(data.message || 'Failed to submit pre-order request', 'error'); 
-            return; 
+        // Validate quantity is at least 1
+        if (qty < 1 || isNaN(qty)) {
+            showNotification('Quantity must be at least 1', 'error');
+            // Reset quantity to 1 if invalid
+            document.getElementById('preQuantity').value = 1;
+            return;
         }
-        closePreModal();
-        showNotification('Your pre-order request has been submitted successfully! Pre-Order #: ' + (data.preorder_number || 'N/A'), 'success', { autoClose: 4000 });
-        setTimeout(() => location.reload(), 4000);
+        
+        // Get the submit button and show loading state
+        const submitBtn = document.querySelector('.add-to-cart-btn');
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.7';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin" style="margin-right: 8px;"></i>Submitting Pre-Order Request...';
+        
+        try {
+            const fd = new FormData();
+            fd.append('preorder_item_id', currentPreId);
+            fd.append('size', selectedSize);
+            fd.append('quantity', qty);
+            
+            const resp = await fetch('../PAMO_PREORDER_BACKEND/api_preorder_request_create.php', { method:'POST', body: fd });
+            const data = await resp.json();
+            
+            if (!data.success) { 
+                showNotification(data.message || 'Failed to submit pre-order request', 'error'); 
+                
+                // Restore button state on error
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                submitBtn.innerHTML = originalBtnText;
+                return; 
+            }
+            
+            // Success - close modal and show notification
+            closePreModal();
+            showNotification('Your pre-order request has been submitted successfully! Pre-Order #: ' + (data.preorder_number || 'N/A'), 'success', { autoClose: 5000 });
+            
+            // Reset button state after closing modal
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+            submitBtn.innerHTML = originalBtnText;
+            
+            // Update the specific product card to show "ALREADY REQUESTED" without reloading
+            updatePreorderCardStatus(currentPreId);
+            
+        } catch (error) {
+            showNotification('An error occurred while submitting your request. Please try again.', 'error');
+            
+            // Restore button state on error
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+            submitBtn.innerHTML = originalBtnText;
+        }
+    }
+    
+    function updatePreorderCardStatus(preorderId) {
+        // Find the product card and update its button
+        const productCard = document.querySelector(`.product-container[data-preorder-id="${preorderId}"]`);
+        if (productCard) {
+            const requestBtn = productCard.querySelector('.request-preorder');
+            if (requestBtn && !requestBtn.classList.contains('already-ordered')) {
+                requestBtn.classList.add('already-ordered');
+                requestBtn.style.background = '#9e9e9e';
+                requestBtn.style.cursor = 'not-allowed';
+                requestBtn.innerHTML = '<i class="fa fa-check-circle"></i><span>ALREADY REQUESTED</span>';
+                
+                // Mark the card as having a pending order
+                productCard.dataset.hasPending = '1';
+            }
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function(){

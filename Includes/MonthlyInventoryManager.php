@@ -206,30 +206,33 @@ class MonthlyInventoryManager {
         }
     }
 
-    private function updateMonthlySnapshot($itemCode, $periodId) {
+    public function updateMonthlySnapshot($itemCode, $periodId) {
         $stmt = $this->conn->prepare("
             SELECT 
                 COALESCE((SELECT SUM(quantity) FROM delivery_records WHERE period_id = ? AND item_code = ?), 0) as total_deliveries,
-                COALESCE((SELECT SUM(quantity_sold) FROM monthly_sales_records WHERE period_id = ? AND item_code = ?), 0) as total_sales
+                COALESCE((SELECT SUM(quantity_sold) FROM monthly_sales_records WHERE period_id = ? AND item_code = ?), 0) as total_sales,
+                COALESCE((SELECT SUM(quantity_removed) FROM inventory_removals WHERE period_id = ? AND item_code = ?), 0) as total_removals
         ");
-        $stmt->execute([$periodId, $itemCode, $periodId, $itemCode]);
+        $stmt->execute([$periodId, $itemCode, $periodId, $itemCode, $periodId, $itemCode]);
         $totals = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $beginningQty = $this->getBeginningQuantity($itemCode, $periodId);
-        $endingQty = $beginningQty + $totals['total_deliveries'] - $totals['total_sales'];
+        $endingQty = $beginningQty + $totals['total_deliveries'] - $totals['total_sales'] - $totals['total_removals'];
 
         $stmt = $this->conn->prepare("
             UPDATE monthly_inventory_snapshots 
             SET 
                 new_delivery_total = ?,
                 sales_total = ?,
+                removals_total = ?,
                 ending_quantity = ?,
                 updated_at = NOW()
             WHERE period_id = ? AND item_code = ?
         ");
         $stmt->execute([
             $totals['total_deliveries'],
-            $totals['total_sales'], 
+            $totals['total_sales'],
+            $totals['total_removals'],
             $endingQty,
             $periodId, 
             $itemCode
@@ -238,15 +241,16 @@ class MonthlyInventoryManager {
         if ($stmt->rowCount() == 0) {
             $stmt = $this->conn->prepare("
                 INSERT INTO monthly_inventory_snapshots 
-                (period_id, item_code, beginning_quantity, new_delivery_total, sales_total, ending_quantity)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (period_id, item_code, beginning_quantity, new_delivery_total, sales_total, removals_total, ending_quantity)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ");
             $stmt->execute([
                 $periodId, 
                 $itemCode, 
                 $beginningQty, 
                 $totals['total_deliveries'],
-                $totals['total_sales'], 
+                $totals['total_sales'],
+                $totals['total_removals'],
                 $endingQty
             ]);
         }

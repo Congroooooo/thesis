@@ -1,3 +1,76 @@
+// Notification functions
+function showSuccessMessage(message) {
+  // Remove any existing notifications
+  const existingNotification = document.querySelector(".pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  // Create notification element
+  const notification = document.createElement("div");
+  notification.className = "pamo-notification success";
+  notification.innerHTML = `
+    <span class="material-icons" style="font-size: 24px; margin-right: 12px;">check_circle</span>
+    <span>${message}</span>
+  `;
+
+  // Add to body
+  document.body.appendChild(notification);
+
+  // Trigger animation
+  setTimeout(() => {
+    notification.style.transform = "translateX(0)";
+    notification.style.opacity = "1";
+  }, 10);
+
+  // Auto remove after 5 seconds
+  setTimeout(() => {
+    notification.style.transform = "translateX(400px)";
+    notification.style.opacity = "0";
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 300);
+  }, 5000);
+}
+
+function showErrorMessage(message) {
+  // Remove any existing notifications
+  const existingNotification = document.querySelector(".pamo-notification");
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
+  // Create notification element
+  const notification = document.createElement("div");
+  notification.className = "pamo-notification error";
+  notification.innerHTML = `
+    <span class="material-icons" style="font-size: 24px; margin-right: 12px;">error</span>
+    <span>${message}</span>
+  `;
+
+  // Add to body
+  document.body.appendChild(notification);
+
+  // Trigger animation
+  setTimeout(() => {
+    notification.style.transform = "translateX(0)";
+    notification.style.opacity = "1";
+  }, 10);
+
+  // Auto remove after 5 seconds
+  setTimeout(() => {
+    notification.style.transform = "translateX(400px)";
+    notification.style.opacity = "0";
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 300);
+  }, 5000);
+}
+
 function showDeductQuantityModal() {
   document.getElementById("deductQuantityModal").style.display = "block";
   document.getElementById("deductQuantityForm").reset();
@@ -570,6 +643,24 @@ function showSalesReceipt(formData) {
   document.getElementById("salesReceiptModal").style.display = "block";
 }
 
+function closeSalesReceiptModal() {
+  var modal = document.getElementById("salesReceiptModal");
+  if (modal) {
+    modal.style.display = "none";
+    document.getElementById("salesReceiptBody").innerHTML = "";
+  }
+
+  // Refresh inventory table
+  showSuccessMessage("Refreshing inventory...");
+  setTimeout(() => {
+    if (typeof refreshInventoryTable === "function") {
+      refreshInventoryTable();
+    } else {
+      location.reload();
+    }
+  }, 300);
+}
+
 function printSalesReceipt() {
   const receiptHtml = document.getElementById("salesReceiptBody").innerHTML;
   const printWindow = window.open("", "_blank", "width=900,height=1200");
@@ -768,11 +859,22 @@ function printSalesReceipt() {
       modal.style.display = "none";
       document.getElementById("salesReceiptBody").innerHTML = "";
     }
+
+    // Refresh inventory table after printing
+    showSuccessMessage("Refreshing inventory...");
+    setTimeout(() => {
+      if (typeof refreshInventoryTable === "function") {
+        refreshInventoryTable();
+      } else {
+        location.reload();
+      }
+    }, 300);
   }, 500);
 }
 
 function submitDeductQuantity(event) {
   event.preventDefault();
+  event.stopPropagation();
 
   const transactionNumber = document.getElementById("transactionNumber").value;
   const studentNameSelect = document.getElementById("studentName");
@@ -799,7 +901,7 @@ function submitDeductQuantity(event) {
     !roleCategory ||
     salesItems.length === 0
   ) {
-    alert("Please fill in all required fields");
+    showErrorMessage("Please fill in all required fields");
     return;
   }
 
@@ -843,13 +945,13 @@ function submitDeductQuantity(event) {
       !quantityInput.value ||
       !priceInput.value
     ) {
-      alert(`Please fill in all fields for item ${index + 1}`);
+      showErrorMessage(`Please fill in all fields for item ${index + 1}`);
       hasErrors = true;
       return;
     }
 
     if (parseInt(quantityInput.value) <= 0) {
-      alert(`Quantity must be greater than 0 for item ${index + 1}`);
+      showErrorMessage(`Quantity must be greater than 0 for item ${index + 1}`);
       hasErrors = true;
       return;
     }
@@ -858,7 +960,9 @@ function submitDeductQuantity(event) {
     const fullItemCode = sizeOption.getAttribute("data-item-code");
     const itemCategory = sizeOption.getAttribute("data-category") || "";
     if (!fullItemCode) {
-      alert("Could not determine the full item code for item " + (index + 1));
+      showErrorMessage(
+        "Could not determine the full item code for item " + (index + 1)
+      );
       hasErrors = true;
       return;
     }
@@ -885,16 +989,14 @@ function submitDeductQuantity(event) {
 
   formData.append("totalAmount", document.getElementById("totalAmount").value);
 
-  if (window.PAMOLoader) {
-    window.PAMOLoader.show();
-  }
+  const submitBtn = document.querySelector('button[form="deductQuantityForm"]');
+  const originalButtonText = submitBtn ? submitBtn.textContent : "Save";
 
-  const submitBtn =
-    event.target.querySelector('button[type="submit"]') ||
-    document.querySelector('#deductQuantityForm button[type="submit"]');
   if (submitBtn) {
     submitBtn.disabled = true;
-    submitBtn.textContent = "Processing...";
+    submitBtn.textContent = "Recording Sale...";
+    submitBtn.style.cursor = "not-allowed";
+    submitBtn.style.opacity = "0.6";
   }
 
   // Create a timeout promise
@@ -924,17 +1026,30 @@ function submitDeductQuantity(event) {
       });
     })
     .then((data) => {
+      // Restore button state
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.textContent = "Save";
-      }
-
-      if (window.PAMOLoader) {
-        window.PAMOLoader.hide();
+        submitBtn.textContent = originalButtonText;
+        submitBtn.style.cursor = "pointer";
+        submitBtn.style.opacity = "1";
       }
 
       if (data.success) {
+        // Reset form
+        document.getElementById("deductQuantityForm").reset();
+        const salesItemsContainer = document.getElementById("salesItems");
+        const items = salesItemsContainer.querySelectorAll(".sales-item");
+        for (let i = 1; i < items.length; i++) {
+          items[i].remove();
+        }
+
+        // Close sales entry modal
         closeModal("deductQuantityModal");
+
+        // Show success notification
+        showSuccessMessage("Sales transaction recorded successfully!");
+
+        // Show receipt for printing
         showSalesReceipt({
           transactionNumber: transactionNumber,
           studentName,
@@ -952,7 +1067,9 @@ function submitDeductQuantity(event) {
         });
       } else {
         console.error("Sales transaction failed:", data.message);
-        alert("Error: " + (data.message || "Unknown error occurred"));
+        showErrorMessage(
+          "Error: " + (data.message || "Unknown error occurred")
+        );
       }
     })
     .catch((error) => {
@@ -960,14 +1077,12 @@ function submitDeductQuantity(event) {
 
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.textContent = "Save";
+        submitBtn.textContent = originalButtonText;
+        submitBtn.style.cursor = "pointer";
+        submitBtn.style.opacity = "1";
       }
 
-      if (window.PAMOLoader) {
-        window.PAMOLoader.hide();
-      }
-
-      alert(
+      showErrorMessage(
         "An error occurred while processing your request. Check console for details."
       );
     });

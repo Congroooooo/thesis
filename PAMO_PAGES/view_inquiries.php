@@ -36,16 +36,23 @@ include 'includes/pamo_loader.php';
     
 </head>
 <body>
-    <?php include 'includes/sidebar.php'; ?>
-    <div class="wrapper">
-        <div class="main-content-inquiries">
-            <div class="inquiries-header">Student Inquiries</div>
+    <div class="container">
+        <?php include 'includes/sidebar.php'; ?>
+        <main class="main-content-inquiries">
+            <h1 class="inquiries-header">Student Inquiries</h1>
             <div class="inquiries-grid">
+            <?php if (empty($result)): ?>
+                <div class="empty-state">
+                    <i class="material-icons">inbox</i>
+                    <h3>No Inquiries Yet</h3>
+                    <p>Student inquiries will appear here once submitted.</p>
+                </div>
+            <?php else: ?>
             <?php foreach($result as $row): ?>
             <article class="inquiry-card" data-inquiry-id="<?= $row['id'] ?>">
                 <header class="inquiry-header">
                     <span class="material-icons">person</span>
-                    <span><?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?> <span style="font-weight:400; color:#222;">(ID: <?= htmlspecialchars($row['id_number']) ?>)</span></span>
+                    <span><?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?> <span class="inquiry-id-number">(ID: <?= htmlspecialchars($row['id_number']) ?>)</span></span>
                 </header>
                 <div class="inquiry-meta">
                     <span class="material-icons">calendar_month</span>
@@ -65,13 +72,16 @@ include 'includes/pamo_loader.php';
                         <?= (!empty($row['reply']) || (isset($row['status']) && $row['status'] === 'replied')) ? 'Replied' : 'New' ?>
                     </span>
                 </div>
+                <?php if (empty($row['reply']) && (!isset($row['status']) || $row['status'] !== 'replied')): ?>
                 <div class="inquiry-actions">
                     <button class="reply-btn" data-id="<?= $row['id'] ?>">Reply</button>
                 </div>
+                <?php endif; ?>
             </article>
             <?php endforeach; ?>
+            <?php endif; ?>
             </div>
-        </div>
+        </main>
     </div>
     <!-- Reply Modal -->
     <div id="replyModal" class="reply-modal-bg" style="display:none;">

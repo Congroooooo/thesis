@@ -477,7 +477,7 @@ function page_link($page, $query_string) {
                 <span class="close" onclick="closeModal('addItemModal')">&times;</span>
             </div>
             <div class="modal-body">
-                <form id="addItemForm" onsubmit="submitNewItem(event)" enctype="multipart/form-data">
+                <form id="addItemForm" class="ajax-form" onsubmit="submitNewItem(event)" enctype="multipart/form-data" data-loader="false">
                     <div class="delivery-order-section">
                         <h3>Delivery Information</h3>
                         <div class="input-group">
@@ -618,7 +618,7 @@ function page_link($page, $query_string) {
                 <span class="close" onclick="closeModal('addQuantityModal')">&times;</span>
             </div>
             <div class="modal-body">
-                <form id="addQuantityForm" onsubmit="submitAddQuantity(event)">
+                <form id="addQuantityForm" class="ajax-form" onsubmit="submitAddQuantity(event)" data-loader="false">
                     <div class="order-section">
                         <div class="input-group">
                             <label for="orderNumber">Delivery Order #:</label>
@@ -671,7 +671,7 @@ function page_link($page, $query_string) {
                 <span class="close" onclick="closeModal('deductQuantityModal')">&times;</span>
             </div>
             <div class="modal-body">
-                <form id="deductQuantityForm" class="instant" onsubmit="submitDeductQuantity(event)">
+                <form id="deductQuantityForm" class="ajax-form instant" onsubmit="submitDeductQuantity(event)" data-loader="false">
                     <div class="order-section form-row">
                         <div class="input-group">
                             <label for="transactionNumber">Transaction Number:</label>
@@ -770,7 +770,7 @@ function page_link($page, $query_string) {
                 <span class="close" onclick="closeModal('addItemSizeModal')">&times;</span>
             </div>
             <div class="modal-body">
-                <form id="addItemSizeForm" onsubmit="submitNewItemSize(event)">
+                <form id="addItemSizeForm" class="ajax-form" onsubmit="submitNewItemSize(event)" data-loader="false">
                     <div class="delivery-order-section">
                         <h3>Delivery Information</h3>
                         <div class="input-group">
@@ -859,14 +859,14 @@ function page_link($page, $query_string) {
         <div class="modal-content" id="salesReceiptContent">
             <div class="modal-header">
                 <h2>Sales Receipt</h2>
-                <span class="close" onclick="closeModal('salesReceiptModal')">&times;</span>
+                <span class="close" onclick="closeSalesReceiptModal()">&times;</span>
             </div>
             <div class="modal-body" id="salesReceiptBody">
 
             </div>
             <div class="modal-footer">
                 <button type="button" onclick="printSalesReceipt()" class="save-btn">Print</button>
-                <button type="button" onclick="closeModal('salesReceiptModal')" class="cancel-btn">Close</button>
+                <button type="button" onclick="closeSalesReceiptModal()" class="cancel-btn">Close</button>
             </div>
         </div>
     </div>
@@ -878,7 +878,7 @@ function page_link($page, $query_string) {
                 <span class="close" onclick="closeModal('exchangeItemModal')">&times;</span>
             </div>
             <div class="modal-body">
-                <form id="exchangeItemForm" onsubmit="submitExchangeItem(event)">
+                <form id="exchangeItemForm" class="ajax-form" onsubmit="submitExchangeItem(event)" data-loader="false">
                     <div class="order-section">
                         <div class="input-group">
                             <label for="exchangeCustomerName">Customer Name:</label>
@@ -963,7 +963,7 @@ function page_link($page, $query_string) {
                 <span class="close" onclick="closeModal('removeItemModal')">&times;</span>
             </div>
             <div class="modal-body">
-                <form id="removeItemForm" onsubmit="submitRemoveItem(event)">
+                <form id="removeItemForm" class="ajax-form" onsubmit="submitRemoveItem(event)" data-loader="false">
                     <div class="order-section">
                         <div class="input-group">
                             <label for="pulloutOrderNumber">Pullout Order #:</label>
