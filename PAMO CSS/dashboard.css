@@ -548,6 +548,19 @@ body::before {
   }
 }
 
+/* Medium desktop screens - optimize date display */
+@media (max-width: 1400px) {
+  .sales-analytics canvas {
+    padding-bottom: 20px !important;
+  }
+}
+
+@media (max-width: 1200px) {
+  .sales-analytics canvas {
+    padding-bottom: 25px !important;
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard {
     padding: 16px;
@@ -572,6 +585,10 @@ body::before {
     min-height: 340px;
   }
 
+  .analytics-card.sales-analytics {
+    padding-bottom: 40px;
+  }
+
   .section-title {
     font-size: 20px;
   }
@@ -593,6 +610,12 @@ body::before {
     width: 100%;
     margin-left: 0;
     margin-top: 6px;
+  }
+
+  .sales-analytics canvas {
+    height: 280px !important;
+    max-height: 280px !important;
+    padding-bottom: 30px !important;
   }
 
   .recent-activities {

@@ -400,7 +400,23 @@ function renderSalesLineChart(data) {
             },
             padding: 10,
             maxRotation: 45,
-            minRotation: 0,
+            minRotation: 45,
+            autoSkip: true,
+            autoSkipPadding: 15,
+            maxTicksLimit:
+              window.innerWidth < 1200 ? 6 : window.innerWidth < 1400 ? 8 : 10,
+            callback: function (value, index, ticks) {
+              const label = this.getLabelForValue(value);
+              // For smaller screens, show shorter date format
+              if (window.innerWidth < 1200) {
+                // Format: MM-DD
+                const parts = label.split("-");
+                if (parts.length === 3) {
+                  return `${parts[1]}-${parts[2]}`;
+                }
+              }
+              return label;
+            },
           },
         },
       },
@@ -522,4 +538,16 @@ window.addEventListener("DOMContentLoaded", async () => {
     .addEventListener("change", updateSalesAnalytics);
   updateSalesAnalytics();
   updateInventoryAnalytics();
+});
+
+// Handle window resize to update chart responsiveness
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    // Re-render the sales chart with updated screen size settings
+    if (salesLineChart) {
+      updateSalesAnalytics();
+    }
+  }, 250);
 });
