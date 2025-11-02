@@ -1379,55 +1379,23 @@ document.addEventListener("DOMContentLoaded", function () {
  * Fetches updated HTML for the table and updates the DOM
  */
 function refreshInventoryTable() {
-  // Show a subtle loading indicator on the table
-  const inventoryTable = document.querySelector(".inventory-table");
-  if (inventoryTable) {
-    inventoryTable.style.opacity = "0.6";
-    inventoryTable.style.pointerEvents = "none";
-  }
+  // Check if fetchAllInventory function exists (from inventory.js)
+  // This function reloads inventory data and maintains current pagination state
+  if (typeof fetchAllInventory === "function") {
+    // Show a subtle loading indicator on the table
+    const inventoryTable = document.querySelector(".inventory-table");
+    if (inventoryTable) {
+      inventoryTable.style.opacity = "0.6";
+      inventoryTable.style.pointerEvents = "none";
+    }
 
-  // Fetch the current page with existing filters to get updated inventory
-  fetch(window.location.href, {
-    method: "GET",
-    headers: {
-      "X-Requested-With": "XMLHttpRequest",
-    },
-  })
-    .then((response) => response.text())
-    .then((html) => {
-      // Parse the HTML response
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-
-      // Extract the new table content
-      const newTableContent = doc.querySelector(".inventory-table");
-      const newPagination = doc.querySelector(".pagination");
-
-      if (newTableContent) {
-        // Replace the old table with the new one
-        const oldTable = document.querySelector(".inventory-table");
-        if (oldTable) {
-          oldTable.innerHTML = newTableContent.innerHTML;
-          oldTable.style.opacity = "1";
-          oldTable.style.pointerEvents = "auto";
-        }
-
-        // Update pagination if it exists
-        if (newPagination) {
-          const oldPagination = document.querySelector(".pagination");
-          if (oldPagination) {
-            oldPagination.innerHTML = newPagination.innerHTML;
-          } else {
-            // Insert pagination if it didn't exist before
-            const inventoryContent =
-              document.querySelector(".inventory-content");
-            if (inventoryContent) {
-              const paginationDiv = document.createElement("div");
-              paginationDiv.className = "pagination";
-              paginationDiv.innerHTML = newPagination.innerHTML;
-              inventoryContent.appendChild(paginationDiv);
-            }
-          }
+    // Call fetchAllInventory to reload data with current filters and page
+    fetchAllInventory()
+      .then(() => {
+        // Restore table state
+        if (inventoryTable) {
+          inventoryTable.style.opacity = "1";
+          inventoryTable.style.pointerEvents = "auto";
         }
 
         // Refresh Select2 dropdowns to include newly added items
@@ -1435,24 +1403,24 @@ function refreshInventoryTable() {
 
         // Update the success message to show completion
         showSuccessMessage("Inventory updated successfully!");
-      } else {
-        // Fallback: reload the page if parsing fails
-        console.warn("Could not parse updated table, reloading page...");
-        location.reload();
-      }
-    })
-    .catch((error) => {
-      console.error("Error refreshing inventory:", error);
-      // Restore table state
-      if (inventoryTable) {
-        inventoryTable.style.opacity = "1";
-        inventoryTable.style.pointerEvents = "auto";
-      }
-      // Show error but don't fail completely
-      showErrorMessage(
-        "Could not refresh inventory. Please refresh the page manually."
-      );
-    });
+      })
+      .catch((error) => {
+        console.error("Error refreshing inventory:", error);
+        // Restore table state
+        if (inventoryTable) {
+          inventoryTable.style.opacity = "1";
+          inventoryTable.style.pointerEvents = "auto";
+        }
+        // Show error but don't fail completely
+        showErrorMessage(
+          "Could not refresh inventory. Please refresh the page manually."
+        );
+      });
+  } else {
+    // Fallback: reload the page if fetchAllInventory is not available
+    console.warn("fetchAllInventory function not found, reloading page...");
+    location.reload();
+  }
 }
 
 /**

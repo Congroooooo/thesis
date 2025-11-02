@@ -714,6 +714,7 @@ function updatePaginationDisplay(totalPages) {
     html += `<a href="#" class="disabled" disabled>&raquo;</a>`;
   }
 
+  // Clear and update pagination HTML
   paginationContainer.innerHTML = html;
 
   // Attach click handlers
@@ -730,6 +731,7 @@ function escapeHtml(text) {
 // Attach pagination click handlers
 function attachClientPaginationHandlers() {
   const links = document.querySelectorAll(".client-page-link");
+
   links.forEach((link) => {
     link.addEventListener("click", function (e) {
       e.preventDefault();

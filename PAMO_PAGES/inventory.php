@@ -703,51 +703,61 @@ function page_link($page, $query_string) {
                         </div>
                     </div>
                     <div id="salesItems">
-                        <div class="sales-item form-row">
-                            <div class="input-group">
-                                <label for="itemId">Product:</label>
-                                <select name="itemId[]" required>
-                                    <option value="">Select Product</option>
-                                    <?php
-                                    $sql = "SELECT DISTINCT 
-                                            SUBSTRING_INDEX(item_code, '-', 1) as prefix,
-                                            item_name,
-                                            category
-                                            FROM inventory 
-                                            WHERE actual_quantity > 0
-                                            ORDER BY item_name";
-                                    $stmt = $conn->query($sql);
-                                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                                        echo "<option value='" . htmlspecialchars($row['prefix']) . "' data-category='" . htmlspecialchars($row['category'], ENT_QUOTES) . "'>" . 
-                                             htmlspecialchars($row['item_name']) . " (" . htmlspecialchars($row['prefix']) . ")</option>";
-                                    }
-                                    ?>
-                                </select>
+                        <div class="sales-item-container" data-item-index="0">
+                            <div class="sales-item-header">
+                                <h4>Product Entry 1</h4>
+                                <div class="remove-sales-product-btn" style="display: none;">&times;</div>
                             </div>
-                            <div class="input-group">
-                                <label for="size">Size:</label>
-                                <select name="size[]" required>
-                                    <option value="">Select Size</option>
-                                </select>
+                            
+                            <div class="sales-product-selection">
+                                <div class="input-group">
+                                    <label for="salesProductId_0">Product:</label>
+                                    <select id="salesProductId_0" name="productId[]" class="sales-product-select" required>
+                                        <option value="">Select Product</option>
+                                        <?php
+                                        $sql = "SELECT DISTINCT 
+                                                SUBSTRING_INDEX(item_code, '-', 1) as prefix,
+                                                item_name,
+                                                category
+                                                FROM inventory 
+                                                WHERE actual_quantity > 0
+                                                ORDER BY item_name";
+                                        $stmt = $conn->query($sql);
+                                        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                            echo "<option value='" . htmlspecialchars($row['prefix']) . "' data-category='" . htmlspecialchars($row['category'], ENT_QUOTES) . "'>" . 
+                                                 htmlspecialchars($row['item_name']) . " (" . htmlspecialchars($row['prefix']) . ")</option>";
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
                             </div>
-                            <div class="input-group">
-                                <label for="quantityToDeduct">Quantity Sold:</label>
-                                <input type="number" name="quantityToDeduct[]" min="1" required onchange="calculateItemTotal(this)">
+
+                            <div id="salesSizeSelectionSection_0" class="sales-size-selection-section" style="display: none;">
+                                <h4>Select Sizes to Sell</h4>
+                                <div class="input-group">
+                                    <label>Available Sizes:</label>
+                                    <div id="salesSizeCheckboxesContainer_0" class="size-checkboxes">
+                                        <!-- Size checkboxes will be dynamically populated -->
+                                    </div>
+                                </div>
                             </div>
-                            <div class="input-group">
-                                <label for="pricePerItem">Price per Item:</label>
-                                <input type="number" name="pricePerItem[]" step="0.01" min="0" required readonly>
+
+                            <div id="salesSizeDetailsContainer_0" class="sales-size-details-container" style="display: none;">
+                                <h4>Size Details</h4>
+                                <div id="salesSizeDetailsList_0">
+                                    <!-- Size detail entries will be dynamically added here -->
+                                </div>
                             </div>
-                            <div class="input-group">
-                                <label for="itemTotal">SubTotal:</label>
-                                <input type="number" name="itemTotal[]" step="0.01" min="0" readonly>
-                            </div>
-                            <div class="item-close">&times;</div>
                         </div>
                     </div>
-                    <button type="button" class="add-item-btn" onclick="addSalesItem()">
-                        <i class="material-icons">add_circle</i> Add Another Item
-                    </button>
+                    
+                    <div class="add-sales-product-section">
+                        <button type="button" class="add-product-btn" onclick="addAnotherSalesProduct()">
+                            <i class="material-icons">add_circle</i> Add Another Product
+                        </button>
+                        <small>Add multiple products to this sales transaction</small>
+                    </div>
+                    
                     <div class="total-section">
                         <div class="input-group">
                             <label for="totalAmount">Total Amount:</label>
@@ -2332,6 +2342,192 @@ function page_link($page, $query_string) {
         margin-top: 8px;
         color: #6c757d;
         font-size: 13px;
+    }
+
+    /* Sales Entry Multi-Size Styles */
+    .sales-item-container {
+        background: #fff;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        position: relative;
+    }
+
+    .sales-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .sales-item-header h4 {
+        margin: 0;
+        color: #495057;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .remove-sales-product-btn {
+        font-size: 24px;
+        cursor: pointer;
+        color: #dc3545;
+        font-weight: bold;
+        background: #fff;
+        border: 2px solid #dc3545;
+        border-radius: 50%;
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .remove-sales-product-btn:hover {
+        background: #dc3545;
+        color: #fff;
+    }
+
+    .sales-product-selection {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #e9ecef;
+    }
+
+    .sales-size-selection-section {
+        background: #fff3cd;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #ffeaa7;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .sales-size-selection-section h4 {
+        margin: 0 0 20px 0;
+        color: #856404;
+        font-size: 16px;
+        font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #ffeaa7;
+    }
+
+    .sales-size-details-container {
+        background: #e7f3ff;
+        padding: 25px;
+        border-radius: 10px;
+        border: 1px solid #b3d9ff;
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+    }
+
+    .sales-size-details-container h4 {
+        margin: 0 0 20px 0;
+        color: #0066cc;
+        font-size: 16px;
+        font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #b3d9ff;
+    }
+
+    .sales-size-detail-item {
+        background: white;
+        border: 1px solid #b3d9ff;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+
+    .sales-size-detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .sales-size-detail-header h5 {
+        margin: 0;
+        color: #0066cc;
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    .sales-size-detail-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 20px;
+        align-items: end;
+    }
+
+    .add-sales-product-section {
+        text-align: center;
+        padding: 25px;
+        border: 2px dashed #28a745;
+        border-radius: 10px;
+        margin: 25px 0;
+        background: #f8fff9;
+        transition: all 0.3s ease;
+    }
+
+    .add-sales-product-section:hover {
+        background: #f0fff4;
+        border-color: #20c997;
+    }
+
+    .add-sales-product-section .add-product-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+    }
+
+    .add-sales-product-section .add-product-btn:hover {
+        background: #218838;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    }
+
+    .add-sales-product-section small {
+        display: block;
+        margin-top: 8px;
+        color: #6c757d;
+        font-size: 13px;
+    }
+
+    /* Disabled options styling for Select2 in Sales Entry */
+    .select2-results__option[aria-disabled="true"] {
+        color: #999 !important;
+        background-color: #f5f5f5 !important;
+        cursor: not-allowed !important;
+        opacity: 0.6 !important;
+        text-decoration: line-through;
+    }
+
+    .select2-results__option[aria-disabled="true"]:hover {
+        background-color: #f5f5f5 !important;
+        cursor: not-allowed !important;
+    }
+
+    /* Style for disabled options in regular select (fallback) */
+    select option:disabled {
+        color: #999;
+        background-color: #f5f5f5;
+        text-decoration: line-through;
     }
     </style>
 </body>

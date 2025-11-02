@@ -71,13 +71,30 @@ function showErrorMessage(message) {
   }, 5000);
 }
 
+// Sales counter for multiple products
+let salesProductCounter = 1;
+
 function showDeductQuantityModal() {
   document.getElementById("deductQuantityModal").style.display = "block";
   document.getElementById("deductQuantityForm").reset();
-  // Reset all select elements to their default state
-  document.querySelectorAll('select[name="itemId[]"]').forEach((select) => {
-    select.value = "";
-  });
+
+  // Reset counter
+  salesProductCounter = 1;
+
+  // Reset to single product entry
+  const salesItems = document.getElementById("salesItems");
+  if (salesItems) {
+    const containers = salesItems.querySelectorAll(".sales-item-container");
+    // Remove all except the first one
+    for (let i = 1; i < containers.length; i++) {
+      containers[i].remove();
+    }
+
+    // Reset the first container
+    if (containers.length > 0) {
+      resetSalesItemContainer(0);
+    }
+  }
 
   const studentNameSelect = document.getElementById("studentName");
   if (studentNameSelect) {
@@ -90,6 +107,7 @@ function showDeductQuantityModal() {
   }
 
   document.getElementById("studentIdNumber").value = "";
+  document.getElementById("totalAmount").value = "";
 
   const transactionInput = document.getElementById("transactionNumber");
   if (transactionInput) {
@@ -108,184 +126,501 @@ function showDeductQuantityModal() {
   }
 }
 
-function addSalesItem() {
-  const salesItems = document.getElementById("salesItems");
-  const originalItem = salesItems.querySelector(".sales-item");
-
-  const originalSelect = originalItem.querySelector('select[name="itemId[]"]');
-  if (window.jQuery && $(originalSelect).data("select2")) {
-    $(originalSelect).select2("destroy");
-  }
-
-  const newItem = originalItem.cloneNode(true);
-
-  const select = newItem.querySelector('select[name="itemId[]"]');
-  const sizeSelect = newItem.querySelector('select[name="size[]"]');
-  const quantityInput = newItem.querySelector(
-    'input[name="quantityToDeduct[]"]'
+function resetSalesItemContainer(itemIndex) {
+  const productSelect = document.getElementById(`salesProductId_${itemIndex}`);
+  const sizeSelectionSection = document.getElementById(
+    `salesSizeSelectionSection_${itemIndex}`
   );
-  const priceInput = newItem.querySelector('input[name="pricePerItem[]"]');
-  const totalInput = newItem.querySelector('input[name="itemTotal[]"]');
+  const sizeDetailsContainer = document.getElementById(
+    `salesSizeDetailsContainer_${itemIndex}`
+  );
+  const sizeCheckboxesContainer = document.getElementById(
+    `salesSizeCheckboxesContainer_${itemIndex}`
+  );
+  const sizeDetailsList = document.getElementById(
+    `salesSizeDetailsList_${itemIndex}`
+  );
 
-  if (select) select.value = "";
-  if (sizeSelect) {
-    sizeSelect.innerHTML = '<option value="">Select Size</option>';
-    sizeSelect.value = "";
-  }
-  if (quantityInput) quantityInput.value = "";
-  if (priceInput) priceInput.value = "";
-  if (totalInput) totalInput.value = "";
-
-  // Add or show close button for the new item
-  let closeBtn = newItem.querySelector(".item-close");
-  if (!closeBtn) {
-    closeBtn = document.createElement("div");
-    closeBtn.className = "item-close";
-    closeBtn.innerHTML = "&times;";
-    newItem.appendChild(closeBtn);
-  }
-  closeBtn.style.display = "block";
-  closeBtn.onclick = function () {
-    removeSalesItem(this);
-  };
-
-  // Add change event listeners to the new item
-  if (select) {
-    select.addEventListener("change", function () {
-      validateProductSelection(this);
-      updateAvailableSizes(this);
-      updateSalesProductOptions();
-    });
-    // Re-initialize Select2 for the new select
-    if (window.jQuery && $(select).length) {
-      $(select).select2({
-        placeholder: "Select Product",
-        allowClear: true,
-        width: "100%",
-      });
-      // Attach event after Select2
-      $(select).on("change", function () {
-        updateAvailableSizes(this);
-        updateSalesProductOptions();
-      });
+  if (productSelect) {
+    productSelect.value = "";
+    if (window.jQuery && $(productSelect).data("select2")) {
+      $(productSelect).val(null).trigger("change");
     }
   }
 
-  if (sizeSelect) {
-    sizeSelect.addEventListener("change", function () {
-      updateItemPrice(this);
+  if (sizeSelectionSection) sizeSelectionSection.style.display = "none";
+  if (sizeDetailsContainer) sizeDetailsContainer.style.display = "none";
+  if (sizeCheckboxesContainer) sizeCheckboxesContainer.innerHTML = "";
+  if (sizeDetailsList) sizeDetailsList.innerHTML = "";
+}
+
+function addAnotherSalesProduct() {
+  const salesItems = document.getElementById("salesItems");
+  const newIndex = salesProductCounter++;
+
+  const newContainer = document.createElement("div");
+  newContainer.className = "sales-item-container";
+  newContainer.setAttribute("data-item-index", newIndex);
+
+  newContainer.innerHTML = `
+    <div class="sales-item-header">
+      <h4>Product Entry ${newIndex + 1}</h4>
+      <div class="remove-sales-product-btn" onclick="removeSalesProduct(this)">&times;</div>
+    </div>
+    
+    <div class="sales-product-selection">
+      <div class="input-group">
+        <label for="salesProductId_${newIndex}">Product:</label>
+        <select id="salesProductId_${newIndex}" name="productId[]" class="sales-product-select" required>
+          <option value="">Select Product</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="salesSizeSelectionSection_${newIndex}" class="sales-size-selection-section" style="display: none;">
+      <h4>Select Sizes to Sell</h4>
+      <div class="input-group">
+        <label>Available Sizes:</label>
+        <div id="salesSizeCheckboxesContainer_${newIndex}" class="size-checkboxes">
+          <!-- Size checkboxes will be dynamically populated -->
+        </div>
+      </div>
+    </div>
+
+    <div id="salesSizeDetailsContainer_${newIndex}" class="sales-size-details-container" style="display: none;">
+      <h4>Size Details</h4>
+      <div id="salesSizeDetailsList_${newIndex}">
+        <!-- Size detail entries will be dynamically added here -->
+      </div>
+    </div>
+  `;
+
+  salesItems.appendChild(newContainer);
+
+  // Populate product options (copy from first select - get original select element, not Select2)
+  const firstProductSelect = document.getElementById("salesProductId_0");
+  const newProductSelect = document.getElementById(
+    `salesProductId_${newIndex}`
+  );
+
+  if (firstProductSelect && newProductSelect) {
+    // Clone all options from the original select element
+    Array.from(firstProductSelect.options).forEach((option) => {
+      const newOption = document.createElement("option");
+      newOption.value = option.value;
+      newOption.textContent = option.textContent;
+      // Copy data attributes if any
+      if (option.dataset.category) {
+        newOption.dataset.category = option.dataset.category;
+      }
+      newProductSelect.appendChild(newOption);
     });
   }
 
-  salesItems.appendChild(newItem);
-
-  // Re-initialize Select2 for the original select
-  if (window.jQuery && $(originalSelect).length) {
-    $(originalSelect).select2({
+  // Initialize Select2 for the new product select
+  if (window.jQuery && newProductSelect) {
+    $(newProductSelect).select2({
       placeholder: "Select Product",
       allowClear: true,
       width: "100%",
     });
-    // Attach event after Select2
-    $(originalSelect).on("change", function () {
-      updateAvailableSizes(this);
-      updateSalesProductOptions();
+
+    $(newProductSelect).on("change", function () {
+      validateSalesProductSelection(newIndex);
+      handleSalesProductChange(newIndex);
+      updateAllSalesProductDropdowns();
+    });
+  } else if (newProductSelect) {
+    // Fallback if jQuery/Select2 not available
+    newProductSelect.addEventListener("change", function () {
+      validateSalesProductSelection(newIndex);
+      handleSalesProductChange(newIndex);
+      updateAllSalesProductDropdowns();
     });
   }
 
-  // Show close buttons for all but the first item
-  document.querySelectorAll(".sales-item .item-close").forEach((btn, idx) => {
-    btn.style.display = idx === 0 ? "none" : "block";
-  });
-
-  updateSalesProductOptions();
+  // Update all dropdowns to reflect the new entry
+  updateAllSalesProductDropdowns();
 }
 
-function removeSalesItem(closeButton) {
-  const salesItems = document.getElementById("salesItems");
-  const items = salesItems.querySelectorAll(".sales-item");
-
-  if (items.length > 1) {
-    const salesItem = closeButton.closest(".sales-item");
-    salesItem.remove();
+function removeSalesProduct(btn) {
+  const container = btn.closest(".sales-item-container");
+  if (container) {
+    container.remove();
     calculateTotalAmount();
+
+    // Renumber remaining products
+    const containers = document.querySelectorAll(".sales-item-container");
+    containers.forEach((cont, idx) => {
+      const header = cont.querySelector(".sales-item-header h4");
+      if (header) {
+        header.textContent = `Product Entry ${idx + 1}`;
+      }
+    });
+
+    // Update all dropdowns after removal
+    updateAllSalesProductDropdowns();
+  }
+}
+
+function validateSalesProductSelection(itemIndex) {
+  const currentSelect = document.getElementById(`salesProductId_${itemIndex}`);
+  const selectedValue = currentSelect.value;
+
+  if (!selectedValue) return true;
+
+  // Check if this product is already selected in another entry
+  const allSelects = document.querySelectorAll(".sales-product-select");
+  let isDuplicate = false;
+
+  allSelects.forEach((select) => {
+    const selectIndex = select.id.split("_")[1];
+    if (
+      selectIndex !== itemIndex.toString() &&
+      select.value === selectedValue
+    ) {
+      isDuplicate = true;
+    }
+  });
+
+  if (isDuplicate) {
+    showErrorMessage(
+      "This product has already been selected. Please choose a different product."
+    );
+
+    // Clear the selection
+    if (window.jQuery && $(currentSelect).data("select2")) {
+      $(currentSelect).val(null).trigger("change");
+    } else {
+      currentSelect.value = "";
+    }
+
+    // Clear the size sections
+    const sizeSelectionSection = document.getElementById(
+      `salesSizeSelectionSection_${itemIndex}`
+    );
+    const sizeDetailsContainer = document.getElementById(
+      `salesSizeDetailsContainer_${itemIndex}`
+    );
+    const sizeCheckboxesContainer = document.getElementById(
+      `salesSizeCheckboxesContainer_${itemIndex}`
+    );
+    const sizeDetailsList = document.getElementById(
+      `salesSizeDetailsList_${itemIndex}`
+    );
+
+    if (sizeSelectionSection) sizeSelectionSection.style.display = "none";
+    if (sizeDetailsContainer) sizeDetailsContainer.style.display = "none";
+    if (sizeCheckboxesContainer) sizeCheckboxesContainer.innerHTML = "";
+    if (sizeDetailsList) sizeDetailsList.innerHTML = "";
+
+    return false;
   }
 
-  // Hide close button for the first remaining item
-  document.querySelectorAll(".sales-item .item-close").forEach((btn, idx) => {
-    btn.style.display = idx === 0 ? "none" : "block";
+  return true;
+}
+
+function updateAllSalesProductDropdowns() {
+  const allSelects = document.querySelectorAll(".sales-product-select");
+  const selectedValues = [];
+
+  // Collect all selected values
+  allSelects.forEach((select) => {
+    if (select.value) {
+      selectedValues.push(select.value);
+    }
+  });
+
+  // Update each dropdown
+  allSelects.forEach((select) => {
+    const currentValue = select.value;
+    const selectIndex = select.id.split("_")[1];
+
+    // Get all options
+    const options = Array.from(select.options);
+
+    // Update each option's disabled state
+    options.forEach((option) => {
+      if (option.value === "") {
+        // Keep placeholder enabled
+        option.disabled = false;
+      } else if (option.value === currentValue) {
+        // Keep current selection enabled
+        option.disabled = false;
+      } else if (selectedValues.includes(option.value)) {
+        // Disable if selected in another dropdown
+        option.disabled = true;
+      } else {
+        // Enable if not selected anywhere
+        option.disabled = false;
+      }
+    });
+
+    // Refresh Select2 if applicable
+    if (window.jQuery && $(select).data("select2")) {
+      $(select).trigger("change.select2");
+    }
   });
 }
 
-function updateItemPrice(sizeSelect) {
-  const itemContainer = sizeSelect.closest(".sales-item");
-  const itemSelect = itemContainer.querySelector('select[name="itemId[]"]');
-  const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
-  const prefix = itemSelect.value;
-  const size = sizeSelect.value;
-  const priceInput = itemContainer.querySelector(
-    'input[name="pricePerItem[]"]'
-  );
-  const quantityInput = itemContainer.querySelector(
-    'input[name="quantityToDeduct[]"]'
-  );
-  const totalInput = itemContainer.querySelector('input[name="itemTotal[]"]');
+function handleSalesProductChange(itemIndex) {
+  const productSelect = document.getElementById(`salesProductId_${itemIndex}`);
+  const prefix = productSelect.value;
 
-  if (!prefix || !size) {
-    priceInput.value = "";
-    totalInput.value = "";
+  const sizeSelectionSection = document.getElementById(
+    `salesSizeSelectionSection_${itemIndex}`
+  );
+  const sizeCheckboxesContainer = document.getElementById(
+    `salesSizeCheckboxesContainer_${itemIndex}`
+  );
+  const sizeDetailsContainer = document.getElementById(
+    `salesSizeDetailsContainer_${itemIndex}`
+  );
+  const sizeDetailsList = document.getElementById(
+    `salesSizeDetailsList_${itemIndex}`
+  );
+
+  if (!prefix) {
+    if (sizeSelectionSection) sizeSelectionSection.style.display = "none";
+    if (sizeDetailsContainer) sizeDetailsContainer.style.display = "none";
+    if (sizeCheckboxesContainer) sizeCheckboxesContainer.innerHTML = "";
+    if (sizeDetailsList) sizeDetailsList.innerHTML = "";
     return;
   }
 
-  // Fetch the price from the server using the prefix and size
+  // Show loading state
+  sizeCheckboxesContainer.innerHTML = `
+    <div style="padding: 15px; text-align: center; color: #666;">
+      <i class="material-icons" style="animation: spin 1s linear infinite; font-size: 24px;">sync</i>
+      <p style="margin: 5px 0 0 0;">Loading available sizes...</p>
+    </div>
+  `;
+  sizeSelectionSection.style.display = "block";
+
+  // Fetch available sizes for the selected product - OPTIMIZED ENDPOINT
   fetch(
-    `../PAMO Inventory backend/get_item_price.php?prefix=${encodeURIComponent(
+    `../PAMO Inventory backend/get_product_sizes.php?prefix=${encodeURIComponent(
       prefix
-    )}&size=${encodeURIComponent(size)}`
+    )}`
+  )
+    .then((response) => response.json())
+    .then((data) => {
+      if (
+        data.success &&
+        data.available_sizes &&
+        data.available_sizes.length > 0
+      ) {
+        // Display size checkboxes
+        sizeCheckboxesContainer.innerHTML = "";
+
+        data.available_sizes.forEach((sizeData) => {
+          const checkbox = document.createElement("label");
+          checkbox.className = "checkbox-label";
+          checkbox.innerHTML = `
+            <input type="checkbox" 
+                   value="${sizeData.size}" 
+                   data-item-code="${sizeData.item_code}"
+                   data-quantity="${sizeData.quantity}"
+                   data-category="${sizeData.category}"
+                   onchange="handleSalesSizeSelection(${itemIndex})">
+            <span>${sizeData.size} (${sizeData.quantity} in stock)</span>
+          `;
+          sizeCheckboxesContainer.appendChild(checkbox);
+        });
+
+        // Hide size details initially
+        sizeDetailsContainer.style.display = "none";
+        sizeDetailsList.innerHTML = "";
+      } else {
+        // No sizes available - show error message
+        sizeCheckboxesContainer.innerHTML = `
+          <div style="padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; color: #856404;">
+            <strong>⚠️ No Stock Available</strong>
+            <p style="margin: 5px 0 0 0; font-size: 14px;">This product currently has no available sizes in stock. Please select a different product.</p>
+          </div>
+        `;
+        sizeDetailsContainer.style.display = "none";
+        sizeDetailsList.innerHTML = "";
+      }
+    })
+    .catch((error) => {
+      console.error("Error fetching sizes:", error);
+      sizeCheckboxesContainer.innerHTML = `
+        <div style="padding: 15px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 6px; color: #721c24;">
+          <strong>❌ Error Loading Sizes</strong>
+          <p style="margin: 5px 0 0 0; font-size: 14px;">Failed to load available sizes. Please try again.</p>
+        </div>
+      `;
+    });
+}
+
+function handleSalesSizeSelection(itemIndex) {
+  const sizeCheckboxesContainer = document.getElementById(
+    `salesSizeCheckboxesContainer_${itemIndex}`
+  );
+  const sizeDetailsContainer = document.getElementById(
+    `salesSizeDetailsContainer_${itemIndex}`
+  );
+  const sizeDetailsList = document.getElementById(
+    `salesSizeDetailsList_${itemIndex}`
+  );
+  const productSelect = document.getElementById(`salesProductId_${itemIndex}`);
+
+  const selectedCheckboxes = sizeCheckboxesContainer.querySelectorAll(
+    'input[type="checkbox"]:checked'
+  );
+
+  if (selectedCheckboxes.length === 0) {
+    sizeDetailsContainer.style.display = "none";
+    sizeDetailsList.innerHTML = "";
+    return;
+  }
+
+  // Get product info for item code generation
+  const prefix = productSelect.value;
+  const selectedOption = productSelect.options[productSelect.selectedIndex];
+  const category = selectedOption.getAttribute("data-category") || "";
+
+  // Save existing values before clearing
+  const existingValues = {};
+  const existingDetailItems = sizeDetailsList.querySelectorAll(
+    ".sales-size-detail-item"
+  );
+  existingDetailItems.forEach((item) => {
+    const itemCodeInput = item.querySelector('input[name="itemCode[]"]');
+    const quantityInput = item.querySelector('input[name="quantitySold[]"]');
+    const priceInput = item.querySelector('input[name="pricePerItem[]"]');
+    const subtotalInput = item.querySelector('input[name="sizeSubtotal[]"]');
+
+    if (itemCodeInput && itemCodeInput.value) {
+      existingValues[itemCodeInput.value] = {
+        quantity: quantityInput ? quantityInput.value : "",
+        price: priceInput ? priceInput.value : "",
+        subtotal: subtotalInput ? subtotalInput.value : "",
+      };
+    }
+  });
+
+  // Clear and rebuild size details
+  sizeDetailsList.innerHTML = "";
+
+  selectedCheckboxes.forEach((checkbox, index) => {
+    const size = checkbox.value;
+    const itemCode = checkbox.getAttribute("data-item-code");
+    const availableQty = checkbox.getAttribute("data-quantity");
+
+    const sizeDetailItem = document.createElement("div");
+    sizeDetailItem.className = "sales-size-detail-item";
+
+    // Get saved values if they exist
+    const savedValues = existingValues[itemCode] || {};
+    const savedQuantity = savedValues.quantity || "";
+    const savedPrice = savedValues.price || "";
+    const savedSubtotal = savedValues.subtotal || "";
+
+    sizeDetailItem.innerHTML = `
+      <div class="sales-size-detail-header">
+        <h5>Size: ${size}</h5>
+        <span class="generated-code">${itemCode}</span>
+      </div>
+      <div class="sales-size-detail-form">
+        <input type="hidden" name="itemCode[]" value="${itemCode}">
+        <input type="hidden" name="itemCategory[]" value="${category}">
+        <div class="input-group">
+          <label>Size:</label>
+          <input type="text" name="itemSize[]" value="${size}" readonly>
+        </div>
+        <div class="input-group">
+          <label>Quantity Sold:</label>
+          <input type="number" name="quantitySold[]" min="1" max="${availableQty}" 
+                 value="${savedQuantity}" required onchange="calculateSalesSizeTotal(this)">
+        </div>
+        <div class="input-group">
+          <label>Price per Item:</label>
+          <input type="number" name="pricePerItem[]" step="0.01" readonly 
+                 value="${savedPrice}" data-item-code="${itemCode}">
+        </div>
+        <div class="input-group">
+          <label>Subtotal:</label>
+          <input type="number" name="sizeSubtotal[]" step="0.01" readonly 
+                 value="${savedSubtotal}">
+        </div>
+      </div>
+    `;
+
+    sizeDetailsList.appendChild(sizeDetailItem);
+
+    // Fetch price for this size only if we don't have a saved price
+    if (!savedPrice) {
+      fetchSalesSizePrice(itemCode, sizeDetailItem);
+    }
+  });
+
+  // Show size details container
+  sizeDetailsContainer.style.display = "block";
+
+  // Recalculate total amount to reflect current selections
+  calculateTotalAmount();
+}
+
+function fetchSalesSizePrice(itemCode, sizeDetailItem) {
+  fetch(
+    `../PAMO Inventory backend/get_item_price_by_code.php?item_code=${encodeURIComponent(
+      itemCode
+    )}`
   )
     .then((response) => response.json())
     .then((data) => {
       if (data.success) {
-        priceInput.value = data.price;
-        if (quantityInput.value) {
-          calculateItemTotal(quantityInput);
+        const priceInput = sizeDetailItem.querySelector(
+          'input[name="pricePerItem[]"]'
+        );
+        if (priceInput) {
+          priceInput.value = data.price;
+
+          // If quantity is already entered, calculate subtotal
+          const quantityInput = sizeDetailItem.querySelector(
+            'input[name="quantitySold[]"]'
+          );
+          if (quantityInput && quantityInput.value) {
+            calculateSalesSizeTotal(quantityInput);
+          }
         }
-      } else {
-        alert("Error getting price: " + data.message);
-        priceInput.value = "";
-        totalInput.value = "";
       }
     })
-    .catch(() => {
-      alert("Error getting price");
-      priceInput.value = "";
-      totalInput.value = "";
+    .catch((error) => {
+      console.error("Error fetching price:", error);
     });
 }
 
-function calculateItemTotal(inputElement) {
-  const itemContainer = inputElement.closest(".sales-item");
-  const quantityInput = itemContainer.querySelector(
-    'input[name="quantityToDeduct[]"]'
-  );
-  const priceInput = itemContainer.querySelector(
-    'input[name="pricePerItem[]"]'
-  );
-  const totalInput = itemContainer.querySelector('input[name="itemTotal[]"]');
+function calculateSalesSizeTotal(quantityInput) {
+  const sizeDetailItem = quantityInput.closest(".sales-size-detail-item");
+  if (!sizeDetailItem) return;
 
   const quantity = parseFloat(quantityInput.value) || 0;
-  const price = parseFloat(priceInput.value) || 0;
-  const total = quantity * price;
+  const priceInput = sizeDetailItem.querySelector(
+    'input[name="pricePerItem[]"]'
+  );
+  const subtotalInput = sizeDetailItem.querySelector(
+    'input[name="sizeSubtotal[]"]'
+  );
 
-  totalInput.value = total.toFixed(2);
+  const price = parseFloat(priceInput.value) || 0;
+  const subtotal = quantity * price;
+
+  subtotalInput.value = subtotal.toFixed(2);
+
+  // Recalculate total amount
   calculateTotalAmount();
 }
 
 function calculateTotalAmount() {
-  const itemTotals = document.querySelectorAll('input[name="itemTotal[]"]');
+  const subtotalInputs = document.querySelectorAll(
+    'input[name="sizeSubtotal[]"]'
+  );
   let total = 0;
 
-  itemTotals.forEach((input) => {
+  subtotalInputs.forEach((input) => {
     total += parseFloat(input.value) || 0;
   });
 
@@ -381,7 +716,8 @@ function showSalesReceipt(formData) {
         // Remove item code in parentheses from the name
         let itemDescription = name.replace(/\s*\([^)]*\)\s*/g, "").trim();
         const size = formData.sizes[i];
-        if (size && !itemDescription.includes(size)) {
+        // Always append size if it exists and isn't already appended with " - " format
+        if (size && !itemDescription.endsWith(" - " + size)) {
           itemDescription += " - " + size;
         }
         return `<tr>
@@ -418,6 +754,11 @@ function showSalesReceipt(formData) {
       .join("");
 
     // Footer row inside the table
+    // Calculate total from itemTotals if totalAmount is invalid
+    const totalAmount =
+      parseFloat(formData.totalAmount) ||
+      formData.itemTotals.reduce((sum, total) => sum + parseFloat(total), 0);
+
     const footerRow = `
       <tr>
         <td colspan="5" style="text-align:left; font-size:0.98em; padding-top:10px;">
@@ -425,9 +766,9 @@ function showSalesReceipt(formData) {
           <span style="font-size:0.97em;">(Exchange is allowed only within 3 days from the invoice date. Strictly no refund)</span>
         </td>
         <td style="text-align:right; font-size:1.05em; font-weight:bold; padding-top:10px;">
-          TOTAL AMOUNT: <span style="min-width:80px;display:inline-block;text-align:right;">${parseFloat(
-            formData.totalAmount
-          ).toFixed(2)}</span>
+          TOTAL AMOUNT: <span style="min-width:80px;display:inline-block;text-align:right;">${totalAmount.toFixed(
+            2
+          )}</span>
         </td>
       </tr>
     `;
@@ -891,7 +1232,9 @@ function submitDeductQuantity(event) {
 
   const studentIdNumber = document.getElementById("studentIdNumber").value;
   const cashierName = document.getElementById("cashierName").value;
-  const salesItems = document.querySelectorAll(".sales-item");
+
+  // Get all size detail items instead of old sales items
+  const sizeDetailItems = document.querySelectorAll(".sales-size-detail-item");
 
   if (
     !transactionNumber ||
@@ -899,9 +1242,11 @@ function submitDeductQuantity(event) {
     !studentIdNumber ||
     !studentName ||
     !roleCategory ||
-    salesItems.length === 0
+    sizeDetailItems.length === 0
   ) {
-    showErrorMessage("Please fill in all required fields");
+    showErrorMessage(
+      "Please fill in all required fields and select at least one size"
+    );
     return;
   }
 
@@ -910,6 +1255,7 @@ function submitDeductQuantity(event) {
   formData.append("studentName", studentName);
   formData.append("studentIdNumber", studentIdNumber);
   formData.append("cashierName", cashierName);
+  formData.append("roleCategory", roleCategory);
 
   formData.append("customerId", studentNameSelect.value);
   formData.append("customerName", studentName);
@@ -923,56 +1269,56 @@ function submitDeductQuantity(event) {
   const itemTotals = [];
 
   let hasErrors = false;
-  salesItems.forEach((item, index) => {
-    const itemSelect = item.querySelector('select[name="itemId[]"]');
-    const itemName = itemSelect
-      ? itemSelect.options[itemSelect.selectedIndex].text
-      : "";
-    const sizeSelect = item.querySelector('select[name="size[]"]');
-    const quantityInput = item.querySelector(
-      'input[name="quantityToDeduct[]"]'
+
+  // Get product containers to map item names
+  const productContainers = document.querySelectorAll(".sales-item-container");
+
+  sizeDetailItems.forEach((sizeItem, index) => {
+    // Find which product container this size belongs to
+    const container = sizeItem.closest(".sales-item-container");
+    const containerIndex = container
+      ? container.getAttribute("data-item-index")
+      : 0;
+
+    const productSelect = document.getElementById(
+      `salesProductId_${containerIndex}`
     );
-    const priceInput = item.querySelector('input[name="pricePerItem[]"]');
-    const totalInput = item.querySelector('input[name="itemTotal[]"]');
+    const itemName = productSelect
+      ? productSelect.options[productSelect.selectedIndex].text
+      : "";
 
-    if (
-      !itemSelect ||
-      !sizeSelect ||
-      !quantityInput ||
-      !priceInput ||
-      !itemSelect.value ||
-      !sizeSelect.value ||
-      !quantityInput.value ||
-      !priceInput.value
-    ) {
-      showErrorMessage(`Please fill in all fields for item ${index + 1}`);
+    const itemCode = sizeItem.querySelector('input[name="itemCode[]"]').value;
+    const itemCategory = sizeItem.querySelector(
+      'input[name="itemCategory[]"]'
+    ).value;
+    const size = sizeItem.querySelector('input[name="itemSize[]"]').value;
+    const quantity = sizeItem.querySelector(
+      'input[name="quantitySold[]"]'
+    ).value;
+    const price = sizeItem.querySelector('input[name="pricePerItem[]"]').value;
+    const subtotal = sizeItem.querySelector(
+      'input[name="sizeSubtotal[]"]'
+    ).value;
+
+    if (!itemCode || !size || !quantity || !price) {
+      showErrorMessage(`Please fill in all fields for size ${size}`);
       hasErrors = true;
       return;
     }
 
-    if (parseInt(quantityInput.value) <= 0) {
-      showErrorMessage(`Quantity must be greater than 0 for item ${index + 1}`);
+    if (parseInt(quantity) <= 0) {
+      showErrorMessage(`Quantity must be greater than 0 for size ${size}`);
       hasErrors = true;
       return;
     }
 
-    const sizeOption = sizeSelect.options[sizeSelect.selectedIndex];
-    const fullItemCode = sizeOption.getAttribute("data-item-code");
-    const itemCategory = sizeOption.getAttribute("data-category") || "";
-    if (!fullItemCode) {
-      showErrorMessage(
-        "Could not determine the full item code for item " + (index + 1)
-      );
-      hasErrors = true;
-      return;
-    }
-    itemIds.push(fullItemCode);
+    itemIds.push(itemCode);
     itemNames.push(itemName);
     itemCategories.push(itemCategory);
-    sizes.push(sizeSelect.value);
-    quantities.push(quantityInput.value);
-    prices.push(priceInput.value);
-    itemTotals.push(totalInput.value);
+    sizes.push(size);
+    quantities.push(quantity);
+    prices.push(price);
+    itemTotals.push(subtotal);
   });
 
   if (hasErrors) {
@@ -987,7 +1333,18 @@ function submitDeductQuantity(event) {
     formData.append("itemTotal[]", itemTotals[index]);
   });
 
-  formData.append("totalAmount", document.getElementById("totalAmount").value);
+  // Calculate total before submitting to ensure it's correct
+  calculateTotalAmount();
+
+  const totalAmountValue = document.getElementById("totalAmount").value;
+  const totalAmount = parseFloat(totalAmountValue) || 0;
+
+  if (totalAmount <= 0) {
+    showErrorMessage("Total amount must be greater than 0");
+    return;
+  }
+
+  formData.append("totalAmount", totalAmount.toFixed(2));
 
   const submitBtn = document.querySelector('button[form="deductQuantityForm"]');
   const originalButtonText = submitBtn ? submitBtn.textContent : "Save";
@@ -1049,6 +1406,12 @@ function submitDeductQuantity(event) {
         // Show success notification
         showSuccessMessage("Sales transaction recorded successfully!");
 
+        // Calculate the correct total from itemTotals array
+        const calculatedTotal = itemTotals.reduce(
+          (sum, total) => sum + parseFloat(total),
+          0
+        );
+
         // Show receipt for printing
         showSalesReceipt({
           transactionNumber: transactionNumber,
@@ -1062,7 +1425,7 @@ function submitDeductQuantity(event) {
           quantities,
           prices,
           itemTotals,
-          totalAmount: document.getElementById("totalAmount").value,
+          totalAmount: calculatedTotal.toFixed(2),
           cashierName,
         });
       } else {
@@ -1250,35 +1613,30 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
-  // Add click handlers to existing close buttons
-  const closeButtons = document.querySelectorAll(".item-close");
-  closeButtons.forEach((btn) => {
-    btn.onclick = function () {
-      removeSalesItem(this);
-    };
-  });
+  // Initialize event listener for the first product select
+  const firstProductSelect = document.getElementById("salesProductId_0");
+  if (firstProductSelect) {
+    // Initialize Select2
+    if (window.jQuery) {
+      $(firstProductSelect).select2({
+        placeholder: "Select Product",
+        allowClear: true,
+        width: "100%",
+      });
 
-  // Add change event listeners to all select elements
-  document.querySelectorAll('select[name="itemId[]"]').forEach((select) => {
-    select.addEventListener("change", function () {
-      validateProductSelection(this);
-      updateAvailableSizes(this);
-      updateSalesProductOptions();
-    });
-    // Attach event after Select2
-    if (window.jQuery && $(select).data("select2")) {
-      $(select).on("change", function () {
-        updateAvailableSizes(this);
-        updateSalesProductOptions();
+      $(firstProductSelect).on("change", function () {
+        validateSalesProductSelection(0);
+        handleSalesProductChange(0);
+        updateAllSalesProductDropdowns();
+      });
+    } else {
+      firstProductSelect.addEventListener("change", function () {
+        validateSalesProductSelection(0);
+        handleSalesProductChange(0);
+        updateAllSalesProductDropdowns();
       });
     }
-  });
-
-  document.querySelectorAll('select[name="size[]"]').forEach((select) => {
-    select.addEventListener("change", function () {
-      updateItemPrice(this);
-    });
-  });
+  }
 
   // Add resetDeductQuantityModal to reset the modal on close
   const deductQuantityModal = document.getElementById("deductQuantityModal");
@@ -1292,26 +1650,27 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     });
   }
-
-  updateSalesProductOptions();
 });
 
 function resetDeductQuantityModal() {
   const form = document.getElementById("deductQuantityForm");
   if (form) form.reset();
 
-  // Remove all sales-item divs except the first one
+  // Reset counter
+  salesProductCounter = 1;
+
+  // Remove all product containers except the first one
   const salesItems = document.getElementById("salesItems");
   if (salesItems) {
-    const items = salesItems.querySelectorAll(".sales-item");
-    items.forEach((item, idx) => {
-      if (idx > 0) item.remove();
-    });
-  }
+    const containers = salesItems.querySelectorAll(".sales-item-container");
+    for (let i = 1; i < containers.length; i++) {
+      containers[i].remove();
+    }
 
-  // Reset Select2 for all product selects
-  if (window.jQuery && $('select[name="itemId[]"]').length) {
-    $('select[name="itemId[]"]').val(null).trigger("change");
+    // Reset the first container
+    if (containers.length > 0) {
+      resetSalesItemContainer(0);
+    }
   }
 
   // Reset student name Select2 and disable it
@@ -1325,60 +1684,7 @@ function resetDeductQuantityModal() {
     }
   }
 
-  // Clear ID number field
+  // Clear ID number and total amount fields
   document.getElementById("studentIdNumber").value = "";
-}
-
-function updateSalesProductOptions() {
-  const allSelects = document.querySelectorAll('select[name="itemId[]"]');
-  const selectedValues = Array.from(allSelects)
-    .map((select) => select.value)
-    .filter((val) => val);
-
-  allSelects.forEach((select) => {
-    const currentValue = select.value;
-    // Store all option values and text
-    const allOptions = Array.from(select.querySelectorAll("option")).map(
-      (opt) => ({
-        value: opt.value,
-        text: opt.text,
-        selected: opt.selected,
-        dataset: opt.dataset,
-      })
-    );
-
-    // Remove all options except the placeholder and the current value
-    select.innerHTML = "";
-    // Add placeholder
-    const placeholderOption = document.createElement("option");
-    placeholderOption.value = "";
-    placeholderOption.textContent = "Select Product";
-    select.appendChild(placeholderOption);
-
-    // Add back only options that are not selected in other selects, or the current value
-    allOptions.forEach((opt) => {
-      if (
-        opt.value === "" ||
-        opt.value === currentValue ||
-        !selectedValues.includes(opt.value)
-      ) {
-        const option = document.createElement("option");
-        option.value = opt.value;
-        option.text = opt.text;
-        if (opt.selected) option.selected = true;
-        // Copy data attributes (for price, etc.)
-        if (opt.dataset) {
-          for (const key in opt.dataset) {
-            option.dataset[key] = opt.dataset[key];
-          }
-        }
-        select.appendChild(option);
-      }
-    });
-
-    // Refresh Select2
-    if (window.jQuery && $(select).data("select2")) {
-      $(select).trigger("change.select2");
-    }
-  });
+  document.getElementById("totalAmount").value = "";
 }
