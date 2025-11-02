@@ -738,7 +738,18 @@ function attachClientPaginationHandlers() {
       e.stopPropagation(); // Prevent event bubbling
 
       const page = parseInt(this.dataset.page);
-      if (page && page !== currentPage) {
+
+      // If clicking the current page, do nothing but ensure loader is hidden
+      if (page === currentPage) {
+        // Force hide PAMOLoader if it was triggered
+        if (window.PAMOLoader && typeof window.PAMOLoader.hide === "function") {
+          window.PAMOLoader.hide();
+        }
+        return false;
+      }
+
+      // Navigate to different page
+      if (page) {
         currentPage = page;
         applyFiltersAndPagination(false);
 
