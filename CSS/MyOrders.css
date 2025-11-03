@@ -88,7 +88,7 @@ body {
   padding: 0.5rem;
 }
 
-/* Cart Section Styling */
+/* Cart Section Styling - scoped to cart section to avoid conflicts with cart popup */
 .cart-section {
   background: var(--card-background);
   border-radius: var(--border-radius);
@@ -108,7 +108,7 @@ body {
   gap: 0.5rem;
 }
 
-.cart-items {
+.cart-section .cart-items {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -116,7 +116,7 @@ body {
   min-height: fit-content;
 }
 
-.cart-item {
+.cart-section .cart-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -126,7 +126,7 @@ body {
   transition: transform 0.2s ease;
 }
 
-.cart-item:hover {
+.cart-section .cart-item:hover {
   transform: translateY(-2px);
 }
 
@@ -981,71 +981,7 @@ body {
   border-bottom: 2px solid #f0f0f0;
 }
 
-.cart-items {
-  max-height: 300px;
-  overflow-y: auto;
-  margin-bottom: 1.5rem;
-}
-
-.cart-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.cart-item:last-child {
-  border-bottom: none;
-}
-
-.cart-item img {
-  width: 60px;
-  height: 60px;
-  object-fit: cover;
-  border-radius: 8px;
-}
-
-.cart-item-details {
-  flex: 1;
-}
-
-.cart-item-name {
-  font-weight: 500;
-  color: var(--text-primary);
-  margin-bottom: 0.25rem;
-}
-
-.cart-item-size {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.cart-item-price {
-  color: var(--primary-color);
-  font-weight: 600;
-}
-
-.view-cart-btn {
-  display: block;
-  width: 100%;
-  padding: 1rem;
-  background: var(--primary-color);
-  color: white;
-  text-align: center;
-  text-decoration: none;
-  border-radius: 8px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  border: none;
-  cursor: pointer;
-  margin-top: 1rem;
-}
-
-.view-cart-btn:hover {
-  background: var(--secondary-color);
-  transform: translateY(-2px);
-}
+/* Removed cart popup overrides - all cart popup styling is now handled in Header.php for consistency across all pages */
 
 .items-count {
   position: absolute;

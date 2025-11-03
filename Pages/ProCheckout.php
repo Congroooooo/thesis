@@ -59,6 +59,7 @@ $_SESSION['checkout_total'] = $total_amount;
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Smooch+Sans:wght@100..900&display=swap"
         rel="stylesheet">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 
 <body>
@@ -96,7 +97,10 @@ $_SESSION['checkout_total'] = $total_amount;
                     <input type="hidden" name="cart_items" value='<?php echo json_encode($cart_items); ?>'>
                     <input type="hidden" name="included_items" value='<?php echo json_encode($included_items); ?>'>
                     <input type="hidden" name="total_amount" value="<?php echo $total_amount; ?>">
-                    <button type="submit" class="place-order-btn">Place Order</button>
+                    <button type="submit" class="place-order-btn" id="placeOrderBtn">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Place Order</span>
+                    </button>
                 </form>
             </div>
 
@@ -132,6 +136,43 @@ $_SESSION['checkout_total'] = $total_amount;
             </div>
         </div>
     </div>
+
+    <script>
+    function handlePlaceOrder(event) {
+        // Prevent the default form submission
+        if (event) {
+            event.preventDefault();
+        }
+        
+        const btn = document.getElementById('placeOrderBtn');
+        const form = btn.closest('form');
+        const icon = btn.querySelector('i');
+        const span = btn.querySelector('span');
+        
+        // Check if already submitting
+        if (btn.disabled) {
+            return false;
+        }
+        
+        // Disable button and change state
+        btn.disabled = true;
+        icon.className = 'fas fa-spinner fa-spin';
+        span.textContent = 'Placing Order';
+        
+        // Submit the form
+        form.submit();
+        
+        return false;
+    }
+    
+    // Attach event listener to form
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', handlePlaceOrder);
+        }
+    });
+    </script>
 </body>
 
 </html>

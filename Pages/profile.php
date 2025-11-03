@@ -10,8 +10,6 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once '../Includes/connection.php';
 
-include '../Includes/loader.php';
-
 // Fetch user data
 $stmt = $conn->prepare("SELECT * FROM account WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);

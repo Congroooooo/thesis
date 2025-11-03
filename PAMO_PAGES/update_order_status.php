@@ -70,16 +70,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception('Item no longer exists in inventory: ' . $item['item_code']);
                 }
                 
-                // Check if there's sufficient stock
+                // Calculate quantity reserved by OTHER approved orders (not yet completed)
+                $reservedQtyStmt = $conn->prepare("
+                    SELECT SUM(jt.quantity) as reserved_qty
+                    FROM orders o,
+                    JSON_TABLE(
+                        o.items,
+                        '$[*]' COLUMNS(
+                            item_code VARCHAR(50) PATH '$.item_code',
+                            quantity INT PATH '$.quantity'
+                        )
+                    ) AS jt
+                    WHERE o.status = 'approved' 
+                    AND o.id != ?
+                    AND jt.item_code = ?
+                ");
+                $reservedQtyStmt->execute([$order_id, $item['item_code']]);
+                $reservedResult = $reservedQtyStmt->fetch(PDO::FETCH_ASSOC);
+                $reservedQty = $reservedResult['reserved_qty'] ? (int)$reservedResult['reserved_qty'] : 0;
+                
+                // Calculate actual available quantity (physical stock - reserved by approved orders)
                 $requestedQty = $item['quantity'];
-                $availableQty = $inventory['actual_quantity'];
+                $physicalStock = $inventory['actual_quantity'];
+                $availableQty = $physicalStock - $reservedQty;
                 
                 if ($availableQty < $requestedQty) {
                     $insufficientStockItems[] = [
                         'item_name' => $inventory['item_name'],
                         'size' => $item['size'] ?? 'N/A',
                         'requested' => $requestedQty,
-                        'available' => $availableQty
+                        'available' => $availableQty,
+                        'physical_stock' => $physicalStock,
+                        'reserved' => $reservedQty
                     ];
                 }
             }
@@ -87,17 +109,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // If any items have insufficient stock, automatically reject the order
             if (!empty($insufficientStockItems)) {
                 // Build rejection reason message for database (plain text)
-                $rejectionMessage = "Order automatically rejected due to insufficient stock:\n\n";
+                $rejectionMessage = "Order automatically rejected due to insufficient remaining stock:\n\n";
                 foreach ($insufficientStockItems as $stockItem) {
-                    $rejectionMessage .= "• {$stockItem['item_name']} (Size: {$stockItem['size']}) - Requested: {$stockItem['requested']}, Available: {$stockItem['available']}\n";
+                    $rejectionMessage .= "• {$stockItem['item_name']} (Size: {$stockItem['size']})\n";
+                    $rejectionMessage .= "  Requested: {$stockItem['requested']}\n";
+                    $rejectionMessage .= "  Available: {$stockItem['available']}";
+                    if ($stockItem['reserved'] > 0) {
+                        $rejectionMessage .= " (Physical stock: {$stockItem['physical_stock']}, Reserved by other orders: {$stockItem['reserved']})";
+                    }
+                    $rejectionMessage .= "\n\n";
                 }
+                $rejectionMessage .= "Note: Available stock accounts for items reserved by other accepted orders.";
                 
                 // Build HTML formatted message for notification
                 $notificationHtml = "Your order #{$order['order_number']} has been automatically rejected due to insufficient stock.<br><br><span class='rejection-reason'><strong>Details:</strong><br>";
                 foreach ($insufficientStockItems as $stockItem) {
                     $notificationHtml .= "• <strong>{$stockItem['item_name']}</strong> (Size: {$stockItem['size']})<br>";
-                    $notificationHtml .= "&nbsp;&nbsp;Requested: {$stockItem['requested']} | Available: <strong>{$stockItem['available']}</strong><br>";
+                    $notificationHtml .= "&nbsp;&nbsp;Requested: {$stockItem['requested']} | Available: <strong>{$stockItem['available']}</strong>";
+                    if ($stockItem['reserved'] > 0) {
+                        $notificationHtml .= "<br>&nbsp;&nbsp;<em>(Physical stock: {$stockItem['physical_stock']}, Reserved: {$stockItem['reserved']})</em>";
+                    }
+                    $notificationHtml .= "<br>";
                 }
+                $notificationHtml .= "<br><em>Note: Available stock accounts for items reserved by other accepted orders.</em>";
                 $notificationHtml .= "</span>";
                 
                 // Update order status to rejected with auto-generated reason

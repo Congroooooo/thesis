@@ -1,4 +1,3 @@
-/* ===== Hero Section ===== */
 .Hero {
   position: relative;
   text-align: center;
@@ -703,28 +702,6 @@
   background: #0072bc;
   position: relative;
   overflow: hidden;
-}
-
-.New-Arrivals::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: url("../Images/STI-LOGO.png") no-repeat center center;
-  background-size: 60%;
-  opacity: 0.03;
-  animation: rotateBg 60s linear infinite;
-}
-
-@keyframes rotateBg {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .New-Arrivals .section-header {

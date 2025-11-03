@@ -20,8 +20,6 @@ $sql = "SELECT inquiries.id, inquiries.question, inquiries.submitted_at, inquiri
 $stmt = $conn->prepare($sql);
 $stmt->execute();
 $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-include 'includes/pamo_loader.php';
 ?>
 <!DOCTYPE html>
 <html>

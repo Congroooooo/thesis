@@ -59,8 +59,6 @@ foreach ($orders as &$order) {
     }
 }
 unset($order);
-
-include 'includes/pamo_loader.php';
 ?>
 
 <!DOCTYPE html>
@@ -256,6 +254,11 @@ include 'includes/pamo_loader.php';
         let currentPamoStatusFilter = '<?php echo $status; ?>';
 
         function updatePamoOrdersRealTime() {
+            // Skip polling if actively processing an order
+            if (window.isProcessingOrder) {
+                return;
+            }
+
             const formData = new FormData();
             formData.append('action', 'get_pamo_orders');
             formData.append('status', currentPamoStatusFilter);
@@ -518,6 +521,11 @@ include 'includes/pamo_loader.php';
 
         // Function to update order count display
         function updateOrderCount() {
+            // Skip if currently processing an order
+            if (window.isProcessingOrder) {
+                return;
+            }
+
             const orderCards = document.querySelectorAll('.order-card[data-order-id]');
             const currentFilter = currentPamoStatusFilter;
             
@@ -543,11 +551,11 @@ include 'includes/pamo_loader.php';
             updatePamoOrdersRealTime();
             updateOrderCount();
             
-            // Check for updates every 10 seconds for faster new order detection
+            // Check for updates every 20 seconds (optimized from 10s to reduce server load)
             setInterval(() => {
                 updatePamoOrdersRealTime();
                 updateOrderCount();
-            }, 10000);
+            }, 20000);
         });
 
         // Expose PHP $orders as a JS object for use in modal logic
@@ -558,6 +566,39 @@ include 'includes/pamo_loader.php';
 
     <script src="../Javascript/logout-modal.js"></script>
     <script src="../PAMO JS/orders.js"></script>
+
+    <!-- Auto-Rejection Notification Modal -->
+    <div id="autoRejectionModal" class="modal">
+        <div class="modal-card auto-rejection-modal">
+            <div class="modal-header">
+                <div class="modal-title-with-icon">
+                    <i class="fas fa-exclamation-triangle rejection-icon"></i>
+                    <h2>Order Auto-Rejected</h2>
+                </div>
+                <span class="close" onclick="closeAutoRejectionModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="rejection-summary">
+                    <p class="rejection-main-message">This order cannot be approved due to insufficient stock and has been automatically rejected.</p>
+                </div>
+                <div class="rejection-details">
+                    <h4><i class="fas fa-info-circle"></i> Stock Details:</h4>
+                    <div id="stockDetailsContent" class="stock-details-list">
+                        <!-- Dynamic content will be inserted here -->
+                    </div>
+                </div>
+                <div class="rejection-note">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>Available stock accounts for items reserved by other accepted orders that haven't been completed yet.</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" onclick="closeAutoRejectionModal()">
+                    <i class="fas fa-check"></i> Understood
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

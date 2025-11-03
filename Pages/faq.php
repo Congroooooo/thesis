@@ -1,6 +1,5 @@
 <?php
 include '../Includes/Header.php';
-include '../Includes/loader.php';
 ?>
 
 <!DOCTYPE html>
@@ -341,7 +340,7 @@ include '../Includes/loader.php';
                             </div>
                             <div class="info-box">
                                 <i class="fas fa-shield-alt"></i>
-                                <p><em>Note: Excessive cancellations may result in temporary ordering restrictions as part of the system's strike policy.</em></p>
+                                <p><em>Note: Cancelling pending orders will NOT result in strikes. However, if you fail to pay for an approved order within 5 minutes, it will be voided and you will receive a strike.</em></p>
                             </div>
                         </div>
                         <div class="faq-feedback">

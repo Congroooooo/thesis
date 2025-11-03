@@ -79,8 +79,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_subcategory'])
 }
 
 $current_threshold = getLowStockThreshold($conn);
-
-include 'includes/pamo_loader.php';
 ?>
 
 <!DOCTYPE html>
@@ -266,13 +264,6 @@ include 'includes/pamo_loader.php';
             } catch (error) {
                 document.getElementById('categoriesList').innerHTML = '<p class="error">Error loading categories</p>';
                 console.error('Error:', error);
-            } finally {
-                // Ensure loader is hidden after loading categories
-                setTimeout(() => {
-                    if (window.PAMOLoader) {
-                        window.PAMOLoader.hide();
-                    }
-                }, 100);
             }
         }
 
@@ -350,12 +341,6 @@ include 'includes/pamo_loader.php';
             
             if (!categoryName) {
                 alert('Please enter a category name');
-                // Hide loader if validation fails
-                setTimeout(() => {
-                    if (window.PAMOLoader) {
-                        window.PAMOLoader.hide();
-                    }
-                }, 50);
                 return;
             }
             
@@ -383,13 +368,6 @@ include 'includes/pamo_loader.php';
             } catch (error) {
                 showMessage('Error adding category', 'error');
                 console.error('Error:', error);
-            } finally {
-                // Always hide the loader when the operation completes
-                setTimeout(() => {
-                    if (window.PAMOLoader) {
-                        window.PAMOLoader.hide();
-                    }
-                }, 100);
             }
         });
 
@@ -402,12 +380,6 @@ include 'includes/pamo_loader.php';
             
             if (!subcategoryName) {
                 alert('Please enter a subcategory name');
-                // Hide loader if validation fails
-                setTimeout(() => {
-                    if (window.PAMOLoader) {
-                        window.PAMOLoader.hide();
-                    }
-                }, 50);
                 return;
             }
             
@@ -435,13 +407,6 @@ include 'includes/pamo_loader.php';
             } catch (error) {
                 showMessage('Error adding subcategory', 'error');
                 console.error('Error:', error);
-            } finally {
-                // Always hide the loader when the operation completes
-                setTimeout(() => {
-                    if (window.PAMOLoader) {
-                        window.PAMOLoader.hide();
-                    }
-                }, 100);
             }
         }
 
@@ -558,12 +523,6 @@ include 'includes/pamo_loader.php';
             // Validation
             if (!newThreshold || newThreshold <= 0) {
                 alert('Please enter a valid threshold value (greater than 0)');
-                // Hide loader if validation fails
-                setTimeout(() => {
-                    if (window.PAMOLoader) {
-                        window.PAMOLoader.hide();
-                    }
-                }, 50);
                 return;
             }
             
@@ -618,13 +577,6 @@ include 'includes/pamo_loader.php';
                 
                 console.error('Error:', error);
                 alert('An error occurred while updating the threshold');
-            } finally {
-                // Always hide the loader when the operation completes
-                setTimeout(() => {
-                    if (window.PAMOLoader) {
-                        window.PAMOLoader.hide();
-                    }
-                }, 100);
             }
         }
 

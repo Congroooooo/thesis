@@ -227,7 +227,10 @@ h1 {
 }
 
 .proceed-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   width: 100%;
   margin: 1.5rem 0 0 auto;
   padding: 0.75rem;
@@ -238,10 +241,16 @@ h1 {
   cursor: pointer;
   font-family: var(--secondary-font-family);
   font-size: 1rem;
+  transition: all 0.3s ease;
 }
 
 .proceed-btn:hover {
   background: #005a94;
+}
+
+.proceed-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .cart-layout {

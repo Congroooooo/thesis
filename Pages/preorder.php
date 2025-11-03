@@ -2,7 +2,6 @@
 include '../Includes/Header.php'; 
 if (session_status() === PHP_SESSION_NONE) session_start();
 $is_logged_in = isset($_SESSION['user_id']);
-include '../Includes/loader.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">

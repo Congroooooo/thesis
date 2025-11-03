@@ -9,7 +9,6 @@ if (!isset($_SESSION['user_id'])) {
 
 }
 
-include '../Includes/loader.php';
 // Get cart items
 $cart_query = $conn->prepare("SELECT * FROM cart WHERE user_id = ?");
 $cart_query->execute([$_SESSION['user_id']]);
@@ -230,10 +229,10 @@ $cart_total = 0;
                             </div>
                         </div>
                         <div class="button-container">
-                            <a href="ProPreOrder.php" class="checkout-btn">
+                            <button type="button" id="proceedToOrderBtn" class="checkout-btn" onclick="proceedToOrder()">
                                 <i class="fas fa-lock"></i>
-                                Proceed to Order
-                            </a>
+                                <span>Proceed to Order</span>
+                            </button>
                             <a href="ProItemList.php" class="continue-shopping">
                                 <i class="fas fa-arrow-left"></i>
                                 Continue Shopping
@@ -519,6 +518,15 @@ $cart_total = 0;
         .checkout-btn {
             background: var(--primary-color);
             color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .checkout-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
         }
 
         .continue-shopping {
@@ -1354,6 +1362,26 @@ $cart_total = 0;
                     totalAmountElement.style.animation = 'totalPulse 0.6s ease';
                 }, 10);
             }
+        }
+
+        // Proceed to Order function with loading state
+        function proceedToOrder() {
+            const btn = document.getElementById('proceedToOrderBtn');
+            const icon = btn.querySelector('i');
+            const span = btn.querySelector('span');
+            
+            // Prevent multiple clicks
+            if (btn.disabled) {
+                return;
+            }
+            
+            // Disable button and change state
+            btn.disabled = true;
+            icon.className = 'fas fa-spinner fa-spin';
+            span.textContent = 'Proceeding to Order';
+            
+            // Redirect to order page
+            window.location.href = 'ProPreOrder.php';
         }
     </script>
 

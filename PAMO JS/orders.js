@@ -1,7 +1,6 @@
-// REMOVE or comment out the following lines to prevent JS errors:
-// document.addEventListener("DOMContentLoaded", initializeOrders);
+// Global flag to pause real-time updates during order processing
+window.isProcessingOrder = false;
 
-// Create order card
 function createOrderCard(order) {
   const div = document.createElement("div");
   div.className = "order-card";
@@ -327,16 +326,15 @@ function printOrderReceipt() {
     </html>
   `);
   printWindow.document.close();
+
+  // Close modal after printing without reloading the page
   setTimeout(function () {
     var modal = document.getElementById("orderReceiptModal");
     if (modal) {
       modal.style.display = "none";
       document.getElementById("orderReceiptBody").innerHTML = "";
     }
-    // Reload the page to update the order status and UI
-    setTimeout(function () {
-      location.reload();
-    }, 300);
+    // No need to reload - UI is already updated by updateOrderCardUI
   }, 500);
 }
 
@@ -385,6 +383,9 @@ document.addEventListener("click", function (e) {
 
 // Update updateOrderStatus to accept a callback
 function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
+  // Pause real-time updates to prevent interference
+  window.isProcessingOrder = true;
+
   // Find the button that triggered this action
   const orderCard = document.querySelector(`[data-order-id="${orderId}"]`);
   let targetButton = null;
@@ -448,35 +449,32 @@ function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
     .then((response) => response.json())
     .then((data) => {
       if (data.success) {
-        // Update notification badge immediately after status change
-        if (typeof updatePendingOrdersBadge === "function") {
-          setTimeout(updatePendingOrdersBadge, 500); // Small delay to ensure DB is updated
-        }
-
-        // Show success state briefly
+        // Show success state immediately
         if (targetButton) {
           targetButton.innerHTML = '<i class="fas fa-check"></i> Success!';
           targetButton.classList.remove("processing");
           targetButton.classList.add("success");
-
-          setTimeout(() => {
-            // Always update the order card UI to keep window.ORDERS in sync
-            updateOrderCardUI(orderId, status);
-
-            // Then call the callback if provided
-            if (typeof callback === "function") {
-              callback();
-            }
-          }, 800);
-        } else {
-          // Update the order card UI without reloading
-          updateOrderCardUI(orderId, status);
-
-          // Call callback if provided
-          if (typeof callback === "function") {
-            callback();
-          }
         }
+
+        // Update the order card UI immediately
+        updateOrderCardUI(orderId, status);
+
+        // Update notification badge (debounced)
+        if (typeof updatePendingOrdersBadge === "function") {
+          updatePendingOrdersBadge();
+        }
+
+        // Call callback after a short delay (for receipt modal)
+        if (typeof callback === "function") {
+          setTimeout(() => {
+            callback();
+          }, 300); // Reduced delay
+        }
+
+        // Resume real-time updates after 2 seconds
+        setTimeout(() => {
+          window.isProcessingOrder = false;
+        }, 2000);
       } else if (data.auto_rejected) {
         // Handle automatic rejection due to insufficient stock
         if (targetButton) {
@@ -486,28 +484,25 @@ function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
           targetButton.classList.add("error");
         }
 
-        // Build detailed message about insufficient stock
-        let stockMessage =
-          "Order automatically rejected due to insufficient stock:\n\n";
-        if (data.insufficient_items && Array.isArray(data.insufficient_items)) {
-          data.insufficient_items.forEach((item) => {
-            stockMessage += `• ${item.item_name} (Size: ${item.size}) - Requested: ${item.requested}, Available: ${item.available}\n`;
-          });
-        }
-
-        // Show alert with detailed information
-        alert(stockMessage);
+        // Show styled modal with detailed information
+        showAutoRejectionModal(data.insufficient_items);
 
         // Update the order card to show rejected status
-        setTimeout(() => {
-          updateOrderCardUI(orderId, "rejected");
+        updateOrderCardUI(orderId, "rejected");
 
-          // Update notification badge
-          if (typeof updatePendingOrdersBadge === "function") {
-            updatePendingOrdersBadge();
-          }
-        }, 1500);
+        // Update notification badge
+        if (typeof updatePendingOrdersBadge === "function") {
+          updatePendingOrdersBadge();
+        }
+
+        // Resume real-time updates after 2 seconds
+        setTimeout(() => {
+          window.isProcessingOrder = false;
+        }, 2000);
       } else {
+        // Resume real-time updates on error
+        window.isProcessingOrder = false;
+
         // Restore both buttons on error
         if (acceptBtn) {
           acceptBtn.disabled = false;
@@ -524,6 +519,9 @@ function updateOrderStatus(orderId, status, callback, rejectionReason = null) {
       }
     })
     .catch((error) => {
+      // Resume real-time updates on error
+      window.isProcessingOrder = false;
+
       // Restore both buttons on error
       if (acceptBtn) {
         acceptBtn.disabled = false;
@@ -664,3 +662,72 @@ function submitRejection() {
     updateOrderStatus(orderIdToReject, "rejected", null, reason);
   }
 }
+
+// Auto-Rejection Modal Functions
+function showAutoRejectionModal(insufficientItems) {
+  const modal = document.getElementById("autoRejectionModal");
+  const stockDetailsContent = document.getElementById("stockDetailsContent");
+
+  // Clear previous content
+  stockDetailsContent.innerHTML = "";
+
+  // Build stock details HTML
+  if (insufficientItems && Array.isArray(insufficientItems)) {
+    insufficientItems.forEach((item) => {
+      const stockItemDiv = document.createElement("div");
+      stockItemDiv.className = "stock-item";
+
+      let noteHtml = "";
+      if (item.reserved > 0) {
+        noteHtml = `
+          <div class="stock-item-note">
+            <i class="fas fa-info-circle"></i>
+            Physical stock: ${item.physical_stock} | Reserved by other orders: ${item.reserved}
+          </div>
+        `;
+      }
+
+      stockItemDiv.innerHTML = `
+        <div class="stock-item-header">
+          <span class="stock-item-name">${item.item_name}</span>
+          <span class="stock-item-size">Size: ${item.size}</span>
+        </div>
+        <div class="stock-item-details">
+          <div class="stock-detail">
+            <span class="stock-detail-label">Requested</span>
+            <span class="stock-detail-value requested">${item.requested}</span>
+          </div>
+          <div class="stock-detail">
+            <span class="stock-detail-label">Available</span>
+            <span class="stock-detail-value available">${item.available}</span>
+          </div>
+        </div>
+        ${noteHtml}
+      `;
+
+      stockDetailsContent.appendChild(stockItemDiv);
+    });
+  }
+
+  // Show modal with animation
+  modal.style.display = "block";
+  setTimeout(() => {
+    modal.style.opacity = "1";
+  }, 10);
+}
+
+function closeAutoRejectionModal() {
+  const modal = document.getElementById("autoRejectionModal");
+  modal.style.opacity = "0";
+  setTimeout(() => {
+    modal.style.display = "none";
+  }, 300);
+}
+
+// Close modal when clicking outside of it
+window.onclick = function (event) {
+  const modal = document.getElementById("autoRejectionModal");
+  if (event.target === modal) {
+    closeAutoRejectionModal();
+  }
+};

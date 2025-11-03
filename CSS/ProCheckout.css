@@ -177,6 +177,10 @@
 }
 
 .place-order-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   background: var(--primary-color);
   color: white;
   border: none;
@@ -193,6 +197,12 @@
 .place-order-btn:hover {
   opacity: 0.9;
   transform: translateY(-2px);
+}
+
+.place-order-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .order-summary {

@@ -4,7 +4,6 @@ session_start();
 // Use absolute paths for better compatibility across environments
 $base_dir = dirname(__DIR__);
 $config_file = __DIR__ . '/includes/config_functions.php';
-$loader_file = __DIR__ . '/includes/pamo_loader.php';
 
 // Try different possible paths for the connection file
 $connection_alternatives = [
@@ -22,7 +21,6 @@ foreach ($connection_alternatives as $alt_path) {
 
 include $config_file;
 include $connection_file;
-include $loader_file;
 
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (!isset($_SESSION['user_id'])) {

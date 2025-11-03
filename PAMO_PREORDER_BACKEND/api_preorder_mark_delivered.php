@@ -178,10 +178,13 @@ try {
     
     foreach ($preorderOrders as $preorder) {
         // Generate unique order number: SI-MMDD-NNNNNN (based on conversion date)
-        // Get the highest order number from both orders and sales tables (to avoid duplicates)
+        // Check both orders and sales tables to avoid conflicts with physical shop
         $date = date('md');
-        $likePattern = 'SI-' . $date . '-%';
-        $maxStmt = $conn->prepare("
+        $date_key = 'SI-' . $date;
+        $like_pattern = $date_key . '-%';
+        
+        // Check max sequence from BOTH orders and sales tables (online + physical shop)
+        $checkStmt = $conn->prepare("
             SELECT MAX(seq) AS max_seq FROM (
                 SELECT CAST(SUBSTRING(order_number, 10) AS UNSIGNED) AS seq
                 FROM orders
@@ -190,12 +193,42 @@ try {
                 SELECT CAST(SUBSTRING(transaction_number, 10) AS UNSIGNED) AS seq
                 FROM sales
                 WHERE transaction_number LIKE ?
-            ) AS all_orders
+            ) AS all_transactions
         ");
-        $maxStmt->execute([$likePattern, $likePattern]);
-        $row = $maxStmt->fetch(PDO::FETCH_ASSOC);
-        $maxNumber = $row && $row['max_seq'] ? (int)$row['max_seq'] : 0;
-        $orderNumber = 'SI-' . $date . '-' . str_pad($maxNumber + 1, 6, '0', STR_PAD_LEFT);
+        $checkStmt->execute([$like_pattern, $like_pattern]);
+        $checkRow = $checkStmt->fetch(PDO::FETCH_ASSOC);
+        $max_from_tables = $checkRow && $checkRow['max_seq'] ? (int)$checkRow['max_seq'] : 0;
+        
+        // Get or create sequence counter with row lock
+        $seqStmt = $conn->prepare("
+            INSERT INTO order_sequence (date_key, last_sequence, updated_at) 
+            VALUES (?, 0, NOW())
+            ON DUPLICATE KEY UPDATE updated_at = NOW()
+        ");
+        $seqStmt->execute([$date_key]);
+        
+        $seqStmt = $conn->prepare("
+            SELECT last_sequence 
+            FROM order_sequence 
+            WHERE date_key = ? 
+            FOR UPDATE
+        ");
+        $seqStmt->execute([$date_key]);
+        $row = $seqStmt->fetch(PDO::FETCH_ASSOC);
+        $seq_from_table = $row ? (int)$row['last_sequence'] : 0;
+        
+        // Use the higher value to ensure no conflicts with physical shop sales
+        $new_seq = max($seq_from_table, $max_from_tables) + 1;
+        
+        // Update sequence counter to the new value
+        $updateSeqStmt = $conn->prepare("
+            UPDATE order_sequence 
+            SET last_sequence = ?, updated_at = NOW() 
+            WHERE date_key = ?
+        ");
+        $updateSeqStmt->execute([$new_seq, $date_key]);
+        
+        $orderNumber = sprintf('SI-%s-%06d', $date, $new_seq);
         
         // Update items JSON to use proper suffixed inventory item codes and add category
         $items = json_decode($preorder['items'], true);

@@ -37,8 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Get available periods
 $periods = $monthlyInventory->getAvailablePeriods();
 $currentPeriodId = $monthlyInventory->getCurrentPeriodId();
-
-include 'includes/pamo_loader.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">

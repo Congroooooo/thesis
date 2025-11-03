@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $lastStrike = strtotime($userRow['last_strike_time']);
                         $now = time();
                         if ($now - $lastStrike < 300) { // 300 seconds = 5 minutes
-                            $response['message'] = 'You recently cancelled or failed to claim an order. As a penalty, you cannot place a new order for 5 minutes. Please try again later.';
+                            $response['message'] = 'You recently received a strike for an unclaimed order. As a penalty, you cannot place a new order for 5 minutes. Please try again later.';
                             break;
                         } else {
                             $clearStmt = $conn->prepare("UPDATE account SET last_strike_time = NULL WHERE id = ?");

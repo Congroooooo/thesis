@@ -12,7 +12,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
     header("Location: ../Pages/home.php");
     exit();
 }
-include 'includes/pamo_loader.php';
 $basePath = '';
 ?>
 <!DOCTYPE html>
@@ -471,11 +470,6 @@ $basePath = '';
         .always(function() {
             // Always remove loading state, regardless of success or failure
             $('#preorderList').removeClass('loading');
-            
-            // Also ensure main loader is hidden
-            if (window.STILoader) {
-                window.STILoader.hide();
-            }
         });
     }
 
@@ -677,11 +671,6 @@ $basePath = '';
             return;
         }
 
-        // Show loader while processing
-        if (window.STILoader) {
-            window.STILoader.show();
-        }
-
         $.ajax({
             url: '../PAMO_PREORDER_BACKEND/api_preorder_mark_delivered.php',
             method: 'POST',
@@ -697,34 +686,18 @@ $basePath = '';
             showAlert('Pre-order marked as delivered successfully!', 'success');
             loadPreorderItems(); 
         })
-        .fail(xhr => showAlert(xhr.responseJSON?.message || 'Failed to mark as delivered', 'error'))
-        .always(() => {
-            // Always hide loader when request completes
-            if (window.STILoader) {
-                window.STILoader.hide();
-            }
-        });
+        .fail(xhr => showAlert(xhr.responseJSON?.message || 'Failed to mark as delivered', 'error'));
     });
 
     $('#addPreItemBtn').on('click', function(){
         $('#addPreForm')[0].reset();
         $('#preSubcatGroup').hide();
         $('#addPreModal').show();
-        
-        // Ensure loader is hidden when opening modal
-        if (window.STILoader) {
-            window.STILoader.hide();
-        }
     });
 
     $('#addPreForm').on('submit', function(e){
         e.preventDefault();
         const form = this;
-        
-        // Show loader while processing
-        if (window.STILoader) {
-            window.STILoader.show();
-        }
         
         // Check and compress image if needed
         const imageInput = document.getElementById('preImageInput');
@@ -732,7 +705,6 @@ $basePath = '';
             const file = imageInput.files[0];
             if (file.size > 2 * 1024 * 1024) { // 2MB
                 showAlert('Image size too large. Please select an image smaller than 2MB.', 'error');
-                if (window.STILoader) window.STILoader.hide();
                 return;
             }
         }
@@ -748,33 +720,10 @@ $basePath = '';
         }).done((response)=>{ 
             $('#addPreModal').hide(); 
             showAlert('Pre-order item created successfully!', 'success');
-            loadPreorderItems(); 
-            
-            // Force hide loader immediately
-            setTimeout(() => {
-                if (window.STILoader) window.STILoader.hide();
-                const loader = document.getElementById('pamo-loader');
-                if (loader) {
-                    loader.style.display = 'none';
-                    loader.style.opacity = '0';
-                    loader.style.visibility = 'hidden';
-                    loader.classList.add('hidden');
-                }
-            }, 100);
+            loadPreorderItems();
         })
         .fail(xhr=> {
             showAlert(xhr.responseJSON?.message || 'Failed to create pre-order item', 'error');
-            // Also hide loader on error
-            setTimeout(() => {
-                if (window.STILoader) window.STILoader.hide();
-                const loader = document.getElementById('pamo-loader');
-                if (loader) {
-                    loader.style.display = 'none';
-                    loader.style.opacity = '0';
-                    loader.style.visibility = 'hidden';
-                    loader.classList.add('hidden');
-                }
-            }, 100);
         });
     });
 
@@ -833,21 +782,7 @@ $basePath = '';
         } catch (error) {
             console.error('Error initializing page:', error);
             showAlert('Error loading page data', 'error');
-        } finally {
-            // Ensure loader is hidden after page initialization
-            if (window.STILoader) {
-                window.STILoader.hide();
-            }
         }
-    });
-
-    // Additional safety net - hide loader when window is fully loaded
-    $(window).on('load', function() {
-        setTimeout(() => {
-            if (window.STILoader) {
-                window.STILoader.hide();
-            }
-        }, 500);
     });
     </script>
 

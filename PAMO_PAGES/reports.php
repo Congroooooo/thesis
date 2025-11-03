@@ -18,7 +18,6 @@ $limit = 15;
 $offset = ($page - 1) * $limit;
 
 require_once '../Includes/connection.php';
-include 'includes/pamo_loader.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">

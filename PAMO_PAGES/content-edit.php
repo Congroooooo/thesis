@@ -46,8 +46,6 @@ if (isset($_GET['error'])) {
         <span class="close-btn" onclick="this.parentElement.style.display=\'none\';">&times;</span>
     </div>';
 }
-
-include 'includes/pamo_loader.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">

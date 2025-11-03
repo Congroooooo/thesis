@@ -1,7 +1,6 @@
 <?php
 include("../Includes/Header.php");
 require_once '../Includes/connection.php';
-include("../Includes/loader.php");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -267,7 +266,10 @@ include("../Includes/loader.php");
                     <input type="hidden" name="cart_items" id="cartItemsInput" value="">
                     <input type="hidden" name="total_amount" id="totalAmountInput" value="<?php echo $included_total; ?>">
                     <input type="hidden" name="included_items" id="includedItems" value="">
-                    <button type="submit" class="proceed-btn" onclick="return validateCheckout()">Proceed to Checkout</button>
+                    <button type="submit" class="proceed-btn" id="proceedCheckoutBtn" onclick="return validateCheckout()">
+                        <i class="fas fa-lock"></i>
+                        <span>Proceed to Checkout</span>
+                    </button>
                 </form>
                 <?php endif; ?>
             </div>
@@ -283,24 +285,37 @@ include("../Includes/loader.php");
 
     <script src="../Javascript/ProPreOrder.js"></script>
     <script>
-    function validateCheckout() {
+    function validateCheckout(event) {
         const includedItems = document.getElementById('includedItems').value;
         const items = JSON.parse(includedItems || '[]');
         
         if (items.length === 0) {
             showNotification('Please include at least one item for checkout', 'warning');
+            if (event) event.preventDefault();
             return false;
         }
 
-        // Store selected items in session before submitting
-        const cartItems = document.getElementById('cartItemsInput').value;
-        const totalAmount = document.getElementById('totalAmountInput').value;
+        // Get button and change state
+        const btn = document.getElementById('proceedCheckoutBtn');
+        const icon = btn.querySelector('i');
+        const span = btn.querySelector('span');
         
-        // Create a form to submit the data
+        // Check if already submitting
+        if (btn.disabled) {
+            if (event) event.preventDefault();
+            return false;
+        }
+        
+        // Disable button and change state
+        btn.disabled = true;
+        icon.className = 'fas fa-spinner fa-spin';
+        span.textContent = 'Proceeding to Checkout';
+
+        // Submit the form
         const form = document.getElementById('checkoutForm');
         form.submit();
         
-        return true;
+        return false;
     }
     </script>
 </body>

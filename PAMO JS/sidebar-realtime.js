@@ -4,6 +4,11 @@ document.addEventListener("DOMContentLoaded", function () {
   let lastBadgeCheck = null;
 
   window.updatePendingOrdersBadge = async function () {
+    // Skip if currently processing an order
+    if (window.isProcessingOrder) {
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append("action", "get_pending_count");
@@ -56,7 +61,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   updatePendingOrdersBadge();
 
-  setInterval(updatePendingOrdersBadge, 15000);
+  // Increased interval from 15s to 30s to reduce server load
+  setInterval(updatePendingOrdersBadge, 30000);
 });
 
 if (!document.querySelector("#badge-animations-css")) {
