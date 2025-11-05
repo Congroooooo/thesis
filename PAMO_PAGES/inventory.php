@@ -76,10 +76,10 @@ function page_link($page, $query_string) {
     <script src="../PAMO JS/backend/addItem.js"></script>
     <script src="../PAMO JS/backend/editItem.js"></script>
     <script src="../PAMO JS/backend/addQuantity.js"></script>
-    <script src="../PAMO JS/backend/deductQuantity.js"></script>
     <script src="../PAMO JS/backend/addItemSize.js"></script>
     <script src="../PAMO JS/backend/exchangeItem.js"></script>
     <script src="../PAMO JS/backend/removeItem.js"></script>
+    <script src="../PAMO JS/backend/generatePayableSlip_simple.js"></script>
     <style>
         .file-info {
             color: #666 !important;
@@ -256,8 +256,8 @@ function page_link($page, $query_string) {
                     <button onclick="showAddQuantityModal()" class="action-btn">
                         <i class="material-icons">local_shipping</i> Restock Item
                     </button>
-                    <button onclick="showDeductQuantityModal()" class="action-btn">
-                        <i class="material-icons">remove_shopping_cart</i> Sales Entry
+                    <button onclick="showGeneratePayableSlipModal()" class="action-btn" style="background-color: #17a2b8; border-color: #17a2b8;">
+                        <i class="material-icons">receipt</i> Walk-in Payable Slip
                     </button>
                     <button onclick="showExchangeItemModal()" class="action-btn">
                         <i class="material-icons">swap_horiz</i> Exchange Item
@@ -663,115 +663,6 @@ function page_link($page, $query_string) {
         </div>
     </div>
 
-    <div id="deductQuantityModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Sales Entry</h2>
-                <span class="close" onclick="closeModal('deductQuantityModal')">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="deductQuantityForm" class="ajax-form instant" onsubmit="submitDeductQuantity(event)" data-loader="false">
-                    <div class="order-section form-row">
-                        <div class="input-group">
-                            <label for="transactionNumber">Transaction Number:</label>
-                            <input type="text" id="transactionNumber" name="transactionNumber" readonly required>
-                        </div>
-                        <div class="input-group">
-                            <label for="roleCategory">Role:</label>
-                            <select id="roleCategory" name="roleCategory" required>
-                                <option value="">Select Role</option>
-                                <option value="EMPLOYEE">EMPLOYEE</option>
-                                <option value="COLLEGE STUDENT">COLLEGE STUDENT</option>
-                                <option value="SHS">SHS</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label for="studentName">Name:</label>
-                            <select id="studentName" name="studentName" required>
-                                <option value="">Select Name</option>
-
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label for="studentIdNumber">ID Number:</label>
-                            <input type="text" id="studentIdNumber" name="studentIdNumber" readonly required>
-                        </div>
-                        <div class="input-group">
-                            <label for="cashierName">Cashier Name:</label>
-                            <input type="text" id="cashierName" name="cashierName" required>
-                        </div>
-                    </div>
-                    <div id="salesItems">
-                        <div class="sales-item-container" data-item-index="0">
-                            <div class="sales-item-header">
-                                <h4>Product Entry 1</h4>
-                                <div class="remove-sales-product-btn" style="display: none;">&times;</div>
-                            </div>
-                            
-                            <div class="sales-product-selection">
-                                <div class="input-group">
-                                    <label for="salesProductId_0">Product:</label>
-                                    <select id="salesProductId_0" name="productId[]" class="sales-product-select" required>
-                                        <option value="">Select Product</option>
-                                        <?php
-                                        $sql = "SELECT DISTINCT 
-                                                SUBSTRING_INDEX(item_code, '-', 1) as prefix,
-                                                item_name,
-                                                category
-                                                FROM inventory 
-                                                WHERE actual_quantity > 0
-                                                ORDER BY item_name";
-                                        $stmt = $conn->query($sql);
-                                        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                                            echo "<option value='" . htmlspecialchars($row['prefix']) . "' data-category='" . htmlspecialchars($row['category'], ENT_QUOTES) . "'>" . 
-                                                 htmlspecialchars($row['item_name']) . " (" . htmlspecialchars($row['prefix']) . ")</option>";
-                                        }
-                                        ?>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div id="salesSizeSelectionSection_0" class="sales-size-selection-section" style="display: none;">
-                                <h4>Select Sizes to Sell</h4>
-                                <div class="input-group">
-                                    <label>Available Sizes:</label>
-                                    <div id="salesSizeCheckboxesContainer_0" class="size-checkboxes">
-                                        <!-- Size checkboxes will be dynamically populated -->
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div id="salesSizeDetailsContainer_0" class="sales-size-details-container" style="display: none;">
-                                <h4>Size Details</h4>
-                                <div id="salesSizeDetailsList_0">
-                                    <!-- Size detail entries will be dynamically added here -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="add-sales-product-section">
-                        <button type="button" class="add-product-btn" onclick="addAnotherSalesProduct()">
-                            <i class="material-icons">add_circle</i> Add Another Product
-                        </button>
-                        <small>Add multiple products to this sales transaction</small>
-                    </div>
-                    
-                    <div class="total-section">
-                        <div class="input-group">
-                            <label for="totalAmount">Total Amount:</label>
-                            <input type="number" id="totalAmount" name="totalAmount" step="0.01" min="0" readonly>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="submit" form="deductQuantityForm" class="save-btn">Save</button>
-                <button onclick="closeModal('deductQuantityModal')" class="cancel-btn">Cancel</button>
-            </div>
-        </div>
-    </div>
-
     <div id="addItemSizeModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -860,22 +751,6 @@ function page_link($page, $query_string) {
             <div class="modal-footer">
                 <button type="submit" form="addItemSizeForm" class="save-btn">Add Sizes</button>
                 <button onclick="closeModal('addItemSizeModal')" class="cancel-btn">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="salesReceiptModal" class="modal">
-        <div class="modal-content" id="salesReceiptContent">
-            <div class="modal-header">
-                <h2>Sales Receipt</h2>
-                <span class="close" onclick="closeSalesReceiptModal()">&times;</span>
-            </div>
-            <div class="modal-body" id="salesReceiptBody">
-
-            </div>
-            <div class="modal-footer">
-                <button type="button" onclick="printSalesReceipt()" class="save-btn">Print</button>
-                <button type="button" onclick="closeSalesReceiptModal()" class="cancel-btn">Close</button>
             </div>
         </div>
     </div>
@@ -2343,7 +2218,7 @@ function page_link($page, $query_string) {
         font-size: 13px;
     }
 
-    /* Sales Entry Multi-Size Styles */
+    /* Multi-Size Product Entry Styles */
     .sales-item-container {
         background: #fff;
         border: 2px solid #e9ecef;
@@ -2508,7 +2383,7 @@ function page_link($page, $query_string) {
         font-size: 13px;
     }
 
-    /* Disabled options styling for Select2 in Sales Entry */
+    /* Disabled options styling for Select2 dropdowns */
     .select2-results__option[aria-disabled="true"] {
         color: #999 !important;
         background-color: #f5f5f5 !important;
@@ -2528,7 +2403,304 @@ function page_link($page, $query_string) {
         background-color: #f5f5f5;
         text-decoration: line-through;
     }
+    
+    /* Walk-in Payable Slip Modal Styles */
+    .payable-slip-item-container {
+        background: #fff;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        position: relative;
+    }
+
+    .payable-slip-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .payable-slip-item-header h4 {
+        margin: 0;
+        color: #495057;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .remove-payable-slip-product-btn {
+        font-size: 24px;
+        cursor: pointer;
+        color: #dc3545;
+        font-weight: bold;
+        background: #fff;
+        border: 2px solid #dc3545;
+        border-radius: 50%;
+        width: 35px;
+        height: 35px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .remove-payable-slip-product-btn:hover {
+        background: #dc3545;
+        color: #fff;
+    }
+
+    .payable-slip-product-selection {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #e9ecef;
+    }
+
+    .payable-slip-size-selection-section {
+        background: #fff3cd;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #ffeaa7;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .payable-slip-size-selection-section h4 {
+        margin: 0 0 20px 0;
+        color: #856404;
+        font-size: 16px;
+        font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #ffeaa7;
+    }
+
+    .payable-slip-size-details-container {
+        background: #e7f3ff;
+        padding: 25px;
+        border-radius: 10px;
+        border: 1px solid #b3d9ff;
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+    }
+
+    .payable-slip-size-details-container h4 {
+        margin: 0 0 20px 0;
+        color: #0066cc;
+        font-size: 16px;
+        font-weight: 600;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #b3d9ff;
+    }
+
+    /* Size detail row styling for product entries */
+    .size-detail-row {
+        background: white;
+        border: 1px solid #b3d9ff;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 12px;
+        display: grid;
+        grid-template-columns: 150px 1fr 1fr 1fr;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .size-detail-row > div {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .size-detail-row label {
+        font-size: 12px;
+        color: #666;
+        font-weight: 500;
+        margin: 0;
+    }
+
+    .size-detail-row strong {
+        color: #0066cc;
+        font-size: 15px;
+    }
+
+    .size-detail-row input[type="number"] {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .size-detail-row input[type="number"]:focus {
+        outline: none;
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+    }
+
+    .size-detail-row input[readonly] {
+        background-color: #f8f9fa;
+        cursor: not-allowed;
+    }
+
+    .payable-slip-size-detail-item {
+        background: white;
+        border: 1px solid #b3d9ff;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+
+    .payable-slip-size-detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .payable-slip-size-detail-header h5 {
+        margin: 0;
+        color: #0066cc;
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    .payable-slip-size-detail-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 20px;
+        align-items: end;
+    }
     </style>
+
+    <!-- Generate Walk-in Payable Slip Modal -->
+    <div id="generatePayableSlipModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Generate Walk-in Payable Slip</h2>
+                <span class="close" onclick="closeModal('generatePayableSlipModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="generatePayableSlipForm" class="ajax-form" onsubmit="submitGeneratePayableSlip(event)" data-loader="false">
+                    <div class="order-section form-row">
+                        <div class="input-group">
+                            <label for="payableRoleCategory">Role:</label>
+                            <select id="payableRoleCategory" name="payableRoleCategory" required>
+                                <option value="">Select Role</option>
+                                <option value="EMPLOYEE">EMPLOYEE</option>
+                                <option value="COLLEGE STUDENT">COLLEGE STUDENT</option>
+                                <option value="SHS">SHS</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="payableCustomerName">Customer Name:</label>
+                            <select id="payableCustomerName" name="payableCustomerName" required disabled>
+                                <option value="">Select role first</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="payableCustomerIdNumber">ID Number:</label>
+                            <input type="text" id="payableCustomerIdNumber" name="payableCustomerIdNumber" placeholder="ID will auto-fill" readonly required>
+                        </div>
+                    </div>
+                    
+                    <div id="payableSlipProducts">
+                        <div class="payable-slip-item-container" data-item-index="0">
+                            <div class="payable-slip-item-header">
+                                <h4>Product Entry 1</h4>
+                                <div class="remove-payable-slip-product-btn" style="display: none;">&times;</div>
+                            </div>
+                            
+                            <div class="payable-slip-product-selection">
+                                <div class="input-group">
+                                    <label for="payableSlipProductId_0">Product:</label>
+                                    <select id="payableSlipProductId_0" name="payableProductId[]" class="payable-slip-product-select" required>
+                                        <option value="">Select Product</option>
+                                        <?php
+                                        $sql = "SELECT 
+                                                SUBSTRING_INDEX(item_code, '-', 1) as prefix,
+                                                item_name,
+                                                category
+                                                FROM inventory 
+                                                WHERE actual_quantity > 0
+                                                GROUP BY prefix, item_name, category
+                                                ORDER BY item_name";
+                                        $stmt = $conn->query($sql);
+                                        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                            echo "<option value='" . htmlspecialchars($row['prefix']) . "' data-category='" . htmlspecialchars($row['category'], ENT_QUOTES) . "'>" . 
+                                                 htmlspecialchars($row['item_name']) . " (" . htmlspecialchars($row['prefix']) . ")</option>";
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div id="payableSlipSizeSelectionSection_0" class="payable-slip-size-selection-section" style="display: none;">
+                                <h4>Select Sizes</h4>
+                                <div class="input-group">
+                                    <label>Available Sizes:</label>
+                                    <div id="payableSlipSizeCheckboxesContainer_0" class="size-checkboxes">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="payableSlipSizeDetailsContainer_0" class="payable-slip-size-details-container" style="display: none;">
+                                <h4>Size Details</h4>
+                                <div id="payableSlipSizeDetailsList_0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="add-sales-product-section">
+                        <button type="button" class="add-product-btn" onclick="addAnotherPayableSlipProduct()">
+                            <i class="material-icons">add_circle</i> Add Another Product
+                        </button>
+                        <small>Add multiple products to this payable slip</small>
+                    </div>
+                    
+                    <div class="total-section">
+                        <div class="input-group">
+                            <label for="payableSlipTotalAmount">Total Amount:</label>
+                            <input type="number" id="payableSlipTotalAmount" name="payableSlipTotalAmount" step="0.01" min="0" readonly>
+                        </div>
+                        <div class="input-group">
+                            <label for="payableSlipNotes">Notes (Optional):</label>
+                            <textarea id="payableSlipNotes" name="payableSlipNotes" rows="2" placeholder="Add any special notes or remarks..."></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="submit" form="generatePayableSlipForm" class="save-btn" style="background-color: #17a2b8; border-color: #17a2b8;">Generate & Print Slip</button>
+                <button onclick="closeModal('generatePayableSlipModal')" class="cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payable Slip Preview Modal -->
+    <div id="payableSlipPreviewModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 900px; width: 90%;">
+            <div class="modal-header">
+                <h2>Walk-in Payable Slip</h2>
+                <span class="close" onclick="closePayableSlipPreview()">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 0; max-height: 70vh; overflow-y: auto;">
+                <div id="payableSlipPreviewContent" style="background: #fff;">
+                    <!-- Slip HTML will be inserted here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="printPayableSlip()" class="save-btn" style="background-color: #28a745; border-color: #28a745;">
+                    <i class="material-icons" style="vertical-align: middle; margin-right: 5px;">print</i> Print Slip
+                </button>
+                <button onclick="closePayableSlipPreview()" class="cancel-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

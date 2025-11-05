@@ -10,14 +10,15 @@ if (!isset($_GET['item_code'])) {
 $item_code = $_GET['item_code'];
 
 try {
-    $stmt = $conn->prepare("SELECT price FROM inventory WHERE item_code = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT price, item_name FROM inventory WHERE item_code = ? LIMIT 1");
     $stmt->execute([$item_code]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($result) {
         echo json_encode([
             'success' => true,
-            'price' => $result['price']
+            'price' => $result['price'],
+            'item_name' => $result['item_name']
         ]);
     } else {
         echo json_encode([

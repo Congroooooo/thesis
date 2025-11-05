@@ -4,12 +4,13 @@ header('Content-Type: application/json');
 require_once '../Includes/connection.php'; // PDO $conn
 
 // Get unique products based on item code prefix
-$sql = "SELECT DISTINCT 
+$sql = "SELECT 
         SUBSTRING_INDEX(item_code, '-', 1) as prefix,
         item_name,
         category
         FROM inventory 
         WHERE actual_quantity > 0
+        GROUP BY prefix, item_name, category
         ORDER BY item_name";
 
 try {

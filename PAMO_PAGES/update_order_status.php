@@ -13,9 +13,6 @@ header('Content-Type: application/json');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $response = ['success' => false, 'message' => ''];
     
-
-    
-    // Validate input parameters
     if (!isset($_POST['order_id']) || !isset($_POST['status'])) {
         $response['message'] = 'Missing required parameters';
         echo json_encode($response);
@@ -28,12 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rejection_reason = isset($_POST['rejection_reason']) ? $_POST['rejection_reason'] : null;
 
     try {
-        // Start transaction
         $conn->beginTransaction();
 
-
-
-        // Get order details first
         $stmt = $conn->prepare("SELECT * FROM orders WHERE id = ? FOR UPDATE");
         
         if (!$stmt->execute([$order_id])) {
@@ -105,11 +98,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ];
                 }
             }
-            
-            // If any items have insufficient stock, automatically reject the order
+
             if (!empty($insufficientStockItems)) {
-                // Build rejection reason message for database (plain text)
-                $rejectionMessage = "Order automatically rejected due to insufficient remaining stock:\n\n";
+                $rejectionMessage = "Order automatically rejected due to insufficient remaining stock:\n";
                 foreach ($insufficientStockItems as $stockItem) {
                     $rejectionMessage .= "• {$stockItem['item_name']} (Size: {$stockItem['size']})\n";
                     $rejectionMessage .= "  Requested: {$stockItem['requested']}\n";
@@ -117,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($stockItem['reserved'] > 0) {
                         $rejectionMessage .= " (Physical stock: {$stockItem['physical_stock']}, Reserved by other orders: {$stockItem['reserved']})";
                     }
-                    $rejectionMessage .= "\n\n";
+                    $rejectionMessage .= "";
                 }
                 $rejectionMessage .= "Note: Available stock accounts for items reserved by other accepted orders.";
                 

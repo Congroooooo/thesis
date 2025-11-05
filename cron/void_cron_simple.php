@@ -45,9 +45,6 @@ try {
 
     logMessage("Starting void unpaid orders processing");
 
-    // Fetch ALL unpaid approved orders where updated_at (approval time) is more than 5 minutes ago
-    // This includes both regular orders AND converted pre-orders
-    // NOTE: updated_at is set when order status changes to 'approved', so we check against that
     $query = "
         SELECT 
             o.id, o.order_number, o.user_id, o.items, 

@@ -251,21 +251,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                                         <?php endif; ?>
                                     </div>
                                 </div>
-                                <span class="status-badge <?php echo $order['status']; ?>">
-                                    <?php echo ucfirst($order['status']); ?>
-                                </span>
-                                <?php if ($order['status'] === 'rejected' && !empty($order['rejection_reason'])): ?>
-                                    <span class="rejection-reason">
-                                        Reason: <?php echo htmlspecialchars($order['rejection_reason']); ?>
+                                <div class="order-actions">
+                                    <span class="status-badge <?php echo $order['status']; ?>">
+                                        <?php echo ucfirst($order['status']); ?>
                                     </span>
-                                <?php endif; ?>
-                                <?php if ($order['status'] === 'pending'): ?>
-                                    <form method="post" onsubmit="return confirm('Are you sure you want to cancel this order?');" style="display:inline;">
-                                        <input type="hidden" name="cancel_order_id" value="<?php echo $order['id']; ?>">
-                                        <button type="submit" class="cancel-btn">Cancel Order</button>
-                                    </form>
-                                <?php endif; ?>
+                                    <?php if ($order['status'] === 'pending'): ?>
+                                        <form method="post" onsubmit="return confirm('Are you sure you want to cancel this order?');" style="display:inline;">
+                                            <input type="hidden" name="cancel_order_id" value="<?php echo $order['id']; ?>">
+                                            <button type="submit" class="cancel-btn">Cancel Order</button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
                             </div>
+                            
+                            <?php if ($order['status'] === 'rejected' && !empty($order['rejection_reason'])): ?>
+                                <div class="rejection-reason-box">
+                                    <div class="rejection-header">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        <span>Rejection Reason:</span>
+                                    </div>
+                                    <div class="rejection-content"><?php echo nl2br(htmlspecialchars($order['rejection_reason'])); ?></div>
+                                </div>
+                            <?php endif; ?>
 
                             <div class="order-details">
                                 <?php foreach ($items as $item): 
@@ -405,7 +412,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
 
                             <?php if ($preorder['status'] === 'rejected' && !empty($preorder['rejection_reason'])): ?>
                                 <div class="rejection-reason-box">
-                                    <strong>Reason:</strong> <?php echo htmlspecialchars($preorder['rejection_reason']); ?>
+                                    <div class="rejection-header">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        <span>Rejection Reason:</span>
+                                    </div>
+                                    <div class="rejection-content"><?php echo nl2br(htmlspecialchars($preorder['rejection_reason'])); ?></div>
                                 </div>
                             <?php endif; ?>
 
@@ -552,8 +563,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                 `;
             });
 
-            const rejectionReason = order.rejection_reason ? 
-                `<div class="rejection-reason">Reason: ${order.rejection_reason}</div>` : '';
+            const rejectionReason = order.rejection_reason && order.status === 'rejected' ? 
+                `<div class="rejection-reason-box">
+                    <div class="rejection-header">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>Rejection Reason:</span>
+                    </div>
+                    <div class="rejection-content">${order.rejection_reason.replace(/\n/g, '<br>')}</div>
+                </div>` : '';
 
             return `
                 <div class="order-card">
@@ -563,6 +580,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                             <span class="status-badge ${getStatusBadgeClass(order.status)}">${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}</span>
                         </div>
                     </div>
+                    ${rejectionReason}
                     
                     <div class="order-info">
                         <p><i class="fas fa-calendar"></i> ${order.formatted_date || 'Unknown date'}</p>
@@ -669,22 +687,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                 setTimeout(() => statusBadge.style.animation = '', 500);
             }
 
-            // Update rejection reason if exists
-            const orderHeader = cardElement.querySelector('.order-header');
-            const existingRejection = orderHeader.querySelector('.rejection-reason');
-            
-            if (order.rejection_reason) {
-                if (!existingRejection) {
-                    const rejectionSpan = document.createElement('span');
-                    rejectionSpan.className = 'rejection-reason';
-                    rejectionSpan.textContent = `Reason: ${order.rejection_reason}`;
-                    orderHeader.appendChild(rejectionSpan);
-                } else {
-                    existingRejection.textContent = `Reason: ${order.rejection_reason}`;
-                }
-            } else if (existingRejection) {
-                existingRejection.remove();
-            }
+            // Rejection reason is now handled in a separate box below the header
+            // No need to add it to the order-header anymore
 
             // Update payment date if completed
             const orderDate = cardElement.querySelector('.order-date');

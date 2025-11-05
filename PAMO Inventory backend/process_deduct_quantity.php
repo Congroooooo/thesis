@@ -136,6 +136,10 @@ try {
         }
     }
 
+    // Note: Walk-in orders are now handled through the unified orders table
+    // and marked as completed via orders.php "Mark as Completed" button
+    // This legacy Sales Entry process is kept for backward compatibility with manual entries
+
     $conn->commit();
     echo json_encode([
         'success' => true,

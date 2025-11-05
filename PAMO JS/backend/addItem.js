@@ -1434,9 +1434,6 @@ function refreshSelect2Dropdowns() {
   // Refresh Restock Item (Add Quantity) modal dropdowns
   refreshAddQuantityDropdowns();
 
-  // Refresh Sales Entry (Deduct Quantity) modal dropdowns
-  refreshDeductQuantityDropdowns();
-
   // Refresh Exchange Item modal dropdowns
   refreshExchangeItemDropdowns();
 
@@ -1546,82 +1543,6 @@ function refreshAddItemSizeDropdowns() {
     })
     .catch((error) => {
       console.warn("Could not refresh Add Item Size dropdowns:", error);
-    });
-}
-
-/**
- * Refresh the Deduct Quantity modal Select2 dropdowns (Sales Entry)
- */
-function refreshDeductQuantityDropdowns() {
-  // Only refresh product select dropdowns (not student name select)
-  const productSelects = document.querySelectorAll(
-    "#deductQuantityModal select[name='itemId[]']"
-  );
-
-  if (productSelects.length === 0) return;
-
-  fetch(window.location.href, {
-    method: "GET",
-    headers: {
-      "X-Requested-With": "XMLHttpRequest",
-    },
-  })
-    .then((response) => response.text())
-    .then((html) => {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-
-      // Find the product select in the refreshed HTML
-      const newSelect = doc.querySelector(
-        "#deductQuantityModal select[name='itemId[]']"
-      );
-
-      if (newSelect && newSelect.options) {
-        productSelects.forEach((select) => {
-          const $select = $(select);
-          const currentValue = $select.val();
-
-          // Destroy Select2 if it exists
-          if ($select.hasClass("select2-hidden-accessible")) {
-            $select.select2("destroy");
-          }
-
-          // Clear and update options
-          $select.empty();
-          Array.from(newSelect.options).forEach((option) => {
-            const newOption = new Option(
-              option.text,
-              option.value,
-              false,
-              false
-            );
-            if (option.dataset.category) {
-              newOption.dataset.category = option.dataset.category;
-            }
-            $select.append(newOption);
-          });
-
-          // Restore selection if item still exists
-          if (
-            currentValue &&
-            $select.find(`option[value="${currentValue}"]`).length > 0
-          ) {
-            $select.val(currentValue);
-          }
-
-          // Reinitialize Select2 with proper configuration
-          $select.select2({
-            placeholder: "Select Product",
-            allowClear: true,
-            width: "100%",
-          });
-        });
-
-        console.log("Sales Entry dropdowns refreshed successfully");
-      }
-    })
-    .catch((error) => {
-      console.warn("Could not refresh Sales Entry dropdowns:", error);
     });
 }
 
