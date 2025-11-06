@@ -91,7 +91,7 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
                     <div class="card" onclick="window.location.href='orders.php?status=pending'">
                         <div class="card-content">
                             <h3>Pending Orders</h3>
-                            <h2><?php echo number_format($pending_orders); ?></h2>
+                            <h2 id="pending-orders-count"><?php echo number_format($pending_orders); ?></h2>
                             <p>Awaiting processing</p>
                         </div>
                         <i class="material-icons">shopping_cart</i>
@@ -139,10 +139,6 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
                 <div class="recent-activities">
                     <div class="activities-header">
                         <h3>Recent Activities</h3>
-                        <button onclick="clearActivities()" class="clear-btn">
-                            <i class="material-icons">clear_all</i>
-                            Clear Activities
-                        </button>
                     </div>
                     <div class="activity-list">
                         <?php

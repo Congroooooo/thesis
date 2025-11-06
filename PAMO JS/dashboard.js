@@ -2,32 +2,6 @@ function logout() {
   showLogoutConfirmation();
 }
 
-function clearActivities() {
-  if (confirm("Are you sure you want to clear all activities?")) {
-    fetch("../PAMO_PAGES/clear_activities.php", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.success) {
-          document.querySelector(".activity-list").innerHTML =
-            "<p class='no-activities'>No recent activities</p>";
-        } else {
-          alert(
-            "Failed to clear activities: " + (data.error || "Unknown error")
-          );
-        }
-      })
-      .catch((error) => {
-        console.error("Error:", error);
-        alert("An error occurred while clearing activities");
-      });
-  }
-}
-
 function redirectToLowStock() {
   sessionStorage.setItem("applyLowStockFilter", "true");
   window.location.href = "inventory.php";
@@ -524,6 +498,47 @@ function handleSalesCategoryChange() {
   updateSalesAnalytics();
 }
 
+// Real-time Pending Orders Count Update
+let lastPendingCount = null;
+
+async function updatePendingOrdersCount() {
+  try {
+    const formData = new FormData();
+    formData.append("action", "get_pending_count");
+
+    const response = await fetch("../Includes/order_operations.php", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      const pendingCountElement = document.getElementById(
+        "pending-orders-count"
+      );
+      if (pendingCountElement) {
+        const newCount = data.pending_count;
+
+        // Only update if count has changed
+        if (lastPendingCount !== newCount) {
+          pendingCountElement.textContent = newCount.toLocaleString();
+
+          // Add flash animation on count change
+          if (lastPendingCount !== null) {
+            pendingCountElement.style.animation = "countFlash 0.6s ease-in-out";
+            setTimeout(() => (pendingCountElement.style.animation = ""), 600);
+          }
+
+          lastPendingCount = newCount;
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error updating pending orders count:", error);
+  }
+}
+
 window.addEventListener("DOMContentLoaded", async () => {
   await populateSalesCategoryDropdown();
   handleSalesCategoryChange();
@@ -538,6 +553,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     .addEventListener("change", updateSalesAnalytics);
   updateSalesAnalytics();
   updateInventoryAnalytics();
+
+  // Initialize real-time pending orders count
+  updatePendingOrdersCount();
+
+  // Update pending orders count every 30 seconds (same interval as sidebar)
+  setInterval(updatePendingOrdersCount, 30000);
 });
 
 // Handle window resize to update chart responsiveness
