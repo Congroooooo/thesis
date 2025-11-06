@@ -79,7 +79,12 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                     $params[':end_date'] = $endDate;
                 }
                 
-                $sql .= " ORDER BY s.sale_date DESC";
+                $sql .= " ORDER BY s.transaction_number DESC, 
+                         CASE WHEN s.transaction_type = 'Original' OR s.transaction_type IS NULL THEN 0
+                              WHEN s.transaction_type = 'Exchange' THEN 1
+                              WHEN s.transaction_type = 'Return' THEN 2
+                              ELSE 3 END ASC,
+                         s.id ASC";
                 
                 $stmt = $conn->prepare($sql);
                 $stmt->execute($params);

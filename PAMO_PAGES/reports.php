@@ -223,7 +223,7 @@ require_once '../Includes/connection.php';
                             <!-- Monthly Report Header -->
                             <div class="monthly-report-header" style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                                    <h3 style="margin: 0; color: #0072bc; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; font-weight: 700; font-size: 1.3rem;">
+                                    <h3 style="margin: 0; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; font-weight: 700; font-size: 1.3rem;">
                                         <span style="display: inline-flex; align-items: center; gap: 10px;">
                                             <span class="material-icons" style="font-size: 28px;">calendar_month</span>
                                             Monthly Inventory Report - <?php echo $monthName; ?>

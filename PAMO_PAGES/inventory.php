@@ -77,7 +77,6 @@ function page_link($page, $query_string) {
     <script src="../PAMO JS/backend/editItem.js"></script>
     <script src="../PAMO JS/backend/addQuantity.js"></script>
     <script src="../PAMO JS/backend/addItemSize.js"></script>
-    <script src="../PAMO JS/backend/exchangeItem.js"></script>
     <script src="../PAMO JS/backend/removeItem.js"></script>
     <script src="../PAMO JS/backend/generatePayableSlip_simple.js"></script>
     <style>
@@ -139,18 +138,6 @@ function page_link($page, $query_string) {
                     placeholder: "Select Item",
                     allowClear: true,
                     width: "100%"
-                });
-            }
-
-            if (window.jQuery && $("#exchangeCustomerName").length) {
-                $("#exchangeCustomerName").select2({
-                    placeholder: "Search customer...",
-                    allowClear: true,
-                    width: "100%"
-                });
-
-                $("#exchangeCustomerName").on('change', function() {
-                    loadCustomerPurchases();
                 });
             }
 
@@ -258,9 +245,6 @@ function page_link($page, $query_string) {
                     </button>
                     <button onclick="showGeneratePayableSlipModal()" class="action-btn" style="background-color: #17a2b8; border-color: #17a2b8;">
                         <i class="material-icons">receipt</i> Walk-in Payable Slip
-                    </button>
-                    <button onclick="showExchangeItemModal()" class="action-btn">
-                        <i class="material-icons">swap_horiz</i> Exchange Item
                     </button>
                     <button onclick="showRemoveItemModal()" class="action-btn" style="background-color: #dc3545;">
                         <i class="material-icons">delete_sweep</i> Remove Stocks
@@ -751,91 +735,6 @@ function page_link($page, $query_string) {
             <div class="modal-footer">
                 <button type="submit" form="addItemSizeForm" class="save-btn">Add Sizes</button>
                 <button onclick="closeModal('addItemSizeModal')" class="cancel-btn">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="exchangeItemModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Exchange Item</h2>
-                <span class="close" onclick="closeModal('exchangeItemModal')">&times;</span>
-            </div>
-            <div class="modal-body">
-                <form id="exchangeItemForm" class="ajax-form" onsubmit="submitExchangeItem(event)" data-loader="false">
-                    <div class="order-section">
-                        <div class="input-group">
-                            <label for="exchangeCustomerName">Customer Name:</label>
-                            <select id="exchangeCustomerName" name="customerName" required>
-                                <option value="">Search customer...</option>
-                                <?php
-                                // Get customers who have had transactions in the last 24 hours
-                                $sql = "SELECT DISTINCT a.id, a.first_name, a.last_name, a.id_number, a.role_category 
-                                       FROM account a 
-                                       INNER JOIN transaction_customers tc ON a.id = tc.customer_id 
-                                       INNER JOIN sales s ON tc.transaction_number = s.transaction_number 
-                                       WHERE a.status = 'active' 
-                                       AND s.sale_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-                                       ORDER BY a.first_name, a.last_name";
-                                
-                                try {
-                                    $stmt = $conn->query($sql);
-                                    $customers_found = false;
-                                    
-                                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                                        $customers_found = true;
-                                        $fullName = $row['first_name'] . ' ' . $row['last_name'];
-                                        echo "<option value='" . $row['id'] . "' data-id-number='" . htmlspecialchars($row['id_number']) . "' data-role='" . htmlspecialchars($row['role_category']) . "'>" . 
-                                             htmlspecialchars($fullName) . " (" . htmlspecialchars($row['id_number']) . ")</option>";
-                                    }
-                                    
-                                    // If no customers with recent transactions found, show a message
-                                    if (!$customers_found) {
-                                        echo "<option value='' disabled>No customers with transactions in the last 24 hours</option>";
-                                    }
-                                } catch (PDOException $e) {
-                                    // Fallback: show all active customers if there's an error with the filtered query
-                                    echo "<option value='' disabled>Loading customers...</option>";
-                                    error_log("Error loading recent customers: " . $e->getMessage());
-                                    
-                                    // Fallback query
-                                    $fallback_sql = "SELECT id, first_name, last_name, id_number, role_category FROM account WHERE status = 'active' ORDER BY first_name, last_name";
-                                    $fallback_stmt = $conn->query($fallback_sql);
-                                    
-                                    while ($row = $fallback_stmt->fetch(PDO::FETCH_ASSOC)) {
-                                        $fullName = $row['first_name'] . ' ' . $row['last_name'];
-                                        echo "<option value='" . $row['id'] . "' data-id-number='" . htmlspecialchars($row['id_number']) . "' data-role='" . htmlspecialchars($row['role_category']) . "'>" . 
-                                             htmlspecialchars($fullName) . " (" . htmlspecialchars($row['id_number']) . ")</option>";
-                                    }
-                                }
-                                ?>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label for="exchangeItemBought">Item Bought:</label>
-                            <select id="exchangeItemBought" name="itemBought" required onchange="loadAvailableSizes()">
-                                <option value="">Select Item (Purchased within 24 hours)</option>
-                            </select>
-                            <small id="customerFilterNote" style="color: #666; font-size: 12px; margin-top: 4px;">
-                                Loading customer purchases...
-                            </small>
-                        </div>
-                        <div class="input-group">
-                            <label for="exchangeNewSize">Exchange With Size:</label>
-                            <select id="exchangeNewSize" name="newSize" required>
-                                <option value="">Select New Size</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label for="exchangeRemarks">Remarks (Optional):</label>
-                            <textarea id="exchangeRemarks" name="remarks" rows="3" placeholder="Reason for exchange, etc."></textarea>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="submit" form="exchangeItemForm" class="save-btn">Process Exchange</button>
-                <button onclick="closeModal('exchangeItemModal')" class="cancel-btn">Cancel</button>
             </div>
         </div>
     </div>

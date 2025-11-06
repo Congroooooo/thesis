@@ -1439,6 +1439,9 @@ function refreshSelect2Dropdowns() {
 
   // Refresh Remove Stocks modal dropdowns
   refreshRemoveItemDropdowns();
+
+  // Refresh Generate Walk-in Payable Slip modal dropdowns
+  refreshPayableSlipDropdowns();
 }
 /**
  * Refresh the Add Item Size modal Select2 dropdowns
@@ -1800,5 +1803,77 @@ function refreshRemoveItemDropdowns() {
     })
     .catch((error) => {
       console.warn("Could not refresh Remove Stocks dropdowns:", error);
+    });
+}
+
+/**
+ * Refresh the Generate Walk-in Payable Slip modal Select2 dropdowns
+ */
+function refreshPayableSlipDropdowns() {
+  const productSelects = document.querySelectorAll(
+    "#generatePayableSlipModal .payable-slip-product-select"
+  );
+
+  if (productSelects.length === 0) return;
+
+  fetch(window.location.href, {
+    method: "GET",
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  })
+    .then((response) => response.text())
+    .then((html) => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+
+      const newSelect = doc.querySelector(
+        "#generatePayableSlipModal .payable-slip-product-select"
+      );
+
+      if (newSelect && newSelect.options) {
+        productSelects.forEach((select) => {
+          const $select = $(select);
+          const currentValue = $select.val();
+
+          if ($select.hasClass("select2-hidden-accessible")) {
+            $select.select2("destroy");
+          }
+
+          $select.empty();
+          Array.from(newSelect.options).forEach((option) => {
+            const newOption = new Option(
+              option.text,
+              option.value,
+              false,
+              false
+            );
+            if (option.dataset.category) {
+              newOption.dataset.category = option.dataset.category;
+            }
+            $select.append(newOption);
+          });
+
+          if (
+            currentValue &&
+            $select.find(`option[value="${currentValue}"]`).length > 0
+          ) {
+            $select.val(currentValue);
+          }
+
+          // Reinitialize Select2 with proper configuration
+          $select.select2({
+            placeholder: "Select Product",
+            allowClear: true,
+            width: "100%",
+            dropdownParent: $("#generatePayableSlipModal"),
+          });
+        });
+
+        console.log("Payable Slip dropdowns refreshed successfully");
+      }
+    })
+    .catch((error) => {
+      console.warn("Could not refresh Payable Slip dropdowns:", error);
     });
 }

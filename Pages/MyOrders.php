@@ -144,6 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
     <title>My Orders <?php echo $current_tab === 'preorders' ? '& Pre-Orders' : ''; ?></title>
     <link rel="stylesheet" href="../CSS/MyOrders.css">
     <link rel="stylesheet" href="../CSS/global.css">
+    <link rel="stylesheet" href="../CSS/exchange.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Smooch+Sans:wght@100..900&display=swap" rel="stylesheet">
@@ -356,12 +357,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                                 </div>
                             </div>
                             <?php if (in_array($order['status'], ['approved', 'completed'])): ?>
-                                <div style="margin-top: 1rem; text-align: right;">
+                                <div style="margin-top: 1rem; text-align: right; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                                    <?php
+                                    // Check if exchange is eligible (within 24 hours)
+                                    $order_time = strtotime($order['created_at']);
+                                    $current_time = time();
+                                    $hours_passed = ($current_time - $order_time) / 3600;
+                                    $can_exchange = ($hours_passed <= 24);
+                                    
+                                    if ($can_exchange):
+                                    ?>
+                                        <button onclick="openExchangeModal(<?php echo $order['id']; ?>)" class="exchange-btn-trigger" style="background: #764ba2; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; border: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                            <i class="fas fa-exchange-alt"></i> Request Exchange
+                                        </button>
+                                    <?php endif; ?>
                                     <a href="../Backend/generate_receipt.php?order_id=<?php echo $order['id']; ?>" class="download-receipt-btn" target="_blank" style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
                                         <i class="fas fa-file-pdf"></i> Download Receipt
                                     </a>
                                 </div>
                             <?php endif; ?>
+                            
+                            <?php
+                            // Display exchange badges if any
+                            if (isset($order['has_exchange']) && $order['has_exchange'] == 1):
+                                $exchange_stmt = $conn->prepare("
+                                    SELECT * FROM order_exchanges 
+                                    WHERE order_id = ? 
+                                    ORDER BY exchange_date DESC
+                                ");
+                                $exchange_stmt->execute([$order['id']]);
+                                $exchanges = $exchange_stmt->fetchAll(PDO::FETCH_ASSOC);
+                                
+                                if (!empty($exchanges)):
+                            ?>
+                                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                                    <h4 style="font-size: 14px; margin-bottom: 10px; color: #666;">
+                                        <i class="fas fa-exchange-alt"></i> Exchange History
+                                    </h4>
+                                    <?php foreach ($exchanges as $ex): ?>
+                                        <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 8px; font-size: 13px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                                <strong><?php echo htmlspecialchars($ex['exchange_number']); ?></strong>
+                                                <span class="exchange-status-badge <?php echo $ex['status']; ?>">
+                                                    <?php echo ucfirst($ex['status']); ?>
+                                                </span>
+                                            </div>
+                                            <div style="color: #666; margin-bottom: 4px;">
+                                                Date: <?php echo date('M d, Y h:i A', strtotime($ex['exchange_date'])); ?>
+                                            </div>
+                                            <?php if ($ex['adjustment_type'] != 'none'): ?>
+                                                <div style="font-weight: 600; color: <?php echo $ex['adjustment_type'] == 'additional_payment' ? '#d32f2f' : '#388e3c'; ?>;">
+                                                    <?php 
+                                                    if ($ex['adjustment_type'] == 'additional_payment') {
+                                                        echo "Additional Payment: ₱" . number_format(abs($ex['total_price_difference']), 2);
+                                                    } else {
+                                                        echo "Refund: ₱" . number_format(abs($ex['total_price_difference']), 2);
+                                                    }
+                                                    ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (in_array($ex['status'], ['approved', 'completed'])): ?>
+                                                <div style="margin-top: 8px;">
+                                                    <a href="../Backend/generate_exchange_slip.php?exchange_id=<?php echo $ex['id']; ?>" target="_blank" style="color: #007bff; text-decoration: none; font-size: 12px;">
+                                                        <i class="fas fa-file-pdf"></i> Download Exchange Slip
+                                                    </a>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php 
+                                endif;
+                            endif; 
+                            ?>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -1088,6 +1156,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
             align-items: center;
             gap: 10px;
         }
+        
+        /* Exchange notification */
+        .exchange-notification {
+            position: fixed;
+            top: 20px;
+            right: -400px;
+            background: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            max-width: 500px;
+            transition: all 0.3s ease;
+            opacity: 0;
+        }
+        
+        .exchange-notification.success {
+            border-left: 4px solid #4caf50;
+        }
+        
+        .exchange-notification.error {
+            border-left: 4px solid #f44336;
+        }
+        
+        .exchange-notification.warning {
+            border-left: 4px solid #ff9800;
+        }
+        
+        .exchange-notification.success i {
+            color: #4caf50;
+            font-size: 24px;
+        }
+        
+        .exchange-notification.error i {
+            color: #f44336;
+            font-size: 24px;
+        }
+        
+        .exchange-notification.warning i {
+            color: #ff9800;
+            font-size: 24px;
+        }
     </style>
+</head>
+<body>
+    <?php // Body content continues... ?>
+    
+    <!-- Exchange Modal -->
+    <div id="exchangeModal" class="exchange-modal">
+        <div class="exchange-modal-content">
+            <div class="exchange-modal-header">
+                <h2><i class="fas fa-exchange-alt"></i> Request Item Exchange</h2>
+                <span class="exchange-close" onclick="closeExchangeModal()">&times;</span>
+            </div>
+            <div class="exchange-modal-body">
+                <!-- Content will be dynamically loaded -->
+            </div>
+            <div class="exchange-modal-footer">
+                <button type="button" class="exchange-btn exchange-btn-secondary" onclick="closeExchangeModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="button" class="exchange-btn exchange-btn-primary" id="submitExchangeBtn" onclick="submitExchangeRequest()" disabled>
+                    <i class="fas fa-exchange-alt"></i> Submit Exchange Request
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="../Javascript/exchange.js"></script>
 </body>
 </html>

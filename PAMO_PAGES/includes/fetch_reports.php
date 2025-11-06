@@ -170,8 +170,15 @@ if ($type === 'inventory') {
     $total_items = $total_row['total'];
     $total_pages = ceil($total_items / $limit);
     
-    // Get paginated results
-    $sql = "SELECT s.*, i.item_name FROM sales s LEFT JOIN inventory i ON s.item_code = i.item_code $where_clause ORDER BY s.sale_date DESC LIMIT $limit OFFSET $offset";
+    // Get paginated results - Group exchanges with originals (Original first, then Exchange)
+    $sql = "SELECT s.*, i.item_name FROM sales s LEFT JOIN inventory i ON s.item_code = i.item_code $where_clause 
+            ORDER BY s.transaction_number DESC, 
+                     CASE WHEN s.transaction_type = 'Original' OR s.transaction_type IS NULL THEN 0
+                          WHEN s.transaction_type = 'Exchange' THEN 1
+                          WHEN s.transaction_type = 'Return' THEN 2
+                          ELSE 3 END ASC,
+                     s.id ASC 
+            LIMIT $limit OFFSET $offset";
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
     

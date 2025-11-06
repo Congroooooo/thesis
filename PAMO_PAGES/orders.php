@@ -201,6 +201,22 @@ unset($order);
                                             <i class="fas fa-check-double"></i> Mark as Completed (After Payment)
                                         </button>
                                     </div>
+                                <?php elseif ($order['status'] === 'completed'): ?>
+                                    <div class="order-actions">
+                                        <?php 
+                                        // Show exchange button for all orders (walk-in and online) within 24 hours (and no existing exchange)
+                                        if (empty($order['has_exchange'])) {
+                                            $hours_passed = (time() - strtotime($order['created_at'])) / 3600;
+                                            if ($hours_passed < 24) {
+                                        ?>
+                                            <button class="exchange-btn" onclick="openWalkinExchangeModal(<?php echo $order['id']; ?>, '<?php echo htmlspecialchars($order['order_number']); ?>')">
+                                                <i class="fas fa-exchange-alt"></i> Process Exchange
+                                            </button>
+                                        <?php 
+                                            }
+                                        }
+                                        ?>
+                                    </div>
                                 <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
@@ -828,6 +844,23 @@ unset($order);
                             <i class="fas fa-check-double"></i> Mark as Completed (After Payment)
                         </button>
                     `;
+                } else if (order.status === 'completed') {
+                    // Calculate hours passed for exchange eligibility
+                    const orderDate = new Date(order.created_at);
+                    const now = new Date();
+                    const hoursPassed = (now - orderDate) / (1000 * 60 * 60);
+                    
+                    let exchangeButton = '';
+                    // Show exchange button for all orders (walk-in and online) within 24 hours and no existing exchange
+                    if (!order.has_exchange && hoursPassed < 24) {
+                        exchangeButton = `
+                            <button class="exchange-btn" onclick="openWalkinExchangeModal(${order.id}, '${order.order_number || ''}')">
+                                <i class="fas fa-exchange-alt"></i> Process Exchange
+                            </button>
+                        `;
+                    }
+                    
+                    actionButtons.innerHTML = exchangeButton;
                 } else {
                     actionButtons.innerHTML = '';
                 }
@@ -1035,6 +1068,1130 @@ unset($order);
             </div>
         </div>
     </div>
+
+    <!-- Exchange Modal (supports both walk-in and online orders) -->
+    <div id="walkinExchangeModal" class="modal">
+        <div class="modal-content exchange-modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-exchange-alt"></i> Process Exchange</h2>
+                <span class="close" onclick="closeWalkinExchangeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="walkinExchangeContent">
+                    <!-- Content will be loaded dynamically -->
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i> Loading order details...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="cancel-btn" onclick="closeWalkinExchangeModal()">Cancel</button>
+                <button type="button" class="save-btn" id="submitWalkinExchange" disabled>Process Exchange</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exchange Slip Preview Modal -->
+    <div id="exchangeSlipPreviewModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-file-invoice"></i> Exchange Slip Preview</h2>
+                <span class="close" onclick="closeExchangeSlipPreview()">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div id="exchangeSlipContent" style="background: white; border: 1px solid #ddd;">
+                    <!-- Exchange slip will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="cancel-btn" onclick="closeExchangeSlipPreview()">Close</button>
+                <button type="button" class="save-btn" onclick="printExchangeSlip()">
+                    <i class="fas fa-print"></i> Print Slip
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Walk-In Exchange Styles -->
+    <link rel="stylesheet" href="../CSS/exchange.css">
+    <style>
+        /* Walk-in Exchange Modal Specific Styles */
+        #walkinExchangeModal.modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #walkinExchangeModal.modal[style*="flex"] {
+            display: flex !important;
+        }
+        
+        #walkinExchangeModal .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1100px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        #walkinExchangeModal .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        
+        #walkinExchangeModal .modal-header h2 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 600;
+        }
+        
+        #walkinExchangeModal .modal-header .close {
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+            transition: transform 0.2s;
+        }
+        
+        #walkinExchangeModal .modal-header .close:hover {
+            transform: rotate(90deg);
+        }
+        
+        #walkinExchangeModal .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px 30px;
+            min-height: 0;
+        }
+        
+        #walkinExchangeModal .modal-footer {
+            padding: 15px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            flex-shrink: 0;
+            border-radius: 0 0 12px 12px;
+        }
+        
+        /* Exchange Info Box */
+        .exchange-info-box {
+            background: #f0f7ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        }
+        
+        .exchange-info-box .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed #cce5ff;
+        }
+        
+        .exchange-info-box .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .exchange-info-box .info-label {
+            font-weight: 600;
+            color: #0056b3;
+        }
+        
+        .exchange-info-box .info-value {
+            color: #333;
+        }
+        
+        /* Exchange Note */
+        .exchange-note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #856404;
+        }
+        
+        /* Exchange Items Container */
+        .exchange-items-container {
+            margin-bottom: 20px;
+        }
+        
+        .exchange-items-container h4 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        /* Exchange Item Card */
+        .exchange-item-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 15px;
+            background: #fafafa;
+            transition: all 0.3s ease;
+        }
+        
+        .exchange-item-card .item-header {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+        
+        .exchange-item-card .exchange-item-checkbox {
+            width: 20px;
+            height: 20px;
+            margin-top: 5px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .exchange-item-card .item-basic-info {
+            flex: 1;
+            display: flex;
+            gap: 15px;
+            cursor: pointer;
+        }
+        
+        .exchange-item-card .item-image {
+            width: 70px;
+            height: 70px;
+            flex-shrink: 0;
+        }
+        
+        .exchange-item-card .item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        
+        .exchange-item-card .item-details {
+            flex: 1;
+        }
+        
+        .exchange-item-card .item-details h5 {
+            margin: 0 0 8px 0;
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .exchange-item-card .item-details p {
+            margin: 4px 0;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .exchange-item-card .item-exchange-options {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #ccc;
+        }
+        
+        .exchange-item-card .exchange-option-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 2fr;
+            gap: 15px;
+            align-items: start;
+        }
+        
+        .exchange-item-card .option-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+        }
+        
+        .exchange-item-card .option-group select,
+        .exchange-item-card .option-group input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .exchange-item-card .price-diff-group .price-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        
+        .exchange-item-card .price-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 13px;
+        }
+        
+        .exchange-item-card .exchange-price-diff {
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .exchange-item-card .exchange-price-diff.positive {
+            color: #dc3545;
+        }
+        
+        .exchange-item-card .exchange-price-diff.negative {
+            color: #28a745;
+        }
+        
+        .exchange-item-card .exchange-price-diff.neutral {
+            color: #6c757d;
+        }
+        
+        /* Loading Spinner */
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 18px;
+        }
+        
+        .loading-spinner i {
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        /* Exchange Slip Preview Modal */
+        #exchangeSlipPreviewModal {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #exchangeSlipPreviewModal .modal-content {
+            max-width: 900px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            margin: auto;
+        }
+        
+        #exchangeSlipPreviewModal .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+            background: #f5f5f5;
+        }
+        
+        #exchangeSlipContent {
+            background: white;
+            border: 1px solid #ddd;
+            min-height: 400px;
+            padding: 20px;
+        }
+        
+        /* Multi-Size Exchange Styles */
+        .exchange-variants-header {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        
+        .exchange-variants-header h5 {
+            margin: 0 0 5px 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .exchange-variants-header .text-muted {
+            margin: 0 0 10px 0;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .add-size-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.3s;
+        }
+        
+        .add-size-btn:hover {
+            background: #5568d3;
+        }
+        
+        .exchange-variants-list {
+            margin-bottom: 15px;
+        }
+        
+        .size-variant-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr auto;
+            gap: 12px;
+            align-items: end;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+        }
+        
+        .size-variant-row .option-group {
+            margin: 0;
+        }
+        
+        .size-variant-row .option-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        
+        .size-variant-row select,
+        .size-variant-row input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .remove-variant-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.3s;
+        }
+        
+        .remove-variant-btn:hover {
+            background: #c82333;
+        }
+        
+        .exchange-totals {
+            padding: 12px;
+            background: #e9ecef;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        
+        .exchange-totals .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-weight: 600;
+        }
+        
+        .exchange-totals .total-row span:last-child {
+            color: #495057;
+        }
+        
+        .size-variant-info {
+            font-size: 11px;
+            color: #6c757d;
+            margin-top: 3px;
+        }
+    </style>
+    
+    <!-- Exchange Processing Script (supports both walk-in and online orders) -->
+    <script>
+    let currentWalkinOrderId = null;
+    let currentWalkinOrderNumber = null;
+    let walkinExchangeItems = [];
+    
+    function openWalkinExchangeModal(orderId, orderNumber) {
+        currentWalkinOrderId = orderId;
+        currentWalkinOrderNumber = orderNumber;
+        
+        const modal = document.getElementById('walkinExchangeModal');
+        modal.style.display = 'flex';
+        
+        // Fetch order details and check eligibility
+        fetch(`../Backend/get_exchange_eligibility.php?order_id=${orderId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.eligible) {
+                    renderWalkinExchangeForm(data);
+                } else {
+                    document.getElementById('walkinExchangeContent').innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p>${data.message || 'This order is not eligible for exchange.'}</p>
+                            <p><small>${data.reason || ''}</small></p>
+                        </div>
+                    `;
+                    document.getElementById('submitWalkinExchange').disabled = true;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('walkinExchangeContent').innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Failed to load order details. Please try again.</p>
+                    </div>
+                `;
+            });
+    }
+    
+    function closeWalkinExchangeModal() {
+        const modal = document.getElementById('walkinExchangeModal');
+        modal.style.display = 'none';
+        currentWalkinOrderId = null;
+        currentWalkinOrderNumber = null;
+        walkinExchangeItems = [];
+    }
+    
+    function renderWalkinExchangeForm(data) {
+        const items = data.items;
+        let html = `
+            <div class="exchange-info-box">
+                <div class="info-row">
+                    <span class="info-label">Order Number:</span>
+                    <span class="info-value">${data.order_number}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Customer:</span>
+                    <span class="info-value">${data.customer_name} (${data.customer_id_number})</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Order Date:</span>
+                    <span class="info-value">${new Date(data.order_date).toLocaleString()}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Time Remaining:</span>
+                    <span class="info-value">${data.hours_remaining} hours</span>
+                </div>
+            </div>
+            
+            <div class="exchange-note">
+                <i class="fas fa-info-circle"></i>
+                <span>Select items to exchange. You can exchange partial quantities.</span>
+            </div>
+            
+            <div class="exchange-items-container">
+                <h4><i class="fas fa-box"></i> Items Available for Exchange</h4>
+        `;
+        
+        items.forEach((item, index) => {
+            html += `
+                <div class="exchange-item-card" data-index="${index}">
+                    <div class="item-header">
+                        <input type="checkbox" 
+                               id="walkin_item_${index}" 
+                               class="exchange-item-checkbox"
+                               onchange="toggleWalkinItemSelection(${index})">
+                        <label for="walkin_item_${index}" class="item-basic-info">
+                            <div class="item-image">
+                                <img src="../${item.image_path}" alt="${item.item_name}" onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23ddd%22 width=%22100%22 height=%22100%22/%3E%3Ctext fill=%22%23999%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo Image%3C/text%3E%3C/svg%3E';">
+                            </div>
+                            <div class="item-details">
+                                <h5>${item.item_name}</h5>
+                                <p class="item-code">Code: ${item.item_code}</p>
+                                <p class="item-current">Size: ${item.size} | Qty: ${item.quantity} | ₱${parseFloat(item.price).toFixed(2)}</p>
+                                <p class="item-available">Available: ${item.available_for_exchange}</p>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="item-exchange-options" id="walkin_options_${index}" style="display: none;">
+                        <div class="exchange-variants-header">
+                            <h5>Select Size(s) and Quantity to Exchange</h5>
+                            <p class="text-muted">Available to exchange: ${item.available_for_exchange} pcs</p>
+                            <button type="button" class="add-size-btn" onclick="addSizeVariant(${index})">
+                                <i class="fas fa-plus"></i> Add Size Variant
+                            </button>
+                        </div>
+                        <div class="exchange-variants-list" id="walkin_variants_${index}">
+                            <!-- Size variants will be added here -->
+                        </div>
+                        <div class="exchange-totals">
+                            <div class="total-row">
+                                <span>Total Quantity Selected:</span>
+                                <span id="walkin_total_qty_${index}">0</span> / ${item.available_for_exchange}
+                            </div>
+                            <div class="total-row">
+                                <span>Total Price Difference:</span>
+                                <span id="walkin_total_diff_${index}" class="exchange-price-diff neutral">₱0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+            </div>
+            
+            <div class="exchange-summary-section" id="walkinExchangeSummary" style="display: none;">
+                <h4><i class="fas fa-calculator"></i> Exchange Summary</h4>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span class="summary-label">Items to Exchange:</span>
+                        <span class="summary-value" id="walkin_summary_items">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Total Quantity:</span>
+                        <span class="summary-value" id="walkin_summary_quantity">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Original Total:</span>
+                        <span class="summary-value" id="walkin_summary_original">₱0.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">New Total:</span>
+                        <span class="summary-value" id="walkin_summary_new">₱0.00</span>
+                    </div>
+                </div>
+                <div id="walkin_adjustment_box" class="exchange-adjustment-box" style="display: none;">
+                    <div class="adjustment-content">
+                        <div class="adjustment-title" id="walkin_adjustment_title">ADDITIONAL PAYMENT REQUIRED</div>
+                        <div class="adjustment-amount" id="walkin_adjustment_amount">₱0.00</div>
+                        <div class="adjustment-note" id="walkin_adjustment_note">Customer needs to pay this amount.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="walkinExchangeRemarks">Remarks (Optional):</label>
+                <textarea id="walkinExchangeRemarks" rows="3" placeholder="Any additional notes..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="walkinAutoApprove" checked>
+                    Auto-approve exchange (process immediately without admin approval)
+                </label>
+            </div>
+        `;
+        
+        document.getElementById('walkinExchangeContent').innerHTML = html;
+        
+        // Store original item data with size variants
+        walkinExchangeItems = items.map((item, index) => ({
+            ...item,
+            index: index,
+            selected: false,
+            sizeVariants: [],  // Array to store multiple size/qty combinations
+            availableSizes: []  // Cache of available sizes
+        }));
+        
+        // Setup submit button
+        document.getElementById('submitWalkinExchange').onclick = submitWalkinExchange;
+    }
+    
+    function toggleWalkinItemSelection(index) {
+        const checkbox = document.getElementById(`walkin_item_${index}`);
+        const options = document.getElementById(`walkin_options_${index}`);
+        const item = walkinExchangeItems[index];
+        
+        if (checkbox.checked) {
+            options.style.display = 'block';
+            item.selected = true;
+            // Load available sizes and add first variant automatically
+            loadWalkinAvailableSizes(index).then(() => {
+                addSizeVariant(index);
+            });
+        } else {
+            options.style.display = 'none';
+            item.selected = false;
+            // Clear all variants
+            item.sizeVariants = [];
+            document.getElementById(`walkin_variants_${index}`).innerHTML = '';
+        }
+        
+        updateWalkinExchangeSummary();
+    }
+    
+    function loadWalkinAvailableSizes(index) {
+        const item = walkinExchangeItems[index];
+        
+        return fetch(`../Backend/get_available_sizes.php?item_code=${item.item_code}&exclude_size=${item.size}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.sizes.length > 0) {
+                    item.availableSizes = data.sizes;
+                    return data.sizes;
+                } else {
+                    item.availableSizes = [];
+                    return [];
+                }
+            })
+            .catch(error => {
+                console.error('Error loading sizes:', error);
+                item.availableSizes = [];
+                return [];
+            });
+    }
+    
+    function addSizeVariant(index) {
+        const item = walkinExchangeItems[index];
+        const variantsList = document.getElementById(`walkin_variants_${index}`);
+        
+        if (item.availableSizes.length === 0) {
+            alert('No available sizes for exchange');
+            return;
+        }
+        
+        // Generate unique variant ID
+        const variantId = `variant_${index}_${Date.now()}`;
+        
+        // Create variant row
+        const variantRow = document.createElement('div');
+        variantRow.className = 'size-variant-row';
+        variantRow.id = variantId;
+        
+        let sizesOptions = '<option value="">Select size...</option>';
+        item.availableSizes.forEach(size => {
+            sizesOptions += `<option value="${size.size}" data-price="${size.price}" data-stock="${size.quantity}">${size.size} (Stock: ${size.quantity})</option>`;
+        });
+        
+        variantRow.innerHTML = `
+            <div class="option-group">
+                <label>New Size:</label>
+                <select class="variant-size-select" onchange="updateVariantPrice('${variantId}', ${index})">
+                    ${sizesOptions}
+                </select>
+                <div class="size-variant-info">Price: <span class="variant-price">-</span></div>
+            </div>
+            <div class="option-group">
+                <label>Quantity:</label>
+                <input type="number" class="variant-qty-input" min="1" max="${item.available_for_exchange}" value="1" 
+                       onchange="updateItemTotals(${index})">
+            </div>
+            <div class="option-group">
+                <button type="button" class="remove-variant-btn" onclick="removeSizeVariant('${variantId}', ${index})">
+                    <i class="fas fa-trash"></i> Remove
+                </button>
+            </div>
+        `;
+        
+        variantsList.appendChild(variantRow);
+        
+        // Add to item's variants array
+        item.sizeVariants.push({
+            id: variantId,
+            size: '',
+            quantity: 1,
+            price: 0,
+            stock: 0
+        });
+        
+        updateItemTotals(index);
+    }
+    
+    function removeSizeVariant(variantId, index) {
+        const item = walkinExchangeItems[index];
+        const variantRow = document.getElementById(variantId);
+        
+        if (variantRow) {
+            variantRow.remove();
+        }
+        
+        // Remove from variants array
+        item.sizeVariants = item.sizeVariants.filter(v => v.id !== variantId);
+        
+        updateItemTotals(index);
+        updateWalkinExchangeSummary();
+    }
+    
+    function updateVariantPrice(variantId, index) {
+        const item = walkinExchangeItems[index];
+        const variantRow = document.getElementById(variantId);
+        const sizeSelect = variantRow.querySelector('.variant-size-select');
+        const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
+        const priceDisplay = variantRow.querySelector('.variant-price');
+        
+        if (selectedOption && selectedOption.value) {
+            const price = parseFloat(selectedOption.dataset.price);
+            const stock = parseInt(selectedOption.dataset.stock);
+            priceDisplay.textContent = `₱${price.toFixed(2)}`;
+            
+            // Update variant data
+            const variant = item.sizeVariants.find(v => v.id === variantId);
+            if (variant) {
+                variant.size = selectedOption.value;
+                variant.price = price;
+                variant.stock = stock;
+                
+                // Update max quantity based on stock
+                const qtyInput = variantRow.querySelector('.variant-qty-input');
+                qtyInput.max = Math.min(stock, item.available_for_exchange);
+            }
+        } else {
+            priceDisplay.textContent = '-';
+        }
+        
+        updateItemTotals(index);
+    }
+    
+    function updateItemTotals(index) {
+        const item = walkinExchangeItems[index];
+        const variantsList = document.getElementById(`walkin_variants_${index}`);
+        const variantRows = variantsList.querySelectorAll('.size-variant-row');
+        
+        let totalQty = 0;
+        let totalDiff = 0;
+        
+        // Update variant quantities
+        variantRows.forEach((row, i) => {
+            const qtyInput = row.querySelector('.variant-qty-input');
+            const qty = parseInt(qtyInput.value) || 0;
+            
+            if (item.sizeVariants[i]) {
+                item.sizeVariants[i].quantity = qty;
+                totalQty += qty;
+                
+                if (item.sizeVariants[i].size && item.sizeVariants[i].price) {
+                    const priceDiff = (item.sizeVariants[i].price - item.price) * qty;
+                    totalDiff += priceDiff;
+                }
+            }
+        });
+        
+        // Validate total quantity
+        const totalQtyDisplay = document.getElementById(`walkin_total_qty_${index}`);
+        totalQtyDisplay.textContent = totalQty;
+        
+        if (totalQty > item.available_for_exchange) {
+            totalQtyDisplay.style.color = 'red';
+        } else {
+            totalQtyDisplay.style.color = '#495057';
+        }
+        
+        // Update total difference
+        const totalDiffDisplay = document.getElementById(`walkin_total_diff_${index}`);
+        if (totalDiff > 0) {
+            totalDiffDisplay.textContent = `+₱${totalDiff.toFixed(2)}`;
+            totalDiffDisplay.className = 'exchange-price-diff positive';
+        } else if (totalDiff < 0) {
+            totalDiffDisplay.textContent = `₱${totalDiff.toFixed(2)}`;
+            totalDiffDisplay.className = 'exchange-price-diff negative';
+        } else {
+            totalDiffDisplay.textContent = '₱0.00';
+            totalDiffDisplay.className = 'exchange-price-diff neutral';
+        }
+        
+        updateWalkinExchangeSummary();
+    }
+    
+    function updateWalkinExchangeSummary() {
+        const selectedItems = walkinExchangeItems.filter(item => item.selected);
+        
+        if (selectedItems.length === 0) {
+            document.getElementById('walkinExchangeSummary').style.display = 'none';
+            document.getElementById('submitWalkinExchange').disabled = true;
+            return;
+        }
+        
+        let totalItems = 0;
+        let totalQuantity = 0;
+        let originalTotal = 0;
+        let newTotal = 0;
+        let hasValidSelection = true;
+        
+        selectedItems.forEach(item => {
+            // Count this item only if it has valid variants
+            let itemHasValidVariants = false;
+            let itemQuantity = 0;
+            
+            // Process all size variants for this item
+            if (item.sizeVariants && item.sizeVariants.length > 0) {
+                item.sizeVariants.forEach(variant => {
+                    if (variant.size && variant.quantity > 0) {
+                        itemQuantity += variant.quantity;
+                        originalTotal += parseFloat(item.price) * variant.quantity;
+                        newTotal += parseFloat(variant.price) * variant.quantity;
+                        itemHasValidVariants = true;
+                    }
+                });
+            }
+            
+            if (itemHasValidVariants) {
+                totalItems++;
+                totalQuantity += itemQuantity;
+            } else {
+                hasValidSelection = false;
+            }
+        });
+        
+        const totalDifference = newTotal - originalTotal;
+        
+        document.getElementById('walkin_summary_items').textContent = totalItems;
+        document.getElementById('walkin_summary_quantity').textContent = totalQuantity;
+        document.getElementById('walkin_summary_original').textContent = `₱${originalTotal.toFixed(2)}`;
+        document.getElementById('walkin_summary_new').textContent = `₱${newTotal.toFixed(2)}`;
+        
+        const adjustmentBox = document.getElementById('walkin_adjustment_box');
+        const adjustmentTitle = document.getElementById('walkin_adjustment_title');
+        const adjustmentAmount = document.getElementById('walkin_adjustment_amount');
+        const adjustmentNote = document.getElementById('walkin_adjustment_note');
+        
+        if (totalDifference > 0) {
+            adjustmentBox.className = 'exchange-adjustment-box additional-payment';
+            adjustmentTitle.textContent = 'ADDITIONAL PAYMENT REQUIRED';
+            adjustmentAmount.textContent = `₱${totalDifference.toFixed(2)}`;
+            adjustmentNote.textContent = 'Customer needs to pay this amount to complete the exchange.';
+            adjustmentBox.style.display = 'block';
+        } else if (totalDifference < 0) {
+            adjustmentBox.className = 'exchange-adjustment-box refund';
+            adjustmentTitle.textContent = 'REFUND DUE';
+            adjustmentAmount.textContent = `₱${Math.abs(totalDifference).toFixed(2)}`;
+            adjustmentNote.textContent = 'This amount should be refunded to the customer.';
+            adjustmentBox.style.display = 'block';
+        } else {
+            adjustmentBox.className = 'exchange-adjustment-box equal-exchange';
+            adjustmentTitle.textContent = 'EQUAL EXCHANGE';
+            adjustmentAmount.textContent = '₱0.00';
+            adjustmentNote.textContent = 'No payment adjustment needed.';
+            adjustmentBox.style.display = 'block';
+        }
+        
+        document.getElementById('walkinExchangeSummary').style.display = 'block';
+        document.getElementById('submitWalkinExchange').disabled = !hasValidSelection;
+    }
+    
+    function hideExchangeButtonForOrder(orderId) {
+        // Find all exchange buttons for this order and hide them
+        const orderCards = document.querySelectorAll(`.order-card[data-order-id="${orderId}"]`);
+        orderCards.forEach(card => {
+            const exchangeBtn = card.querySelector('.exchange-btn');
+            if (exchangeBtn) {
+                exchangeBtn.style.display = 'none';
+            }
+        });
+    }
+    
+    function submitWalkinExchange() {
+        const selectedItems = walkinExchangeItems.filter(item => item.selected);
+        
+        if (selectedItems.length === 0) {
+            alert('Please select at least one item to exchange.');
+            return;
+        }
+        
+        // Validate that all selected items have valid size variants
+        const exchangeData = [];
+        
+        for (const item of selectedItems) {
+            if (!item.sizeVariants || item.sizeVariants.length === 0) {
+                alert(`Please add at least one size variant for ${item.item_name}`);
+                return;
+            }
+            
+            let totalVariantQty = 0;
+            
+            // Validate each size variant
+            for (const variant of item.sizeVariants) {
+                if (!variant.size || variant.size === '') {
+                    alert(`Please select a size for all variants of ${item.item_name}`);
+                    return;
+                }
+                
+                if (!variant.quantity || variant.quantity <= 0) {
+                    alert(`Please enter a valid quantity for all variants of ${item.item_name}`);
+                    return;
+                }
+                
+                totalVariantQty += variant.quantity;
+                
+                // Add each variant as a separate exchange item
+                exchangeData.push({
+                    original_item_code: item.item_code,
+                    new_item_code: item.item_code,
+                    new_size: variant.size,
+                    exchange_quantity: variant.quantity,
+                    available_quantity: item.available_for_exchange,
+                    original_price: parseFloat(item.price),
+                    new_price: parseFloat(variant.price)
+                });
+            }
+            
+            // Validate total quantity doesn't exceed available
+            if (totalVariantQty > item.available_for_exchange) {
+                alert(`Total exchange quantity (${totalVariantQty}) exceeds available quantity (${item.available_for_exchange}) for ${item.item_name}`);
+                return;
+            }
+        }
+        
+        const remarks = document.getElementById('walkinExchangeRemarks').value.trim();
+        const autoApprove = document.getElementById('walkinAutoApprove').checked;
+        
+        const formData = new FormData();
+        formData.append('order_id', currentWalkinOrderId);
+        formData.append('exchange_items', JSON.stringify(exchangeData));
+        formData.append('remarks', remarks);
+        formData.append('auto_approve', autoApprove ? '1' : '0');
+        
+        document.getElementById('submitWalkinExchange').disabled = true;
+        document.getElementById('submitWalkinExchange').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        
+        fetch('../Backend/process_walkin_exchange.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Hide the exchange button for this order
+                hideExchangeButtonForOrder(currentWalkinOrderId);
+                
+                // Close the exchange modal
+                closeWalkinExchangeModal();
+                
+                // Show the exchange slip preview
+                showExchangeSlipPreview(data.exchange_id, data);
+            } else {
+                alert('Error: ' + data.message);
+                document.getElementById('submitWalkinExchange').disabled = false;
+                document.getElementById('submitWalkinExchange').innerHTML = 'Process Exchange';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while processing the exchange. Please try again.');
+            document.getElementById('submitWalkinExchange').disabled = false;
+            document.getElementById('submitWalkinExchange').innerHTML = 'Process Exchange';
+        });
+    }
+    
+    // Exchange Slip Preview Functions
+    let currentExchangeData = null;
+    
+    function showExchangeSlipPreview(exchangeId, exchangeData) {
+        currentExchangeData = exchangeData;
+        
+        // Show loading
+        document.getElementById('exchangeSlipContent').innerHTML = `
+            <div style="text-align: center; padding: 40px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: #667eea;"></i>
+                <p style="margin-top: 15px;">Loading exchange slip...</p>
+            </div>
+        `;
+        
+        // Show modal
+        document.getElementById('exchangeSlipPreviewModal').style.display = 'flex';
+        
+        // Fetch the HTML content
+        fetch(`../Backend/get_exchange_slip_html.php?exchange_id=${exchangeId}`)
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('exchangeSlipContent').innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading slip:', error);
+                document.getElementById('exchangeSlipContent').innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: red;">
+                        <i class="fas fa-exclamation-circle" style="font-size: 32px;"></i>
+                        <p style="margin-top: 15px;">Failed to load exchange slip</p>
+                    </div>
+                `;
+            });
+    }
+    
+    function closeExchangeSlipPreview() {
+        document.getElementById('exchangeSlipPreviewModal').style.display = 'none';
+        
+        // Clear content to free memory
+        document.getElementById('exchangeSlipContent').innerHTML = '';
+        
+        // Close the exchange modal as well
+        closeWalkinExchangeModal();
+        
+        // No need to reload - the order card will automatically update via polling
+        // or user can manually refresh if needed
+    }
+    
+    function refreshOrderCard(orderId) {
+        // Simple approach: Hide exchange button for this order
+        // The order card UI will be updated by the existing polling mechanism
+        hideExchangeButtonForOrder(orderId);
+    }
+    
+    function printExchangeSlip() {
+        const slipContent = document.getElementById('exchangeSlipContent');
+        
+        if (!slipContent || !slipContent.innerHTML.trim()) {
+            alert('No exchange slip content to print');
+            return;
+        }
+        
+        // Create a hidden iframe for printing (same pattern as Walk-in Payable Slip)
+        let printFrame = document.getElementById('exchangeSlipPrintFrame');
+        
+        if (!printFrame) {
+            printFrame = document.createElement('iframe');
+            printFrame.id = 'exchangeSlipPrintFrame';
+            printFrame.style.position = 'fixed';
+            printFrame.style.top = '-9999px';
+            printFrame.style.left = '-9999px';
+            printFrame.style.width = '0';
+            printFrame.style.height = '0';
+            document.body.appendChild(printFrame);
+        }
+        
+        // Get the HTML content
+        const slipHtml = slipContent.innerHTML;
+        
+        // Write content to iframe
+        const iframeDoc = printFrame.contentWindow || printFrame.contentDocument;
+        if (iframeDoc.document) {
+            iframeDoc.document.open();
+            iframeDoc.document.write(slipHtml);
+            iframeDoc.document.close();
+        }
+        
+        // Wait for content to load, then print
+        setTimeout(() => {
+            try {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+                
+                // Automatically close the modal after print dialog is triggered
+                setTimeout(() => {
+                    closeExchangeSlipPreview();
+                }, 500);
+            } catch (e) {
+                console.error('Exchange slip print error:', e);
+                alert('Could not print exchange slip. Please try again or use your browser\'s print function.');
+            }
+        }, 250);
+    }
+    </script>
+
 </body>
 
 </html>

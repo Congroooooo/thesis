@@ -581,9 +581,70 @@ function updateOrderCardUI(orderId, newStatus) {
           <i class="fas fa-check-double"></i> Mark as Completed (After Payment)
         </button>
       `;
-    } else if (newStatus === "rejected" || newStatus === "completed") {
-      // Remove action buttons for rejected or completed orders
+    } else if (newStatus === "rejected") {
+      // Remove action buttons for rejected orders
       actionButtons.remove();
+    } else if (newStatus === "completed") {
+      // For completed orders, check if exchange button should be shown
+      let order = null;
+      if (window.ORDERS && Array.isArray(window.ORDERS)) {
+        order = window.ORDERS.find((o) => String(o.id) === String(orderId));
+      }
+
+      // Show exchange button for both walk-in AND online orders within 24 hours and no existing exchange
+      if (order && !order.has_exchange) {
+        // Calculate hours passed for exchange eligibility
+        const orderDate = new Date(order.created_at);
+        const now = new Date();
+        const hoursPassed = (now - orderDate) / (1000 * 60 * 60);
+
+        if (hoursPassed < 24) {
+          // Show exchange button for both walk-in and online orders
+          actionButtons.innerHTML = `
+            <button class="exchange-btn" onclick="openWalkinExchangeModal(${orderId}, '${
+            order.order_number || ""
+          }')">
+              <i class="fas fa-exchange-alt"></i> Process Exchange
+            </button>
+          `;
+        } else {
+          // Remove action buttons if outside 24-hour window
+          actionButtons.remove();
+        }
+      } else {
+        // Remove action buttons for already exchanged orders
+        actionButtons.remove();
+      }
+    }
+  }
+
+  // Update payment date display for completed orders
+  if (newStatus === "completed") {
+    const orderFooter = orderCard.querySelector(".order-footer");
+    if (orderFooter) {
+      const orderDateElement = orderFooter.querySelector(".order-date");
+      if (orderDateElement) {
+        // Check if payment date already exists
+        let paymentDateElement =
+          orderDateElement.querySelector(".payment-date");
+        if (!paymentDateElement) {
+          // Format current date
+          const now = new Date();
+          const formattedDate = now.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          // Create and append payment date
+          paymentDateElement = document.createElement("span");
+          paymentDateElement.className = "payment-date";
+          paymentDateElement.innerHTML = `<br>Paid: ${formattedDate}`;
+          orderDateElement.appendChild(paymentDateElement);
+        }
+      }
     }
   }
 

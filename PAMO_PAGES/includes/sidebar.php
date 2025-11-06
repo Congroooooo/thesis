@@ -61,6 +61,26 @@ try {
                 <span class="notif-badge"><?php echo $pendingOrdersCount; ?></span>
             <?php endif; ?>
         </li>
+        <li <?php echo basename($_SERVER['PHP_SELF']) == 'exchanges.php' ? 'class="active"' : ''; ?>
+            onclick="window.location.href='<?php echo $basePath; ?>exchanges.php'">
+            <span class="active-bar"></span>
+            <i class="material-icons">swap_horiz</i>Exchanges
+            <?php 
+            // Get pending exchanges count
+            $pendingExchangesCount = 0;
+            try {
+                include_once __DIR__ . '/../../Includes/connection.php';
+                $stmtPendingEx = $conn->prepare("SELECT COUNT(*) FROM order_exchanges WHERE status = 'pending'");
+                $stmtPendingEx->execute();
+                $pendingExchangesCount = $stmtPendingEx->fetchColumn();
+            } catch (Exception $e) {
+                $pendingExchangesCount = 0;
+            }
+            if ($pendingExchangesCount > 0): 
+            ?>
+                <span class="notif-badge"><?php echo $pendingExchangesCount; ?></span>
+            <?php endif; ?>
+        </li>
         <li <?php echo basename($_SERVER['PHP_SELF']) == 'pamo_preorder.php' ? 'class="active"' : ''; ?>
             onclick="window.location.href='<?php echo $basePath; ?>pamo_preorder.php'">
             <span class="active-bar"></span>
