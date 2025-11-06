@@ -78,9 +78,15 @@ try {
 
     // Send notification to all customers about new pre-order item
     try {
-        // Check if notifications table exists and get customers
-        $customerStmt = $conn->prepare('SELECT id as user_id, CONCAT(first_name, " ", last_name) as name FROM account WHERE role_category = ? AND status = ?');
-        $customerStmt->execute(['COLLEGE STUDENT', 'active']);
+        // Get all active customers (students + employees, excluding PAMO/Admin staff)
+        $customerStmt = $conn->prepare('
+            SELECT id as user_id, CONCAT(first_name, " ", last_name) as name 
+            FROM account 
+            WHERE status = ? 
+            AND role_category IN (?, ?, ?)
+            AND (program_abbreviation IS NULL OR program_abbreviation NOT IN (?, ?))
+        ');
+        $customerStmt->execute(['active', 'COLLEGE STUDENT', 'SHS', 'EMPLOYEE', 'PAMO', 'ADMIN']);
         $customers = $customerStmt->fetchAll(PDO::FETCH_ASSOC);
         
         if (!empty($customers)) {

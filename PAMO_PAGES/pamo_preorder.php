@@ -263,7 +263,7 @@ $basePath = '';
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Add Pre-Order Item</h3>
-                <span class="close" onclick="$('#addPreModal').hide()">&times;</span>
+                <span class="close" onclick="closeAddPreModal()">&times;</span>
             </div>
             <form id="addPreForm" enctype="multipart/form-data">
                 <div class="grid-2">
@@ -295,7 +295,7 @@ $basePath = '';
                 </div>
                 <div class="modal-footer">
                     <button type="submit" class="save-btn">Save</button>
-                    <button type="button" class="cancel-btn" onclick="$('#addPreModal').hide()">Cancel</button>
+                    <button type="button" class="cancel-btn" onclick="closeAddPreModal()">Cancel</button>
                 </div>
             </form>
         </div>
@@ -337,6 +337,22 @@ $basePath = '';
 
     <script>
     let CATEGORIES = [];
+    
+    // Function to close and reset Add Pre-Order Modal
+    function closeAddPreModal() {
+        $('#addPreModal').hide();
+        const form = document.getElementById('addPreForm');
+        if (form) {
+            form.reset();
+            // Reset button state if it was disabled
+            const saveButton = $(form).find('.save-btn');
+            saveButton.html('Save').prop('disabled', false);
+            // Reset Select2 dropdowns
+            $('#preCategory').val('').trigger('change');
+            $('#preSubcategories').empty();
+            $('#preSubcatGroup').hide();
+        }
+    }
     
     // Alert system for feedback
     function showAlert(message, type = 'success') {
@@ -709,6 +725,11 @@ $basePath = '';
             }
         }
         
+        // Get the Save button and show processing state
+        const saveButton = $(form).find('.save-btn');
+        const originalText = saveButton.html();
+        saveButton.html('<i class="material-icons" style="font-size: 16px; vertical-align: middle;">hourglass_empty</i> Saving...').prop('disabled', true);
+        
         const fd = new FormData(form);
         
         $.ajax({
@@ -718,12 +739,15 @@ $basePath = '';
             processData: false,
             contentType: false
         }).done((response)=>{ 
-            $('#addPreModal').hide(); 
             showAlert('Pre-order item created successfully!', 'success');
             loadPreorderItems();
+            // Close modal and reset everything
+            closeAddPreModal();
         })
         .fail(xhr=> {
             showAlert(xhr.responseJSON?.message || 'Failed to create pre-order item', 'error');
+            // Restore button state on error
+            saveButton.html(originalText).prop('disabled', false);
         });
     });
 

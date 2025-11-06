@@ -306,16 +306,22 @@ try {
         
         if (!empty($preorderCustomerIds)) {
             $placeholders = str_repeat('?,', count($preorderCustomerIds) - 1) . '?';
+            // Include all customers (students + employees) except PAMO/Admin and those who already pre-ordered
             $otherCustomersStmt = $conn->prepare("
                 SELECT id as user_id FROM account 
-                WHERE role_category = 'COLLEGE STUDENT' AND status = 'active' 
+                WHERE status = 'active'
+                AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
+                AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
                 AND id NOT IN ({$placeholders})
             ");
             $otherCustomersStmt->execute($preorderCustomerIds);
         } else {
+            // Include all customers (students + employees) except PAMO/Admin
             $otherCustomersStmt = $conn->prepare("
                 SELECT id as user_id FROM account 
-                WHERE role_category = 'COLLEGE STUDENT' AND status = 'active'
+                WHERE status = 'active'
+                AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
+                AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
             ");
             $otherCustomersStmt->execute();
         }

@@ -232,15 +232,20 @@ try {
             $stmt->execute([$description, $first_item_code, $user_id]);
         }
         
-        // Send notifications to students for all products
-        $students_stmt = $conn->query("SELECT id FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'");
+        // Send notifications to all customers (students + employees, excluding PAMO/Admin)
+        $customers_stmt = $conn->query("
+            SELECT id FROM account 
+            WHERE status = 'active'
+            AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
+            AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
+        ");
         $product_count = count($_POST['products']);
         $notif_message = $product_count > 1 
             ? "New products have been added to the inventory. Check the Products Page for details!"
             : "A new product has been added to the inventory. Check the Products Page for details!";
         $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'New Item', 0, NOW())");
-        while ($student = $students_stmt->fetch(PDO::FETCH_ASSOC)) {
-            $insert_notif->execute([$student['id'], $notif_message]);
+        while ($customer = $customers_stmt->fetch(PDO::FETCH_ASSOC)) {
+            $insert_notif->execute([$customer['id'], $notif_message]);
         }
 
         $conn->commit();
@@ -435,12 +440,17 @@ try {
         $user_id = $_SESSION['user_id'] ?? null;
         $stmt->execute([$description, $first_item_code, $user_id]);
 
-        // Send notifications to students
-        $students_stmt = $conn->query("SELECT id FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'");
+        // Send notifications to all customers (students + employees, excluding PAMO/Admin)
+        $customers_stmt = $conn->query("
+            SELECT id FROM account 
+            WHERE status = 'active'
+            AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
+            AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
+        ");
         $notif_message = "A new product has been added: $item_name with multiple sizes. Check the Products Page for details!";
         $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'New Item', 0, NOW())");
-        while ($student = $students_stmt->fetch(PDO::FETCH_ASSOC)) {
-            $insert_notif->execute([$student['id'], $notif_message]);
+        while ($customer = $customers_stmt->fetch(PDO::FETCH_ASSOC)) {
+            $insert_notif->execute([$customer['id'], $notif_message]);
         }
 
         $conn->commit();
@@ -597,11 +607,17 @@ try {
             }
         }
 
-        $students_stmt = $conn->query("SELECT id FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'");
+        // Send notifications to all customers (students + employees, excluding PAMO/Admin)
+        $customers_stmt = $conn->query("
+            SELECT id FROM account 
+            WHERE status = 'active'
+            AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
+            AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
+        ");
         $notif_message = "A new product has been added: $item_name. Check the Products Page for details!";
         $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'New Item', 0, NOW())");
-        while ($student = $students_stmt->fetch(PDO::FETCH_ASSOC)) {
-            $insert_notif->execute([$student['id'], $notif_message]);
+        while ($customer = $customers_stmt->fetch(PDO::FETCH_ASSOC)) {
+            $insert_notif->execute([$customer['id'], $notif_message]);
         }
 
         $conn->commit();

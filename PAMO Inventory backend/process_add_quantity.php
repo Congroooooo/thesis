@@ -137,10 +137,15 @@ try {
         }
     }
 
-    // Notify all students (COLLEGE STUDENT and SHS) about the restock
-    $student_query = "SELECT id, first_name FROM account WHERE role_category = 'COLLEGE STUDENT' OR role_category = 'SHS'";
-    $students_stmt = $conn->query($student_query);
-    if ($students_stmt) {
+    // Notify all customers (students + employees, excluding PAMO/Admin) about the restock
+    $customer_query = "
+        SELECT id, first_name FROM account 
+        WHERE status = 'active'
+        AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
+        AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
+    ";
+    $customers_stmt = $conn->query($customer_query);
+    if ($customers_stmt) {
         // Build a message for the notification using item names
         $restocked_item_names = [];
         foreach ($validatedItems as $item) {
@@ -156,8 +161,8 @@ try {
         $restocked_items_str = implode(', ', $restocked_item_names);
         $notif_message = "New stock has arrived for the following product: $restocked_items_str. Check the Products page for details!";
         $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'restock', 0, NOW())");
-        while ($student = $students_stmt->fetch(PDO::FETCH_ASSOC)) {
-            $insert_notif->execute([$student['id'], $notif_message]);
+        while ($customer = $customers_stmt->fetch(PDO::FETCH_ASSOC)) {
+            $insert_notif->execute([$customer['id'], $notif_message]);
         }
     }
 
