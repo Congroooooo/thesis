@@ -279,13 +279,21 @@ foreach ($products as $baseItemCode => $product):
         $stocksBySize[$size] = $variant['stock'];
         $itemCodesBySize[$size] = $variant['item_code'];
     }
+    
+    // Create ordered arrays matching the order of $availableSizes
+    $orderedStocks = [];
+    $orderedItemCodes = [];
+    foreach ($availableSizes as $size) {
+        $orderedStocks[] = $stocksBySize[$size] ?? 0;
+        $orderedItemCodes[] = $itemCodesBySize[$size] ?? '';
+    }
 ?>
 <div class="product-container" 
     data-category="<?php echo strtolower(str_replace(' ', '-', $product['category'])); ?>"
     data-sizes="<?php echo implode(',', $availableSizes); ?>"
     data-prices="<?php echo implode(',', $prices); ?>" 
-    data-stocks="<?php echo implode(',', array_values($stocksBySize)); ?>"
-    data-item-codes="<?php echo implode(',', array_values($itemCodesBySize)); ?>"
+    data-stocks="<?php echo implode(',', $orderedStocks); ?>"
+    data-item-codes="<?php echo implode(',', $orderedItemCodes); ?>"
     data-stock="<?php echo $product['stock']; ?>"
     data-item-code="<?php echo htmlspecialchars($product['variants'][0]['item_code']); ?>"
     data-item-name="<?php echo htmlspecialchars($product['name']); ?>"

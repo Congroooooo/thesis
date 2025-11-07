@@ -10,6 +10,7 @@ try {
 
     require_once '../Includes/connection.php'; // PDO $conn
     require_once '../Includes/MonthlyInventoryManager.php'; // Monthly inventory manager
+    require_once '../Includes/inventory_update_notifier.php';
     
     $monthlyInventory = new MonthlyInventoryManager($conn);
     $conn->beginTransaction();
@@ -237,7 +238,7 @@ try {
             SELECT id FROM account 
             WHERE status = 'active'
             AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
-            AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
+            AND (program_or_position IS NULL OR program_or_position NOT IN ('PAMO', 'ADMIN'))
         ");
         $product_count = count($_POST['products']);
         $notif_message = $product_count > 1 
@@ -249,6 +250,13 @@ try {
         }
 
         $conn->commit();
+        
+        // Trigger real-time inventory update notification
+        triggerInventoryUpdate(
+            $conn, 
+            'new_products', 
+            "{$product_count} new product(s) added with {$total_items_added} variation(s)"
+        );
 
         echo json_encode([
             'success' => true,
@@ -445,7 +453,7 @@ try {
             SELECT id FROM account 
             WHERE status = 'active'
             AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
-            AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
+            AND (program_or_position IS NULL OR program_or_position NOT IN ('PAMO', 'ADMIN'))
         ");
         $notif_message = "A new product has been added: $item_name with multiple sizes. Check the Products Page for details!";
         $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'New Item', 0, NOW())");
@@ -454,6 +462,13 @@ try {
         }
 
         $conn->commit();
+        
+        // Trigger real-time inventory update notification
+        triggerInventoryUpdate(
+            $conn, 
+            'new_sizes', 
+            "New product '{$item_name}' added with {$total_items_added} size(s)"
+        );
 
         echo json_encode([
             'success' => true,
@@ -612,7 +627,7 @@ try {
             SELECT id FROM account 
             WHERE status = 'active'
             AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
-            AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
+            AND (program_or_position IS NULL OR program_or_position NOT IN ('PAMO', 'ADMIN'))
         ");
         $notif_message = "A new product has been added: $item_name. Check the Products Page for details!";
         $insert_notif = $conn->prepare("INSERT INTO notifications (user_id, message, order_number, type, is_read, created_at) VALUES (?, ?, NULL, 'New Item', 0, NOW())");
@@ -621,6 +636,13 @@ try {
         }
 
         $conn->commit();
+        
+        // Trigger real-time inventory update notification
+        triggerInventoryUpdate(
+            $conn, 
+            'new_item', 
+            "New item '{$item_name}' added"
+        );
 
         echo json_encode([
             'success' => true,

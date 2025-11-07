@@ -24,7 +24,6 @@ if (isset($_GET['item_code'])) {
 
 // fallback for prefix param
 $prefix = isset($_GET['prefix']) ? $_GET['prefix'] : '';
-file_put_contents(__DIR__ . '/debug_prefix.txt', $prefix); // Debug: log the prefix
 if (!$prefix) {
     echo json_encode(['success' => false, 'message' => 'No prefix provided']);
     exit;

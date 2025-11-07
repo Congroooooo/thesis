@@ -311,7 +311,7 @@ try {
                 SELECT id as user_id FROM account 
                 WHERE status = 'active'
                 AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
-                AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
+                AND (program_or_position IS NULL OR program_or_position NOT IN ('PAMO', 'ADMIN'))
                 AND id NOT IN ({$placeholders})
             ");
             $otherCustomersStmt->execute($preorderCustomerIds);
@@ -321,7 +321,7 @@ try {
                 SELECT id as user_id FROM account 
                 WHERE status = 'active'
                 AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
-                AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
+                AND (program_or_position IS NULL OR program_or_position NOT IN ('PAMO', 'ADMIN'))
             ");
             $otherCustomersStmt->execute();
         }

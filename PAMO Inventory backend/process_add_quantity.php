@@ -14,6 +14,7 @@ header('Content-Type: application/json');
 try {
     require_once '../Includes/connection.php'; // PDO $conn
     require_once '../Includes/MonthlyInventoryManager.php'; // Monthly inventory manager
+    require_once '../Includes/inventory_update_notifier.php';
 
     // Start session if not already started
     if (session_status() === PHP_SESSION_NONE) {
@@ -142,7 +143,7 @@ try {
         SELECT id, first_name FROM account 
         WHERE status = 'active'
         AND role_category IN ('COLLEGE STUDENT', 'SHS', 'EMPLOYEE')
-        AND (program_abbreviation IS NULL OR program_abbreviation NOT IN ('PAMO', 'ADMIN'))
+        AND (program_or_position IS NULL OR program_or_position NOT IN ('PAMO', 'ADMIN'))
     ";
     $customers_stmt = $conn->query($customer_query);
     if ($customers_stmt) {
@@ -168,6 +169,15 @@ try {
 
     // If we got here, everything succeeded
     $conn->commit();
+    
+    // Trigger real-time inventory update notification
+    $itemCount = count($validatedItems);
+    triggerInventoryUpdate(
+        $conn, 
+        'restock', 
+        "Restock order #{$orderNumber} - {$itemCount} item(s) added"
+    );
+    
     echo json_encode([
         'success' => true,
         'message' => 'All items in delivery recorded successfully'

@@ -1,12 +1,17 @@
 <?php
 date_default_timezone_set('Asia/Manila');
 ob_start();
-error_reporting(0);
-ini_set('display_errors', 0);
+// Log errors but don't display them (would break JSON response)
+error_reporting(E_ALL);
+ini_set('display_errors', 0);  // Changed to 0 to prevent HTML output
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/../../error_log.txt');
 
 session_start();
 require_once '../Includes/connection.php';
 require_once '../Includes/notifications.php';
+require_once '../Includes/inventory_update_notifier.php';
+require_once '../Includes/MonthlyInventoryManager.php';
 
 header('Content-Type: application/json');
 
@@ -178,7 +183,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // If status is being changed to completed, process inventory updates
         if ($status === 'completed') {
-
+            
+            // Create MonthlyInventoryManager instance
+            $monthlyInventory = new MonthlyInventoryManager($conn);
             
             // Decode the items JSON
             $order_items = json_decode($order['items'], true);
@@ -202,43 +209,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
 
                 
-                // Verify sufficient quantity
-                $new_quantity = $inventory['actual_quantity'] - $item['quantity'];
-                if ($new_quantity < 0) {
+                // Verify sufficient quantity BEFORE recording the sale
+                if ($inventory['actual_quantity'] < $item['quantity']) {
                     throw new Exception('Insufficient quantity for item: ' . $inventory['item_name']);
-                }
-                
-                // Update inventory with optimistic locking
-                $updateStockStmt = $conn->prepare(
-                    "UPDATE inventory 
-                    SET actual_quantity = ?,
-                        sold_quantity = sold_quantity + ?,
-                        status = CASE 
-                            WHEN ? <= 0 THEN 'Out of Stock'
-                            WHEN ? <= 10 THEN 'Low Stock'
-                            ELSE 'In Stock'
-                        END
-                    WHERE item_code = ? AND actual_quantity = ?"
-                );
-                
-                if (!$updateStockStmt->execute([
-                    $new_quantity,
-                    $item['quantity'],
-                    $new_quantity,
-                    $new_quantity,
-                    $item['item_code'],
-                    $inventory['actual_quantity']
-                ])) {
-                    throw new Exception('Failed to update inventory for item: ' . $inventory['item_name']);
-                }
-                
-                if ($updateStockStmt->rowCount() === 0) {
-                    throw new Exception('Item ' . $inventory['item_name'] . ' was modified by another transaction. Please try again.');
                 }
                 
 
                 
-                // Record the sale
+                // Record the sale in the sales table
                 $saleStmt = $conn->prepare(
                     "INSERT INTO sales (
                         transaction_number, 
@@ -266,6 +244,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $total_amount
                 ])) {
                     throw new Exception('Failed to record sale for item: ' . $inventory['item_name']);
+                }
+                
+                // Update sold_quantity in inventory
+                $updateSoldStmt = $conn->prepare(
+                    "UPDATE inventory 
+                    SET sold_quantity = sold_quantity + ?
+                    WHERE item_code = ?"
+                );
+                if (!$updateSoldStmt->execute([$item['quantity'], $item['item_code']])) {
+                    throw new Exception('Failed to update sold quantity for item: ' . $inventory['item_name']);
+                }
+                
+                // Record sale in monthly inventory system
+                // This will create monthly_sales_records entry, update snapshot, and sync actual_quantity
+                $processedBy = $_SESSION['user_id'] ?? 0;
+                
+                // Debug logging
+                $logFile = __DIR__ . '/../../order_completion_log.txt';
+                $logMessage = date('[Y-m-d H:i:s] ') . "About to record sale: Order={$transaction_number}, Item={$item['item_code']}, Qty={$quantity}, Price={$price_per_item}, ProcessedBy={$processedBy}\n";
+                file_put_contents($logFile, $logMessage, FILE_APPEND);
+                
+                try {
+                    $monthlyInventory->recordSale(
+                        $transaction_number,
+                        $item['item_code'],
+                        $quantity,
+                        $price_per_item,
+                        $total_amount,
+                        $processedBy,
+                        false  // Don't use internal transaction since we're already in one
+                    );
+                    
+                    // Log success
+                    $logMessage = date('[Y-m-d H:i:s] ') . "Successfully recorded sale for {$item['item_code']}\n";
+                    file_put_contents($logFile, $logMessage, FILE_APPEND);
+                    
+                } catch (Exception $monthlyError) {
+                    // Log error
+                    $logMessage = date('[Y-m-d H:i:s] ') . "ERROR recording sale: " . $monthlyError->getMessage() . "\n";
+                    file_put_contents($logFile, $logMessage, FILE_APPEND);
+                    
+                    throw new Exception('Failed to record sale in monthly inventory: ' . $monthlyError->getMessage());
                 }
                 
                 $customerStmt = $conn->prepare("
@@ -316,87 +336,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $activity_user_id
                 ])) {
                     throw new Exception('Failed to log activity for item: ' . $inventory['item_name']);
-                }
-                
-                // Update monthly inventory snapshots
-                try {
-                    $currentYear = date('Y');
-                    $currentMonth = date('n');
-                    
-                    // Get or create current period
-                    $periodStmt = $conn->prepare("SELECT id FROM monthly_inventory_periods WHERE year = ? AND month = ?");
-                    $periodStmt->execute([$currentYear, $currentMonth]);
-                    $period = $periodStmt->fetch(PDO::FETCH_ASSOC);
-                    
-                    if (!$period) {
-                        // Create period if it doesn't exist
-                        $periodStart = date('Y-m-01');
-                        $periodEnd = date('Y-m-t');
-                        $createPeriodStmt = $conn->prepare("
-                            INSERT INTO monthly_inventory_periods (year, month, period_start, period_end, is_closed)
-                            VALUES (?, ?, ?, ?, 0)
-                        ");
-                        $createPeriodStmt->execute([$currentYear, $currentMonth, $periodStart, $periodEnd]);
-                        $periodId = $conn->lastInsertId();
-                    } else {
-                        $periodId = $period['id'];
-                    }
-                    
-                    // Check if snapshot exists for this item
-                    $snapshotStmt = $conn->prepare("
-                        SELECT id, sales_total, ending_quantity 
-                        FROM monthly_inventory_snapshots 
-                        WHERE period_id = ? AND item_code = ?
-                    ");
-                    $snapshotStmt->execute([$periodId, $item['item_code']]);
-                    $snapshot = $snapshotStmt->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($snapshot) {
-                        // Update existing snapshot - add to sales and update ending quantity
-                        $updateSnapshotStmt = $conn->prepare("
-                            UPDATE monthly_inventory_snapshots 
-                            SET sales_total = sales_total + ?,
-                                ending_quantity = ending_quantity - ?,
-                                updated_at = NOW()
-                            WHERE id = ?
-                        ");
-                        $updateSnapshotStmt->execute([
-                            $item['quantity'],
-                            $item['quantity'],
-                            $snapshot['id']
-                        ]);
-                    } else {
-                        // Create new snapshot for this item
-                        // Get current inventory values
-                        $invStmt = $conn->prepare("
-                            SELECT actual_quantity, new_delivery, beginning_quantity, damage, sold_quantity 
-                            FROM inventory 
-                            WHERE item_code = ?
-                        ");
-                        $invStmt->execute([$item['item_code']]);
-                        $invData = $invStmt->fetch(PDO::FETCH_ASSOC);
-                        
-                        if ($invData) {
-                            $insertSnapshotStmt = $conn->prepare("
-                                INSERT INTO monthly_inventory_snapshots (
-                                    period_id, item_code, beginning_quantity, new_delivery_total, 
-                                    sales_total, damage_total, ending_quantity, created_at, updated_at
-                                ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-                            ");
-                            $insertSnapshotStmt->execute([
-                                $periodId,
-                                $item['item_code'],
-                                $invData['beginning_quantity'],
-                                $invData['new_delivery'],
-                                $item['quantity'], // This sale
-                                $invData['damage'],
-                                $invData['actual_quantity'] // Current quantity after deduction
-                            ]);
-                        }
-                    }
-                } catch (Exception $snapshotError) {
-                    // Log error but don't fail the transaction
-                    error_log("Failed to update monthly snapshot: " . $snapshotError->getMessage());
                 }
 
             }
@@ -509,6 +448,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Commit transaction
         $conn->commit();
+        
+        // Trigger real-time inventory update notification if order was completed
+        if ($status === 'completed') {
+            $itemCount = count($order_items);
+            triggerInventoryUpdate(
+                $conn, 
+                'order_completion', 
+                "Order #{$order['order_number']} completed - {$itemCount} item(s) sold"
+            );
+        }
 
         $response['success'] = true;
         $response['message'] = 'Order status updated successfully';

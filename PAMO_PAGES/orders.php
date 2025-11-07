@@ -510,6 +510,18 @@ unset($order);
         let knownOrderIds = new Set(); // Track all orders we've seen
         let isInitialized = false; // Track if we've done the initial load
 
+        // Initialize knownOrderIds from orders already on the page (from PHP)
+        function initializeKnownOrders() {
+            const existingCards = document.querySelectorAll('.order-card[data-order-id]');
+            existingCards.forEach(card => {
+                const orderId = card.getAttribute('data-order-id');
+                if (orderId) {
+                    knownOrderIds.add(String(orderId));
+                }
+            });
+            console.log('[PAMO] Initialized with', knownOrderIds.size, 'known orders');
+        }
+
         function updatePamoOrdersRealTime() {
             // Skip polling if actively processing an order
             if (window.isProcessingOrder) {
@@ -531,12 +543,11 @@ unset($order);
             .then(data => {
                 if (data.success && data.orders && data.orders.length > 0) {
                     if (!isInitialized) {
-                        // First load - record all existing order IDs
-                        data.orders.forEach(order => {
-                            knownOrderIds.add(String(order.id));
-                        });
+                        // First load - just update timestamp, don't modify knownOrderIds
+                        // (already initialized from DOM)
                         lastPamoOrderCheck = data.last_update;
                         isInitialized = true;
+                        console.log('[PAMO] First polling completed, monitoring for new orders...');
                     } else {
                         // Subsequent checks - compare against known orders
                         updateVisiblePamoOrders(data.orders);
@@ -566,8 +577,23 @@ unset($order);
                 const orderId = String(order.id);
                 const existingCard = document.querySelector(`[data-order-id="${orderId}"]`);
                 
+                // ALWAYS update window.ORDERS for ALL orders (visible or not) to keep memory in sync
+                if (window.ORDERS && Array.isArray(window.ORDERS)) {
+                    const orderIndex = window.ORDERS.findIndex(o => String(o.id) === orderId);
+                    if (orderIndex !== -1) {
+                        // Update existing order in memory
+                        window.ORDERS[orderIndex] = order;
+                    } else {
+                        // Add order to memory if it doesn't exist yet
+                        window.ORDERS.push(order);
+                    }
+                } else {
+                    // Initialize window.ORDERS if it doesn't exist
+                    window.ORDERS = [order];
+                }
+                
                 if (existingCard) {
-                    // This order is visible on current page - update it
+                    // This order is visible on current page - update the DOM
                     const oldStatus = existingCard.getAttribute('data-status');
                     const newStatus = order.status;
                     
@@ -576,14 +602,6 @@ unset($order);
                     }
                     
                     updateSinglePamoOrderCard(existingCard, order);
-                    
-                    // Update or add the order to window.ORDERS array
-                    if (window.ORDERS && Array.isArray(window.ORDERS)) {
-                        const orderIndex = window.ORDERS.findIndex(o => String(o.id) === orderId);
-                        if (orderIndex !== -1) {
-                            window.ORDERS[orderIndex] = order;
-                        }
-                    }
                 } else {
                     // Check if this is truly a NEW order (not just on a different page)
                     if (!knownOrderIds.has(orderId)) {
@@ -626,6 +644,19 @@ unset($order);
                 
                 // Add to allOrderCards array at the beginning (newest first)
                 allOrderCards.unshift(newCard);
+                
+                // CRITICAL: Add new order to window.ORDERS array for memory access
+                if (window.ORDERS && Array.isArray(window.ORDERS)) {
+                    // Check if order already exists in window.ORDERS
+                    const existingIndex = window.ORDERS.findIndex(o => String(o.id) === String(order.id));
+                    if (existingIndex === -1) {
+                        // Add new order at the beginning (newest first)
+                        window.ORDERS.unshift(order);
+                    }
+                } else {
+                    // Initialize window.ORDERS if it doesn't exist
+                    window.ORDERS = [order];
+                }
             });
             
             // Re-apply current filters and pagination to include new orders
@@ -1017,6 +1048,9 @@ unset($order);
         // Only updates orders visible on current page, shows alert for new orders
         document.addEventListener('DOMContentLoaded', function() {
             updateOrderCount();
+            
+            // Initialize known orders from DOM BEFORE starting polling
+            initializeKnownOrders();
             
             // Initial check
             updatePamoOrdersRealTime();

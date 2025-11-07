@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 
 require_once '../Includes/connection.php'; // PDO $conn
 require_once '../Includes/MonthlyInventoryManager.php'; // Monthly inventory manager
+require_once '../Includes/inventory_update_notifier.php';
 
 $deliveryOrderNumber = isset($_POST['deliveryOrderNumber']) ? $_POST['deliveryOrderNumber'] : '';
 $itemsDataJson = isset($_POST['itemsData']) ? $_POST['itemsData'] : '';
@@ -160,6 +161,13 @@ try {
     }
 
     $conn->commit();
+    
+    // Trigger real-time inventory update notification
+    triggerInventoryUpdate(
+        $conn, 
+        'add_size', 
+        "{$totalSizesAdded} new size(s) added via delivery #{$deliveryOrderNumber}"
+    );
     
     $successMessage = $totalSizesAdded === 1 
         ? "1 new size added successfully!" 

@@ -375,8 +375,6 @@ document.addEventListener("click", function (e) {
         // Use the cloned data to show receipt, since the order might be filtered out after status change
         showOrderReceiptWithData(orderId, orderClone);
       });
-    } else {
-      console.warn("[DEBUG] No orderId found on button");
     }
   }
 });

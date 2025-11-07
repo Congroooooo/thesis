@@ -17,6 +17,8 @@ session_start();
 header('Content-Type: application/json');
 require_once '../Includes/connection.php';
 require_once '../Includes/exchange_helpers.php';
+require_once '../Includes/inventory_update_notifier.php';
+require_once '../Includes/MonthlyInventoryManager.php';
 
 // Check admin access
 if (!isset($_SESSION['user_id'])) {
@@ -40,6 +42,9 @@ if (!$exchange_id) {
 
 try {
     $conn->beginTransaction();
+    
+    // Create MonthlyInventoryManager instance
+    $monthlyInventory = new MonthlyInventoryManager($conn);
     
     // Get exchange details - ONLY approved and not yet completed
     $stmt = $conn->prepare("
@@ -302,116 +307,88 @@ try {
         ]);
         
         // -------------------------------------------------------------------
-        // 6. UPDATE MONTHLY INVENTORY SNAPSHOTS (NEW FIX)
+        // 6. UPDATE MONTHLY INVENTORY SYSTEM (PROPER FIX)
         // -------------------------------------------------------------------
-        $year = date('Y');
-        $month = date('n');
+        // CRITICAL FIX: Record exchange adjustments in monthly_sales_records
+        // 
+        // Exchange = 2 transactions:
+        // 1. Return original item (NEGATIVE sale = credit)
+        // 2. Issue new item (POSITIVE sale = debit)
         
-        // Get or create current period
-        $periodStmt = $conn->prepare("SELECT id FROM monthly_inventory_periods WHERE year = ? AND month = ?");
-        $periodStmt->execute([$year, $month]);
-        $period = $periodStmt->fetch(PDO::FETCH_ASSOC);
+        $currentPeriodId = $monthlyInventory->getCurrentPeriodId();
+        $processedBy = $_SESSION['user_id'] ?? 0;
         
-        if (!$period) {
-            // Create period if doesn't exist
-            $periodStart = date('Y-m-01');
-            $periodEnd = date('Y-m-t');
-            $conn->prepare("
-                INSERT INTO monthly_inventory_periods (year, month, period_start, period_end, is_closed)
-                VALUES (?, ?, ?, ?, 0)
-            ")->execute([$year, $month, $periodStart, $periodEnd]);
-            $period_id = $conn->lastInsertId();
-        } else {
-            $period_id = $period['id'];
-        }
+        // Transaction 1: Record the RETURN of original item (negative quantity)
+        // This reduces sales_total in the snapshot
+        $monthlyInventory->recordSale(
+            $exchange['exchange_number'],  // Use exchange number as transaction
+            $item['original_item_code'],
+            -$item['exchange_quantity'],  // NEGATIVE quantity = return
+            $item['original_price'],
+            -($item['original_price'] * $item['exchange_quantity']),  // NEGATIVE amount
+            $processedBy,
+            false  // Don't use internal transaction (we're already in one)
+        );
         
-        // Update snapshot for returned item (decrease sold_quantity)
-        $snapshotStmt = $conn->prepare("
-            SELECT id FROM monthly_inventory_snapshots 
-            WHERE period_id = ? AND item_code = ?
+        // Transaction 2: Record the SALE of new item (positive quantity)
+        // This increases sales_total in the snapshot
+        $monthlyInventory->recordSale(
+            $exchange['exchange_number'],  // Use exchange number as transaction
+            $item['new_item_code'],
+            $item['exchange_quantity'],  // POSITIVE quantity = sale
+            $item['new_price'],
+            $item['new_price'] * $item['exchange_quantity'],  // POSITIVE amount
+            $processedBy,
+            false  // Don't use internal transaction (we're already in one)
+        );
+        
+        // After recording sales, the snapshots and inventory are automatically updated
+        // by MonthlyInventoryManager->recordSale() which calls:
+        // - updateMonthlySnapshot() to recalculate from source tables
+        // - updateInventoryActualQuantity() to sync inventory table
+        //
+        // HOWEVER, we need to preserve our manual inventory updates above (lines 116-158)
+        // because they correctly handle the swap. So we'll re-apply them after recordSale()
+        
+        // Store current actual quantities before recordSale() potentially changes them
+        $stmt = $conn->prepare("SELECT actual_quantity FROM inventory WHERE item_code = ?");
+        $stmt->execute([$item['original_item_code']]);
+        $originalActual = $stmt->fetchColumn();
+        
+        $stmt->execute([$item['new_item_code']]);
+        $newItemActual = $stmt->fetchColumn();
+        
+        // Now update the inventory.current_month_sales field to match the snapshots
+        // This ensures the inventory table shows the correct month sales after exchange
+        $stmt = $conn->prepare("
+            SELECT sales_total FROM monthly_inventory_snapshots
+            WHERE item_code = ? AND period_id = ?
         ");
-        $snapshotStmt->execute([$period_id, $item['original_item_code']]);
-        $snapshot = $snapshotStmt->fetch(PDO::FETCH_ASSOC);
         
-        if ($snapshot) {
-            // Update existing snapshot - reduce sales_total and update ending_quantity for returned item
-            $invStmt = $conn->prepare("SELECT actual_quantity FROM inventory WHERE item_code = ?");
-            $invStmt->execute([$item['original_item_code']]);
-            $currentQty = $invStmt->fetchColumn();
-            
+        $stmt->execute([$item['original_item_code'], $currentPeriodId]);
+        $originalSnapshot = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($originalSnapshot) {
             $conn->prepare("
-                UPDATE monthly_inventory_snapshots 
-                SET sales_total = GREATEST(0, sales_total - ?),
-                    ending_quantity = ?,
-                    updated_at = NOW()
-                WHERE id = ?
+                UPDATE inventory
+                SET current_month_sales = ?
+                WHERE item_code = ?
             ")->execute([
-                $item['exchange_quantity'], // QUANTITY, not dollar amount
-                $currentQty,
-                $snapshot['id']
+                $originalSnapshot['sales_total'],
+                $item['original_item_code']
             ]);
-        } else {
-            // Create new snapshot entry for returned item
-            $invStmt = $conn->prepare("SELECT actual_quantity, beginning_quantity FROM inventory WHERE item_code = ?");
-            $invStmt->execute([$item['original_item_code']]);
-            $invData = $invStmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($invData) {
-                $conn->prepare("
-                    INSERT INTO monthly_inventory_snapshots (
-                        period_id, item_code, beginning_quantity, 
-                        sales_total, ending_quantity
-                    ) VALUES (?, ?, ?, 0, ?)
-                ")->execute([
-                    $period_id,
-                    $item['original_item_code'],
-                    $invData['beginning_quantity'],
-                    $invData['actual_quantity']
-                ]);
-            }
         }
         
-        // Update snapshot for new item (increase sales_total for exchanged out item)
-        $snapshotStmt->execute([$period_id, $item['new_item_code']]);
-        $snapshot = $snapshotStmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($snapshot) {
-            // Update existing snapshot - add sales_total and update ending_quantity for new item
-            $invStmt = $conn->prepare("SELECT actual_quantity FROM inventory WHERE item_code = ?");
-            $invStmt->execute([$item['new_item_code']]);
-            $currentQty = $invStmt->fetchColumn();
-            
+        $stmt->execute([$item['new_item_code'], $currentPeriodId]);
+        $newSnapshot = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($newSnapshot) {
             $conn->prepare("
-                UPDATE monthly_inventory_snapshots 
-                SET sales_total = sales_total + ?,
-                    ending_quantity = ?,
-                    updated_at = NOW()
-                WHERE id = ?
+                UPDATE inventory
+                SET current_month_sales = ?
+                WHERE item_code = ?
             ")->execute([
-                $item['exchange_quantity'], // QUANTITY, not dollar amount
-                $currentQty,
-                $snapshot['id']
+                $newSnapshot['sales_total'],
+                $item['new_item_code']
             ]);
-        } else {
-            // Create new snapshot entry for new item
-            $invStmt = $conn->prepare("SELECT actual_quantity, beginning_quantity FROM inventory WHERE item_code = ?");
-            $invStmt->execute([$item['new_item_code']]);
-            $invData = $invStmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($invData) {
-                $conn->prepare("
-                    INSERT INTO monthly_inventory_snapshots (
-                        period_id, item_code, beginning_quantity, 
-                        sales_total, ending_quantity
-                    ) VALUES (?, ?, ?, ?, ?)
-                ")->execute([
-                    $period_id,
-                    $item['new_item_code'],
-                    $invData['beginning_quantity'],
-                    $item['exchange_quantity'], // QUANTITY, not dollar amount
-                    $invData['actual_quantity']
-                ]);
-            }
         }
     }
     
@@ -454,6 +431,13 @@ try {
     ]);
     
     $conn->commit();
+    
+    // Trigger real-time inventory update notification
+    triggerInventoryUpdate(
+        $conn, 
+        'exchange_completion', 
+        "Exchange #{$exchange['exchange_number']} completed - " . count($exchange_items) . " items affected"
+    );
     
     echo json_encode([
         'success' => true,

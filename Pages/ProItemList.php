@@ -462,13 +462,21 @@ $is_logged_in = isset($_SESSION['user_id']);
                         $stocksBySize[$size] = $variant['stock'];
                         $itemCodesBySize[$size] = $variant['item_code'];
                         }
+                        
+                        // Create ordered arrays matching the order of $availableSizes
+                        $orderedStocks = [];
+                        $orderedItemCodes = [];
+                        foreach ($availableSizes as $size) {
+                            $orderedStocks[] = $stocksBySize[$size] ?? 0;
+                            $orderedItemCodes[] = $itemCodesBySize[$size] ?? '';
+                        }
                 ?>
                     <div class="product-container" 
                         data-category="<?php echo strtolower(str_replace(' ', '-', $product['category'])); ?>"
                         data-sizes="<?php echo implode(',', $availableSizes); ?>"
                         data-prices="<?php echo implode(',', $prices); ?>" 
-                        data-stocks="<?php echo implode(',', array_values($stocksBySize)); ?>"
-                        data-item-codes="<?php echo implode(',', array_values($itemCodesBySize)); ?>"
+                        data-stocks="<?php echo implode(',', $orderedStocks); ?>"
+                        data-item-codes="<?php echo implode(',', $orderedItemCodes); ?>"
                         data-stock="<?php echo $product['stock']; ?>"
                         data-item-code="<?php echo htmlspecialchars($product['variants'][0]['item_code']); ?>"
                         data-item-name="<?php echo htmlspecialchars($product['name']); ?>"
@@ -1474,6 +1482,353 @@ $is_logged_in = isset($_SESSION['user_id']);
         }
     }
     </script>
+    
+    <!-- Real-time Inventory Updates -->
+    <script>
+    (function() {
+        let lastInventoryCheck = 0; // Use microtime for precise tracking
+        let inventoryUpdateInterval = null;
+        
+        // Function to create a new product card dynamically
+        function createNewProductCard(productData) {
+            const productsGrid = document.querySelector('.products-grid');
+            if (!productsGrid) return;
+            
+            const baseItemCode = productData.base_item_code;
+            const totalStock = productData.total_stock;
+            const productName = productData.name || 'New Product';
+            const category = productData.category || '';
+            const image = productData.image || '../uploads/itemlist/default.png';
+            const variants = productData.variants || [];
+            
+            // Build arrays from variants
+            const sizes = variants.map(v => v.size || '');
+            const stocks = variants.map(v => v.stock || 0);
+            const prices = variants.map(v => v.price || 0);
+            const itemCodes = variants.map(v => v.item_code);
+            
+            // Calculate price range
+            const priceMin = Math.min(...prices);
+            const priceMax = Math.max(...prices);
+            
+            // Create product container HTML
+            const productHTML = `
+                <div class="product-container new-product-highlight" 
+                    data-category="${category.toLowerCase().replace(/ /g, '-')}"
+                    data-sizes="${sizes.join(',')}"
+                    data-prices="${prices.join(',')}" 
+                    data-stocks="${stocks.join(',')}"
+                    data-item-codes="${itemCodes.join(',')}"
+                    data-stock="${totalStock}"
+                    data-item-code="${itemCodes[0] || ''}"
+                    data-item-name="${productName}">
+                    <img src="${image}" 
+                         alt="${productName}" 
+                         class="lazy-load-image"
+                         loading="lazy"
+                         onerror="this.onerror=null; this.src='../uploads/itemlist/default.png'">
+                    <div class="product-overlay">
+                        <div class="items"></div>
+                        <div class="items head">
+                            <p>${productName}</p>
+                            <p class="category">${category}</p>
+                            <hr>
+                        </div>
+                        <div class="items price">
+                            <p class="price-range">Price: ₱${priceMin.toFixed(2)} - ₱${priceMax.toFixed(2)}</p>
+                        </div>
+                        <div class="items stock">
+                            <p>Stock: ${totalStock}</p>
+                        </div>
+                        <div class="items cart" data-item-code="${baseItemCode}">
+                            <i class="fa fa-shopping-cart"></i>
+                            <span>ADD TO CART</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Insert at the beginning of products grid (before the "no results" message)
+            const noResultsMsg = productsGrid.querySelector('#no-results-message');
+            if (noResultsMsg) {
+                noResultsMsg.insertAdjacentHTML('beforebegin', productHTML);
+            } else {
+                productsGrid.insertAdjacentHTML('afterbegin', productHTML);
+            }
+            
+            // Add highlight animation
+            const newProductCard = productsGrid.querySelector('.new-product-highlight');
+            if (newProductCard) {
+                // Trigger entrance animation
+                setTimeout(() => {
+                    newProductCard.classList.remove('new-product-highlight');
+                    newProductCard.classList.add('product-fade-in');
+                }, 100);
+                
+                // Remove animation class after completion
+                setTimeout(() => {
+                    newProductCard.classList.remove('product-fade-in');
+                }, 1000);
+            }
+            
+            console.log(`[Inventory] New product added to display: ${productName} (${baseItemCode})`);
+        }
+        
+        // Function to update inventory quantities in the UI
+        function updateInventoryDisplay(updates) {
+            if (!updates || updates.length === 0) return;
+            
+            let updatedCount = 0;
+            
+            updates.forEach(update => {
+                const baseItemCode = update.base_item_code;
+                const totalStock = update.total_stock;
+                
+                // Find all product containers with this base item code
+                const productContainers = document.querySelectorAll(`.product-container[data-item-code^="${baseItemCode}"]`);
+                
+                // Check if this is a completely new product (not in DOM)
+                if (productContainers.length === 0 && totalStock > 0) {
+                    // NEW PRODUCT DETECTED - Create product card dynamically
+                    createNewProductCard(update);
+                    updatedCount++;
+                    return; // Skip to next update
+                }
+                
+                productContainers.forEach(container => {
+                    const currentStock = parseInt(container.dataset.stock) || 0;
+                    
+                    // Only update if stock has changed
+                    if (currentStock !== totalStock) {
+                        // Update data attribute
+                        container.dataset.stock = totalStock;
+                        
+                        // Update displayed stock in the overlay
+                        const stockElement = container.querySelector('.stock p');
+                        if (stockElement) {
+                            stockElement.textContent = `Stock: ${totalStock}`;
+                            
+                            // Add a subtle animation to highlight the change
+                            stockElement.style.animation = 'none';
+                            setTimeout(() => {
+                                stockElement.style.animation = 'stockUpdate 0.5s ease-in-out';
+                            }, 10);
+                        }
+                        
+                        // Update variant-specific data (stocks, sizes, item codes, prices)
+                        if (update.variants && update.variants.length > 0) {
+                            // Create maps from backend data
+                            const variantMap = {};
+                            update.variants.forEach(v => {
+                                variantMap[v.item_code] = {
+                                    stock: v.stock,
+                                    size: v.size,
+                                    price: v.price
+                                };
+                            });
+                            
+                            // Get existing item codes
+                            const existingItemCodes = container.dataset.itemCodes ? container.dataset.itemCodes.split(',') : [];
+                            
+                            // Check if new sizes were added (new item codes from backend)
+                            const backendItemCodes = update.variants.map(v => v.item_code);
+                            const newItemCodes = backendItemCodes.filter(code => !existingItemCodes.includes(code));
+                            
+                            if (newItemCodes.length > 0) {
+                                // New sizes detected - rebuild all arrays from backend data
+                                const allSizes = [];
+                                const allStocks = [];
+                                const allItemCodes = [];
+                                const allPrices = [];
+                                
+                                update.variants.forEach(v => {
+                                    allItemCodes.push(v.item_code);
+                                    allSizes.push(v.size || '');
+                                    allStocks.push(v.stock);
+                                    allPrices.push(v.price || 0);
+                                });
+                                
+                                container.dataset.itemCodes = allItemCodes.join(',');
+                                container.dataset.sizes = allSizes.join(',');
+                                container.dataset.stocks = allStocks.join(',');
+                                container.dataset.prices = allPrices.join(',');
+                                
+                                console.log(`[Inventory] New size(s) added to ${baseItemCode}: ${newItemCodes.join(', ')}`);
+                            } else {
+                                // No new sizes - just update stocks in existing order
+                                const updatedStocks = existingItemCodes.map(code => {
+                                    return variantMap[code] ? variantMap[code].stock : 0;
+                                });
+                                
+                                container.dataset.stocks = updatedStocks.join(',');
+                            }
+                        }
+                        
+                        // If stock is now 0, hide the product or mark as out of stock
+                        if (totalStock <= 0) {
+                            container.style.opacity = '0.5';
+                            container.style.pointerEvents = 'none';
+                            
+                            // Add out of stock indicator
+                            if (!container.querySelector('.out-of-stock-badge')) {
+                                const badge = document.createElement('div');
+                                badge.className = 'out-of-stock-badge';
+                                badge.innerHTML = '<i class="fas fa-times-circle"></i> Out of Stock';
+                                container.style.position = 'relative';
+                                container.insertBefore(badge, container.firstChild);
+                            }
+                        } else {
+                            // If stock is back, restore the product
+                            container.style.opacity = '1';
+                            container.style.pointerEvents = 'auto';
+                            
+                            // Remove out of stock indicator
+                            const badge = container.querySelector('.out-of-stock-badge');
+                            if (badge) {
+                                badge.remove();
+                            }
+                        }
+                        
+                        updatedCount++;
+                    }
+                });
+            });
+            
+            // Show notification if items were updated (optional, can be removed for less intrusive UX)
+            if (updatedCount > 0) {
+                console.log(`[Inventory] Updated ${updatedCount} product(s) with latest stock information`);
+            }
+        }
+        
+        // Function to check for inventory updates
+        async function checkInventoryUpdates() {
+            try {
+                const url = `get_inventory_updates.php?last_check=${lastInventoryCheck}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update last check timestamp to server's time
+                    if (data.server_time) {
+                        lastInventoryCheck = data.server_time;
+                    }
+                    
+                    // Only update UI if there are actual changes
+                    if (data.has_updates && data.inventory && data.inventory.length > 0) {
+                        updateInventoryDisplay(data.inventory);
+                        
+                        // Log update source for debugging
+                        if (data.update_source) {
+                            console.log(`[Inventory] Update triggered by: ${data.update_source}`);
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                console.error('[Inventory] Error checking for updates:', error);
+                // Continue silently - don't disrupt user experience
+            }
+        }
+        
+        // Start polling for inventory updates
+        function startInventoryPolling() {
+            // Initial check
+            checkInventoryUpdates();
+            
+            // Poll every 15 seconds for inventory updates
+            inventoryUpdateInterval = setInterval(checkInventoryUpdates, 15000);
+            
+            console.log('[Inventory] Real-time inventory updates enabled');
+        }
+        
+        // Stop polling (cleanup)
+        function stopInventoryPolling() {
+            if (inventoryUpdateInterval) {
+                clearInterval(inventoryUpdateInterval);
+                inventoryUpdateInterval = null;
+                console.log('[Inventory] Real-time inventory updates disabled');
+            }
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            startInventoryPolling();
+            
+            // Stop polling when page is hidden/unloaded to save resources
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    stopInventoryPolling();
+                } else {
+                    startInventoryPolling();
+                }
+            });
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', function() {
+                stopInventoryPolling();
+            });
+        });
+    })();
+    </script>
+    
+    <style>
+        /* Stock update animation */
+        @keyframes stockUpdate {
+            0%, 100% {
+                background-color: transparent;
+            }
+            50% {
+                background-color: rgba(76, 175, 80, 0.3);
+            }
+        }
+        
+        /* New product fade-in animation */
+        @keyframes productFadeIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.95) translateY(-10px);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        .product-fade-in {
+            animation: productFadeIn 0.6s ease-out;
+        }
+        
+        .new-product-highlight {
+            opacity: 0;
+        }
+        
+        /* Out of stock badge */
+        .out-of-stock-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(244, 67, 54, 0.95);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .out-of-stock-badge i {
+            font-size: 1.1em;
+        }
+    </style>
 </body>
 
 </html>

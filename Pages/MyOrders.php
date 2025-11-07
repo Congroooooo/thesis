@@ -357,23 +357,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                                 </div>
                             </div>
                             <?php if (in_array($order['status'], ['approved', 'completed'])): ?>
-                                <div style="margin-top: 1rem; text-align: right; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
-                                    <?php
-                                    // Check if exchange is eligible (within 24 hours)
-                                    $order_time = strtotime($order['created_at']);
-                                    $current_time = time();
-                                    $hours_passed = ($current_time - $order_time) / 3600;
-                                    $can_exchange = ($hours_passed <= 24);
-                                    
-                                    if ($can_exchange):
-                                    ?>
-                                        <button onclick="openExchangeModal(<?php echo $order['id']; ?>)" class="exchange-btn-trigger" style="background: #764ba2; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; border: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                                            <i class="fas fa-exchange-alt"></i> Request Exchange
-                                        </button>
+                                <div class="action-buttons-container" style="margin-top: 1rem; text-align: right; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                                    <?php if ($order['status'] === 'approved'): ?>
+                                        <!-- For APPROVED orders: Show Download Receipt button only -->
+                                        <a href="../Backend/generate_receipt.php?order_id=<?php echo $order['id']; ?>" class="download-receipt-btn" target="_blank" style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
+                                            <i class="fas fa-file-pdf"></i> Download Receipt
+                                        </a>
+                                    <?php elseif ($order['status'] === 'completed'): ?>
+                                        <!-- For COMPLETED orders: Show Request Exchange button only (if within 24 hours) -->
+                                        <?php
+                                        $order_time = strtotime($order['created_at']);
+                                        $current_time = time();
+                                        $hours_passed = ($current_time - $order_time) / 3600;
+                                        $can_exchange = ($hours_passed <= 24);
+                                        
+                                        if ($can_exchange):
+                                        ?>
+                                            <button onclick="openExchangeModal(<?php echo $order['id']; ?>)" class="exchange-btn-trigger" style="background: #764ba2; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; border: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                                <i class="fas fa-exchange-alt"></i> Request Exchange
+                                            </button>
+                                        <?php endif; ?>
                                     <?php endif; ?>
-                                    <a href="../Backend/generate_receipt.php?order_id=<?php echo $order['id']; ?>" class="download-receipt-btn" target="_blank" style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
-                                        <i class="fas fa-file-pdf"></i> Download Receipt
-                                    </a>
                                 </div>
                             <?php endif; ?>
                             
@@ -619,14 +623,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
             
             items.forEach(item => {
                 const cleanName = item.item_name ? item.item_name.replace(/\s[SMLX234567]+$/, '') : '';
+                // Use resolved image path from backend or fallback to default
+                const imageSrc = item.resolved_image_path || (item.image_path ? `../${item.image_path}` : '../uploads/itemlist/default.jpg');
                 itemsHtml += `
                     <div class="order-item">
-                        <img src="../Images/${item.image_path || 'default.jpg'}" alt="${item.item_name || 'Item'}">
-                        <div class="item-details">
-                            <p class="item-name">${cleanName}</p>
-                            <p class="item-info">${item.size || 'N/A'} - Qty: ${item.quantity || 0}</p>
-                            <p class="item-price">₱${parseFloat(item.price || 0).toFixed(2)}</p>
+                        <div class="item-image">
+                            <img src="${imageSrc}" alt="${cleanName}" onerror="this.src='../uploads/itemlist/default.jpg'">
                         </div>
+                        <div class="item-details">
+                            <span class="item-name">${cleanName}</span>
+                        </div>
+                        <div class="item-size">${item.size || 'N/A'}</div>
+                        <div class="item-quantity">${item.quantity || 0}</div>
+                        <div class="item-price">₱${parseFloat(item.price || 0).toFixed(2)}</div>
                     </div>
                 `;
             });
@@ -640,39 +649,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                     <div class="rejection-content">${order.rejection_reason.replace(/\n/g, '<br>')}</div>
                 </div>` : '';
 
+            // Calculate if order can be exchanged (completed + within 24 hours)
+            const orderTime = new Date(order.created_at).getTime();
+            const currentTime = new Date().getTime();
+            const hoursPassed = (currentTime - orderTime) / (1000 * 60 * 60);
+            const canExchange = (order.status === 'completed' && hoursPassed <= 24);
+
             return `
-                <div class="order-card">
+                <div class="order-card" data-order-id="${order.id}">
                     <div class="order-header">
-                        <h2>Order #${order.order_number || 'N/A'}</h2>
-                        <div class="order-status">
-                            <span class="status-badge ${getStatusBadgeClass(order.status)}">${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}</span>
+                        <div class="order-info">
+                            <h3>Order #${order.order_number || 'N/A'}</h3>
+                            <div class="order-date">
+                                <i class="fas fa-calendar"></i>
+                                ${order.formatted_date || 'Unknown date'}
+                                ${order.formatted_payment_date && order.status === 'completed' ? `
+                                    <br>
+                                    <i class="fas fa-money-bill"></i>
+                                    <span class="payment-date">Paid: ${order.formatted_payment_date}</span>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="order-actions">
+                            <span class="status-badge ${order.status}">${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}</span>
+                            ${order.status === 'pending' ? `
+                                <form method="post" onsubmit="return confirm('Are you sure you want to cancel this order?');" style="display:inline;">
+                                    <input type="hidden" name="cancel_order_id" value="${order.id}">
+                                    <button type="submit" class="cancel-btn">Cancel Order</button>
+                                </form>
+                            ` : ''}
                         </div>
                     </div>
-                    ${rejectionReason}
                     
-                    <div class="order-info">
-                        <p><i class="fas fa-calendar"></i> ${order.formatted_date || 'Unknown date'}</p>
-                        ${order.formatted_payment_date ? `<p><i class="fas fa-credit-card"></i> Paid: ${order.formatted_payment_date}</p>` : ''}
-                    </div>
+                    ${rejectionReason}
 
-                    <div class="order-items">
+                    <div class="order-details">
                         ${itemsHtml}
                     </div>
-                    ${rejectionReason}
                     
                     <div class="order-footer">
                         <div class="total-amount">
-                            <strong>Total: ₱${order.formatted_total || '0.00'}</strong>
+                            <strong>Total Amount:</strong>
+                            <span>₱${order.formatted_total || '0.00'}</span>
                         </div>
-                        ${order.status === 'pending' ? `
-                            <form method="POST" style="display: inline;">
-                                <input type="hidden" name="cancel_order_id" value="${order.id}">
-                                <button type="submit" class="cancel-btn" onclick="return confirm('Are you sure you want to cancel this order?')">
-                                    <i class="fas fa-times"></i> Cancel Order
-                                </button>
-                            </form>
-                        ` : ''}
                     </div>
+                    
+                    ${(order.status === 'approved' || order.status === 'completed') ? `
+                        <div class="action-buttons-container" style="margin-top: 1rem; text-align: right; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                            ${order.status === 'approved' ? `
+                                <a href="../Backend/generate_receipt.php?order_id=${order.id}" 
+                                   class="download-receipt-btn" 
+                                   target="_blank" 
+                                   style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
+                                    <i class="fas fa-file-pdf"></i> Download Receipt
+                                </a>
+                            ` : ''}
+                            ${order.status === 'completed' && canExchange ? `
+                                <button onclick="openExchangeModal(${order.id})" class="exchange-btn-trigger" style="background: #764ba2; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; border: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                    <i class="fas fa-exchange-alt"></i> Request Exchange
+                                </button>
+                            ` : ''}
+                        </div>
+                    ` : ''}
                 </div>
             `;
         }
@@ -755,8 +793,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                 setTimeout(() => statusBadge.style.animation = '', 500);
             }
 
-            // Rejection reason is now handled in a separate box below the header
-            // No need to add it to the order-header anymore
+            // Update rejection reason visibility
+            const orderHeader = cardElement.querySelector('.order-header');
+            const existingRejectionBox = cardElement.querySelector('.rejection-reason-box');
+            
+            if (order.status === 'rejected' && order.rejection_reason) {
+                if (!existingRejectionBox) {
+                    // Create rejection reason box
+                    const rejectionBox = document.createElement('div');
+                    rejectionBox.className = 'rejection-reason-box';
+                    rejectionBox.innerHTML = `
+                        <div class="rejection-header">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span>Rejection Reason:</span>
+                        </div>
+                        <div class="rejection-content">${order.rejection_reason}</div>
+                    `;
+                    // Insert after order-header
+                    orderHeader.parentNode.insertBefore(rejectionBox, orderHeader.nextSibling);
+                }
+            } else if (existingRejectionBox) {
+                // Remove rejection box if status is no longer rejected
+                existingRejectionBox.remove();
+            }
 
             // Update payment date if completed
             const orderDate = cardElement.querySelector('.order-date');
@@ -778,7 +837,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
             }
 
             // Update cancel button visibility based on status
-            const existingForm = orderHeader.querySelector('form');
+            const orderActions = cardElement.querySelector('.order-actions');
+            const existingForm = orderActions ? orderActions.querySelector('form') : null;
             
             if (order.status === 'pending' && !existingForm) {
                 // Add cancel button for pending orders
@@ -790,40 +850,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                     <input type="hidden" name="cancel_order_id" value="${order.id}">
                     <button type="submit" class="cancel-btn">Cancel Order</button>
                 `;
-                orderHeader.appendChild(cancelForm);
+                orderActions.appendChild(cancelForm);
             } else if (order.status !== 'pending' && existingForm) {
                 // Remove cancel button for non-pending orders
                 existingForm.remove();
             }
 
-            // Update receipt download button for approved/completed orders
+            // Update action buttons container (Receipt + Exchange buttons)
             const orderFooter = cardElement.querySelector('.order-footer');
-            const existingReceiptBtn = cardElement.querySelector('.download-receipt-btn');
             
-            if ((order.status === 'approved' || order.status === 'completed') && !existingReceiptBtn) {
-                // Add receipt download button for approved/completed orders
-                const receiptDiv = document.createElement('div');
-                receiptDiv.style.marginTop = '1rem';
-                receiptDiv.style.textAlign = 'right';
-                receiptDiv.innerHTML = `
-                    <a href="../Backend/generate_receipt.php?order_id=${order.id}" 
-                       class="download-receipt-btn" 
-                       target="_blank" 
-                       style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
-                        <i class="fas fa-file-pdf"></i> Download Receipt
-                    </a>
-                `;
+            // First, remove ALL existing action button containers to prevent duplicates
+            const existingContainers = cardElement.querySelectorAll('.action-buttons-container');
+            existingContainers.forEach(container => container.remove());
+            
+            // Remove existing container if status is not approved/completed
+            if (!['approved', 'completed'].includes(order.status)) {
+                return; // No need to add buttons
+            }
+            
+            // Create new action buttons container for approved/completed orders
+            const actionButtonsContainer = document.createElement('div');
+            actionButtonsContainer.className = 'action-buttons-container';
+            actionButtonsContainer.style.cssText = 'margin-top: 1rem; text-align: right; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;';
+            orderFooter.parentNode.insertBefore(actionButtonsContainer, orderFooter.nextSibling);
+            
+            // For APPROVED orders: Show Download Receipt button only
+            if (order.status === 'approved') {
+                const receiptBtn = document.createElement('a');
+                receiptBtn.href = `../Backend/generate_receipt.php?order_id=${order.id}`;
+                receiptBtn.className = 'download-receipt-btn';
+                receiptBtn.target = '_blank';
+                receiptBtn.style.cssText = 'background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;';
+                receiptBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Download Receipt';
+                actionButtonsContainer.appendChild(receiptBtn);
+            }
+            
+            // For COMPLETED orders: Show Request Exchange button only (if within 24 hours)
+            if (order.status === 'completed') {
+                // Calculate if order is within exchange window (24 hours)
+                const orderTime = new Date(order.created_at).getTime();
+                const currentTime = new Date().getTime();
+                const hoursPassed = (currentTime - orderTime) / (1000 * 60 * 60);
                 
-                // Insert after order-footer
-                orderFooter.parentNode.insertBefore(receiptDiv, orderFooter.nextSibling);
-            } else if (!(['approved', 'completed'].includes(order.status)) && existingReceiptBtn) {
-                // Remove receipt button for non-approved/completed orders
-                const receiptDiv = existingReceiptBtn.parentElement;
-                if (receiptDiv) {
-                    receiptDiv.remove();
+                if (hoursPassed <= 24) {
+                    const exchangeBtn = document.createElement('button');
+                    exchangeBtn.onclick = () => openExchangeModal(order.id);
+                    exchangeBtn.className = 'exchange-btn-trigger';
+                    exchangeBtn.style.cssText = 'background: #764ba2; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; border: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;';
+                    exchangeBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Request Exchange';
+                    actionButtonsContainer.appendChild(exchangeBtn);
                 }
             }
-
         }
 
         function createOrderCardElement(order) {
@@ -832,63 +909,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
             
             items.forEach(item => {
                 const cleanName = item.item_name ? item.item_name.replace(/\s[SMLX234567]+$/, '') : '';
+                // Use resolved image path from backend or fallback to default
+                const imageSrc = item.resolved_image_path || (item.image_path ? `../${item.image_path}` : '../uploads/itemlist/default.jpg');
                 itemsHtml += `
                     <div class="order-item">
-                        <img src="../Images/${item.image_path || 'default.jpg'}" alt="${item.item_name || 'Item'}">
-                        <div class="item-details">
-                            <p class="item-name">${cleanName}</p>
-                            <p class="item-info">${item.size || 'N/A'} - Qty: ${item.quantity || 0}</p>
-                            <p class="item-price">₱${parseFloat(item.price || 0).toFixed(2)}</p>
+                        <div class="item-image">
+                            <img src="${imageSrc}" alt="${cleanName}" onerror="this.src='../uploads/itemlist/default.jpg'">
                         </div>
+                        <div class="item-details">
+                            <span class="item-name">${cleanName}</span>
+                        </div>
+                        <div class="item-size">${item.size || 'N/A'}</div>
+                        <div class="item-quantity">${item.quantity || 0}</div>
+                        <div class="item-price">₱${parseFloat(item.price || 0).toFixed(2)}</div>
                     </div>
                 `;
             });
 
-            const rejectionReason = order.rejection_reason ? 
-                `<div class="rejection-reason">Reason: ${order.rejection_reason}</div>` : '';
+            const rejectionReason = order.rejection_reason && order.status === 'rejected' ? 
+                `<div class="rejection-reason-box">
+                    <div class="rejection-header">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>Rejection Reason:</span>
+                    </div>
+                    <div class="rejection-content">${order.rejection_reason}</div>
+                </div>` : '';
+
+            // Calculate if order can be exchanged (completed + within 24 hours)
+            const orderTime = new Date(order.created_at).getTime();
+            const currentTime = new Date().getTime();
+            const hoursPassed = (currentTime - orderTime) / (1000 * 60 * 60);
+            const canExchange = (order.status === 'completed' && hoursPassed <= 24);
 
             const orderCard = document.createElement('div');
             orderCard.className = 'order-card';
             orderCard.setAttribute('data-order-id', order.id);
             orderCard.innerHTML = `
                 <div class="order-header">
-                    <h2>Order #${order.order_number || 'N/A'}</h2>
-                    <div class="order-status">
-                        <span class="status-badge ${getStatusBadgeClass(order.status)}">${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}</span>
+                    <div class="order-info">
+                        <h3>Order #${order.order_number || 'N/A'}</h3>
+                        <div class="order-date">
+                            <i class="fas fa-calendar"></i>
+                            ${order.formatted_date || 'Unknown date'}
+                            ${order.formatted_payment_date && order.status === 'completed' ? `
+                                <br>
+                                <i class="fas fa-money-bill"></i>
+                                <span class="payment-date">Paid: ${order.formatted_payment_date}</span>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="order-actions">
+                        <span class="status-badge ${order.status}">${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}</span>
+                        ${order.status === 'pending' ? `
+                            <form method="post" onsubmit="return confirm('Are you sure you want to cancel this order?');" style="display:inline;">
+                                <input type="hidden" name="cancel_order_id" value="${order.id}">
+                                <button type="submit" class="cancel-btn">Cancel Order</button>
+                            </form>
+                        ` : ''}
                     </div>
                 </div>
                 
-                <div class="order-info">
-                    <p><i class="fas fa-calendar"></i> ${order.formatted_date || 'Unknown date'}</p>
-                    ${order.formatted_payment_date ? `<p class="payment-info"><i class="fas fa-credit-card"></i> Paid: ${order.formatted_payment_date}</p>` : ''}
-                </div>
+                ${rejectionReason}
 
-                <div class="order-items">
+                <div class="order-details">
                     ${itemsHtml}
                 </div>
-                ${rejectionReason}
                 
                 <div class="order-footer">
                     <div class="total-amount">
-                        <strong>Total: ₱${order.formatted_total || '0.00'}</strong>
+                        <strong>Total Amount:</strong>
+                        <span>₱${order.formatted_total || '0.00'}</span>
                     </div>
-                    ${order.status === 'pending' ? `
-                        <form method="POST" style="display: inline;">
-                            <input type="hidden" name="cancel_order_id" value="${order.id}">
-                            <button type="submit" class="cancel-btn" onclick="return confirm('Are you sure you want to cancel this order?')">
-                                <i class="fas fa-times"></i> Cancel Order
-                            </button>
-                        </form>
-                    ` : ''}
                 </div>
+                
                 ${(order.status === 'approved' || order.status === 'completed') ? `
-                    <div style="margin-top: 1rem; text-align: right;">
-                        <a href="../Backend/generate_receipt.php?order_id=${order.id}" 
-                           class="download-receipt-btn" 
-                           target="_blank" 
-                           style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
-                            <i class="fas fa-file-pdf"></i> Download Receipt
-                        </a>
+                    <div class="action-buttons-container" style="margin-top: 1rem; text-align: right; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                        ${order.status === 'approved' ? `
+                            <a href="../Backend/generate_receipt.php?order_id=${order.id}" 
+                               class="download-receipt-btn" 
+                               target="_blank" 
+                               style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
+                                <i class="fas fa-file-pdf"></i> Download Receipt
+                            </a>
+                        ` : ''}
+                        ${order.status === 'completed' && canExchange ? `
+                            <button onclick="openExchangeModal(${order.id})" class="exchange-btn-trigger" style="background: #764ba2; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; border: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-exchange-alt"></i> Request Exchange
+                            </button>
+                        ` : ''}
                     </div>
                 ` : ''}
             `;

@@ -302,8 +302,9 @@ class MonthlyInventoryManager {
             (period_id, item_code, beginning_quantity, new_delivery_total, sales_total, ending_quantity)
             VALUES (?, ?, 0, ?, 0, ?)
             ON DUPLICATE KEY UPDATE
+                beginning_quantity = 0,
                 new_delivery_total = new_delivery_total + VALUES(new_delivery_total),
-                ending_quantity = beginning_quantity + new_delivery_total - sales_total
+                ending_quantity = 0 + new_delivery_total - sales_total
         ");
         $stmt->execute([$periodId, $itemCode, $initialQuantity, $initialQuantity]);
 

@@ -455,9 +455,6 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    // Debug logging
-    console.log("Active subcategories:", activeSubcategories);
-
     productContainers.forEach((container) => {
       const productCategory = container.dataset.category.toLowerCase();
       const itemName = container.dataset.itemName.toLowerCase();
@@ -469,14 +466,6 @@ document.addEventListener("DOMContentLoaded", function () {
         ? container.dataset.subcategories.split(",")
         : [];
       const productShirtTypeId = container.dataset.shirtTypeId;
-
-      // Debug specific products
-      if (itemName.includes("test") || itemName.includes("new")) {
-        console.log("Product:", itemName);
-        console.log("- Category:", productCategory);
-        console.log("- Subcategories:", productSubcats);
-        console.log("- Courses:", productCourses);
-      }
 
       let matchesCategory = false;
       if (activeMainCategories.size > 0) {
@@ -1134,7 +1123,6 @@ async function addToCart(element, customData = null) {
       itemCode = customData.itemCode;
       quantity = customData.quantity;
       size = customData.size;
-      console.log("Using custom data:", customData); // Debug log
     } else {
       // Direct add to cart (for accessories)
       const productContainer = element.closest(".product-container");

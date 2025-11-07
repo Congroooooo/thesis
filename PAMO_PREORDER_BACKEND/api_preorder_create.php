@@ -84,7 +84,7 @@ try {
             FROM account 
             WHERE status = ? 
             AND role_category IN (?, ?, ?)
-            AND (program_abbreviation IS NULL OR program_abbreviation NOT IN (?, ?))
+            AND (program_or_position IS NULL OR program_or_position NOT IN (?, ?))
         ');
         $customerStmt->execute(['active', 'COLLEGE STUDENT', 'SHS', 'EMPLOYEE', 'PAMO', 'ADMIN']);
         $customers = $customerStmt->fetchAll(PDO::FETCH_ASSOC);
