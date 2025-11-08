@@ -1570,8 +1570,6 @@ $is_logged_in = isset($_SESSION['user_id']);
                     newProductCard.classList.remove('product-fade-in');
                 }, 1000);
             }
-            
-            console.log(`[Inventory] New product added to display: ${productName} (${baseItemCode})`);
         }
         
         // Function to update inventory quantities in the UI
@@ -1589,17 +1587,27 @@ $is_logged_in = isset($_SESSION['user_id']);
                 
                 // Check if this is a completely new product (not in DOM)
                 if (productContainers.length === 0 && totalStock > 0) {
-                    // NEW PRODUCT DETECTED - Create product card dynamically
                     createNewProductCard(update);
                     updatedCount++;
-                    return; // Skip to next update
+                    return;
                 }
                 
                 productContainers.forEach(container => {
                     const currentStock = parseInt(container.dataset.stock) || 0;
                     
-                    // Only update if stock has changed
-                    if (currentStock !== totalStock) {
+                    // Check if variant stocks have changed (important for exchanges)
+                    let variantsChanged = false;
+                    if (update.variants && update.variants.length > 0) {
+                        const existingStocks = container.dataset.stocks ? container.dataset.stocks.split(',').map(Number) : [];
+                        const newStocks = update.variants.map(v => v.stock);
+                        
+                        // Check if any individual variant stock changed
+                        variantsChanged = existingStocks.length !== newStocks.length || 
+                                         existingStocks.some((stock, idx) => stock !== newStocks[idx]);
+                    }
+                    
+                    // Update if total stock OR individual variant stocks have changed
+                    if (currentStock !== totalStock || variantsChanged) {
                         // Update data attribute
                         container.dataset.stock = totalStock;
                         
@@ -1652,8 +1660,6 @@ $is_logged_in = isset($_SESSION['user_id']);
                                 container.dataset.sizes = allSizes.join(',');
                                 container.dataset.stocks = allStocks.join(',');
                                 container.dataset.prices = allPrices.join(',');
-                                
-                                console.log(`[Inventory] New size(s) added to ${baseItemCode}: ${newItemCodes.join(', ')}`);
                             } else {
                                 // No new sizes - just update stocks in existing order
                                 const updatedStocks = existingItemCodes.map(code => {
@@ -1690,15 +1696,17 @@ $is_logged_in = isset($_SESSION['user_id']);
                         }
                         
                         updatedCount++;
+                        
+                        // Check if modal is open for this product and refresh it
+                        const modal = document.getElementById('sizeModal');
+                        if (modal && modal.style.display === 'block' && currentProduct && currentProduct.itemCode === baseItemCode) {
+                            showSizeModal(container.querySelector('.cart'));
+                        }
                     }
                 });
             });
-            
-            // Show notification if items were updated (optional, can be removed for less intrusive UX)
-            if (updatedCount > 0) {
-                console.log(`[Inventory] Updated ${updatedCount} product(s) with latest stock information`);
-            }
         }
+        
         
         // Function to check for inventory updates
         async function checkInventoryUpdates() {
@@ -1713,53 +1721,37 @@ $is_logged_in = isset($_SESSION['user_id']);
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Update last check timestamp to server's time
                     if (data.server_time) {
                         lastInventoryCheck = data.server_time;
                     }
                     
-                    // Only update UI if there are actual changes
                     if (data.has_updates && data.inventory && data.inventory.length > 0) {
                         updateInventoryDisplay(data.inventory);
-                        
-                        // Log update source for debugging
-                        if (data.update_source) {
-                            console.log(`[Inventory] Update triggered by: ${data.update_source}`);
-                        }
                     }
                 }
                 
             } catch (error) {
-                console.error('[Inventory] Error checking for updates:', error);
-                // Continue silently - don't disrupt user experience
+                // Continue silently
             }
         }
         
         // Start polling for inventory updates
         function startInventoryPolling() {
-            // Initial check
             checkInventoryUpdates();
-            
-            // Poll every 15 seconds for inventory updates
             inventoryUpdateInterval = setInterval(checkInventoryUpdates, 15000);
-            
-            console.log('[Inventory] Real-time inventory updates enabled');
         }
         
-        // Stop polling (cleanup)
+        // Stop polling
         function stopInventoryPolling() {
             if (inventoryUpdateInterval) {
                 clearInterval(inventoryUpdateInterval);
                 inventoryUpdateInterval = null;
-                console.log('[Inventory] Real-time inventory updates disabled');
             }
         }
         
-        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             startInventoryPolling();
             
-            // Stop polling when page is hidden/unloaded to save resources
             document.addEventListener('visibilitychange', function() {
                 if (document.hidden) {
                     stopInventoryPolling();
@@ -1768,7 +1760,6 @@ $is_logged_in = isset($_SESSION['user_id']);
                 }
             });
             
-            // Cleanup on page unload
             window.addEventListener('beforeunload', function() {
                 stopInventoryPolling();
             });
