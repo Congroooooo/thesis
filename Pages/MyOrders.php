@@ -364,12 +364,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                                             <i class="fas fa-file-pdf"></i> Download Receipt
                                         </a>
                                     <?php elseif ($order['status'] === 'completed'): ?>
-                                        <!-- For COMPLETED orders: Show Request Exchange button only (if within 24 hours) -->
+                                        <!-- For COMPLETED orders: Show Request Exchange button only (if within 24 hours and no existing exchange) -->
                                         <?php
                                         $order_time = strtotime($order['created_at']);
                                         $current_time = time();
                                         $hours_passed = ($current_time - $order_time) / 3600;
-                                        $can_exchange = ($hours_passed <= 24);
+                                        $can_exchange = ($hours_passed <= 24) && empty($order['has_exchange']);
                                         
                                         if ($can_exchange):
                                         ?>
@@ -885,14 +885,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                 actionButtonsContainer.appendChild(receiptBtn);
             }
             
-            // For COMPLETED orders: Show Request Exchange button only (if within 24 hours)
+            // For COMPLETED orders: Show Request Exchange button only (if within 24 hours and no existing exchange)
             if (order.status === 'completed') {
                 // Calculate if order is within exchange window (24 hours)
                 const orderTime = new Date(order.created_at).getTime();
                 const currentTime = new Date().getTime();
                 const hoursPassed = (currentTime - orderTime) / (1000 * 60 * 60);
                 
-                if (hoursPassed <= 24) {
+                // Only show button if within 24 hours AND no existing exchange
+                if (hoursPassed <= 24 && !order.has_exchange) {
                     const exchangeBtn = document.createElement('button');
                     exchangeBtn.onclick = () => openExchangeModal(order.id);
                     exchangeBtn.className = 'exchange-btn-trigger';
@@ -935,11 +936,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                     <div class="rejection-content">${order.rejection_reason}</div>
                 </div>` : '';
 
-            // Calculate if order can be exchanged (completed + within 24 hours)
+            // Calculate if order can be exchanged (completed + within 24 hours + no existing exchange)
             const orderTime = new Date(order.created_at).getTime();
             const currentTime = new Date().getTime();
             const hoursPassed = (currentTime - orderTime) / (1000 * 60 * 60);
-            const canExchange = (order.status === 'completed' && hoursPassed <= 24);
+            const canExchange = (order.status === 'completed' && hoursPassed <= 24 && !order.has_exchange);
 
             const orderCard = document.createElement('div');
             orderCard.className = 'order-card';
