@@ -168,6 +168,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   setupFormValidation();
 
+  // Initialize countdown timer for strike cooldown
+  initializeCooldownTimer();
+
+  // Setup password change enable/disable functionality
+  setupPasswordChangeToggle();
+
   const alerts = document.querySelectorAll(".alert");
   alerts.forEach((alert) => {
     setTimeout(() => {
@@ -176,3 +182,115 @@ document.addEventListener("DOMContentLoaded", function () {
     }, 5000);
   });
 });
+
+// Enable/Disable Password Change Form
+function setupPasswordChangeToggle() {
+  const enableBtn = document.getElementById("enable-password-change");
+  const cancelBtn = document.getElementById("cancel-password-change");
+  const passwordForm = document.getElementById("password-form");
+  const currentPasswordInput = document.getElementById("current_password");
+  const newPasswordInput = document.getElementById("new_password");
+  const confirmPasswordInput = document.getElementById("confirm_password");
+  const submitBtn = document.querySelector(".change-password-btn");
+
+  const toggleButtons = document.querySelectorAll(".password-toggle");
+
+  if (!enableBtn) return;
+
+  // Enable password change
+  enableBtn.addEventListener("click", function () {
+    // Enable all inputs
+    currentPasswordInput.disabled = false;
+    newPasswordInput.disabled = false;
+    confirmPasswordInput.disabled = false;
+    submitBtn.disabled = false;
+
+    // Enable toggle buttons
+    toggleButtons.forEach((btn) => (btn.disabled = false));
+
+    // Show cancel button, hide enable button
+    enableBtn.style.display = "none";
+    cancelBtn.style.display = "inline-block";
+
+    // Focus on first input
+    currentPasswordInput.focus();
+
+    // Add active class to form
+    passwordForm.classList.add("form-active");
+  });
+
+  // Cancel password change
+  cancelBtn.addEventListener("click", function () {
+    // Disable all inputs
+    currentPasswordInput.disabled = true;
+    newPasswordInput.disabled = true;
+    confirmPasswordInput.disabled = true;
+    submitBtn.disabled = true;
+
+    // Disable toggle buttons
+    toggleButtons.forEach((btn) => (btn.disabled = true));
+
+    // Clear all inputs
+    currentPasswordInput.value = "";
+    newPasswordInput.value = "";
+    confirmPasswordInput.value = "";
+
+    // Clear validation messages
+    const validationMessages = passwordForm.querySelectorAll(
+      ".validation-message"
+    );
+    validationMessages.forEach((msg) => msg.remove());
+
+    // Reset password strength meter
+    const strengthMeter = document.getElementById("password-strength-meter");
+    const strengthText = document.getElementById("password-strength-text");
+    if (strengthMeter) strengthMeter.style.width = "0%";
+    if (strengthText) strengthText.textContent = "";
+
+    // Show enable button, hide cancel button
+    enableBtn.style.display = "inline-block";
+    cancelBtn.style.display = "none";
+
+    // Remove active class from form
+    passwordForm.classList.remove("form-active");
+  });
+}
+
+// Countdown Timer for Strike Cooldown
+function initializeCooldownTimer() {
+  const countdownElement = document.querySelector(".countdown-timer");
+
+  if (!countdownElement) return;
+
+  const endTime = parseInt(countdownElement.dataset.endTime);
+
+  function updateCountdown() {
+    const now = Math.floor(Date.now() / 1000);
+    const remaining = endTime - now;
+
+    if (remaining <= 0) {
+      // Cooldown expired, reload page to update UI
+      location.reload();
+      return;
+    }
+
+    const minutes = Math.floor(remaining / 60);
+    const seconds = remaining % 60;
+
+    const display = countdownElement.querySelector(".countdown-display");
+    if (display) {
+      display.textContent = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    }
+  }
+
+  // Update immediately
+  updateCountdown();
+
+  // Update every second
+  const intervalId = setInterval(updateCountdown, 1000);
+
+  // Clean up interval when page unloads
+  window.addEventListener("beforeunload", () => {
+    clearInterval(intervalId);
+  });
+}

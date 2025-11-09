@@ -9,15 +9,20 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 require_once '../Includes/connection.php';
+require_once '../Includes/strike_management.php';
 
+// Fetch user data
 $stmt = $conn->prepare("SELECT * FROM account WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
+// Get strike status information
+$strikeStatus = checkUserStrikeStatus($conn, $_SESSION['user_id'], true);
+
 $isEmployee = strtoupper(trim($user['role_category'] ?? '')) === 'EMPLOYEE';
 $idLabel = $isEmployee ? 'Employee Number' : 'Student ID';
 
-$passwordMessage = '';
+// Handle password change with Post/Redirect/Get pattern
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     $currentPassword = $_POST['current_password'];
     $newPassword = $_POST['new_password'];
@@ -44,22 +49,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                 $updateStmt = $conn->prepare("UPDATE account SET password = ? WHERE id = ?");
                 
                 if ($updateStmt->execute([$hashedPassword, $_SESSION['user_id']])) {
-                    $passwordMessage = '<div class="alert success">Password successfully updated!</div>';
+                    $_SESSION['password_message'] = 'success';
                 } else {
-                    $passwordMessage = '<div class="alert error">Error updating password.</div>';
+                    $_SESSION['password_message'] = 'error';
                 }
             } else {
-                $errorList = implode('<br>', array_map(function($error) {
-                    return '• ' . htmlspecialchars($error);
-                }, $validationErrors));
-                $passwordMessage = '<div class="alert error">Password validation failed:<br>' . $errorList . '</div>';
+                $_SESSION['password_message'] = 'validation_error';
+                $_SESSION['validation_errors'] = $validationErrors;
             }
         } else {
-            $passwordMessage = '<div class="alert error">New passwords do not match!</div>';
+            $_SESSION['password_message'] = 'mismatch';
         }
     } else {
-        $passwordMessage = '<div class="alert error">Current password is incorrect!</div>';
+        $_SESSION['password_message'] = 'incorrect';
     }
+    
+    // Redirect to prevent form resubmission
+    header("Location: profile.php");
+    exit();
+}
+
+// Display password messages from session
+$passwordMessage = '';
+if (isset($_SESSION['password_message'])) {
+    switch ($_SESSION['password_message']) {
+        case 'success':
+            $passwordMessage = '<div class="alert success">Password successfully updated!</div>';
+            break;
+        case 'error':
+            $passwordMessage = '<div class="alert error">Error updating password.</div>';
+            break;
+        case 'validation_error':
+            $errorList = implode('<br>', array_map(function($error) {
+                return '• ' . htmlspecialchars($error);
+            }, $_SESSION['validation_errors'] ?? []));
+            $passwordMessage = '<div class="alert error">Password validation failed:<br>' . $errorList . '</div>';
+            unset($_SESSION['validation_errors']);
+            break;
+        case 'mismatch':
+            $passwordMessage = '<div class="alert error">New passwords do not match!</div>';
+            break;
+        case 'incorrect':
+            $passwordMessage = '<div class="alert error">Current password is incorrect!</div>';
+            break;
+    }
+    unset($_SESSION['password_message']);
 }
 ?>
 
@@ -94,6 +128,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         </div>
 
         <div class="profile-content">
+            <!-- Strike Status Section -->
+            <div class="strike-status-section">
+                <h2>Account Status</h2>
+                <?php
+                $strikeCount = $strikeStatus['strikes'];
+                $strikeClass = '';
+                $strikeLabel = '';
+                
+                // Determine color class based on strike count
+                switch($strikeCount) {
+                    case 0:
+                        $strikeClass = 'strike-green';
+                        $strikeLabel = 'Good Standing';
+                        break;
+                    case 1:
+                        $strikeClass = 'strike-blue';
+                        $strikeLabel = 'Warning Level 1';
+                        break;
+                    case 2:
+                        $strikeClass = 'strike-orange';
+                        $strikeLabel = 'Warning Level 2';
+                        break;
+                    case 3:
+                    default:
+                        $strikeClass = 'strike-red';
+                        $strikeLabel = 'Account Restricted';
+                        break;
+                }
+                ?>
+                
+                <div class="strike-display <?php echo $strikeClass; ?>">
+                    <div class="strike-columns">
+                        <!-- Left Column: Strike Information -->
+                        <div class="strike-info-column">
+                            <div class="strike-header">
+                                <span class="strike-icon">
+                                    <?php if ($strikeCount == 0): ?>
+                                        <i class="fas fa-check-circle"></i>
+                                    <?php elseif ($strikeCount < 3): ?>
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    <?php else: ?>
+                                        <i class="fas fa-ban"></i>
+                                    <?php endif; ?>
+                                </span>
+                                <div class="strike-info">
+                                    <h3><?php echo $strikeLabel; ?></h3>
+                                    <p class="strike-count">Strike Count: <strong><?php echo $strikeCount; ?> / 3</strong></p>
+                                </div>
+                            </div>
+                            
+                            <div class="strike-details">
+                                <?php if ($strikeCount == 0): ?>
+                                    <p>✓ Your account is in good standing.</p>
+                                    <p>Continue to claim your orders within the time limit to maintain this status.</p>
+                                <?php elseif ($strikeCount == 1): ?>
+                                    <p>⚠️ You have received 1 strike for an unclaimed order.</p>
+                                    <p>2 more strikes will result in account deactivation.</p>
+                                <?php elseif ($strikeCount == 2): ?>
+                                    <p>⚠️ You have received 2 strikes for unclaimed orders.</p>
+                                    <p><strong>Warning:</strong> 1 more strike will deactivate your account.</p>
+                                <?php else: ?>
+                                    <p>❌ Your account has been deactivated due to 3 strikes.</p>
+                                    <p>Please contact the administrator to reactivate your account.</p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Column: Countdown Timer -->
+                        <?php if ($strikeStatus['temporary_block'] && $strikeStatus['remaining_cooldown'] > 0): ?>
+                            <div class="cooldown-column">
+                                <div class="cooldown-alert">
+                                    <div class="cooldown-icon">⏳</div>
+                                    <div class="cooldown-message">
+                                        <p><strong>Temporary Order Restriction</strong></p>
+                                        <p>You can place a new order in:</p>
+                                        <div class="countdown-timer" 
+                                             data-cooldown="<?php echo $strikeStatus['remaining_cooldown']; ?>"
+                                             data-end-time="<?php echo time() + $strikeStatus['remaining_cooldown']; ?>">
+                                            <span class="countdown-display">--:--</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
             <div class="info-section">
                 <h2>Personal Information</h2>
                 <div class="info-grid">
@@ -122,6 +244,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                 <h2>Change Password</h2>
                 <?php echo $passwordMessage; ?>
                 
+                <!-- Enable Password Change Button -->
+                <button type="button" id="enable-password-change" class="enable-change-btn">
+                    <i class="fas fa-key"></i> Change Password
+                </button>
+                
                 <div class="password-requirements">
                     <p><strong>Password Requirements:</strong></p>
                     <ul>
@@ -131,12 +258,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                     </ul>
                 </div>
 
-                <form method="POST" class="password-form">
+                <form method="POST" class="password-form" id="password-form">
                     <div class="form-group">
                         <label for="current_password">Current Password</label>
                         <div class="password-input-wrapper">
-                            <input type="password" id="current_password" name="current_password" required>
-                            <button type="button" class="password-toggle" id="toggle-current-password">
+                            <input type="password" id="current_password" name="current_password" required disabled>
+                            <button type="button" class="password-toggle" id="toggle-current-password" disabled>
                                 <i class="fas fa-eye-slash"></i>
                             </button>
                         </div>
@@ -144,8 +271,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                     <div class="form-group">
                         <label for="new_password">New Password</label>
                         <div class="password-input-wrapper">
-                            <input type="password" id="new_password" name="new_password" required>
-                            <button type="button" class="password-toggle" id="toggle-new-password">
+                            <input type="password" id="new_password" name="new_password" required disabled>
+                            <button type="button" class="password-toggle" id="toggle-new-password" disabled>
                                 <i class="fas fa-eye-slash"></i>
                             </button>
                         </div>
@@ -159,13 +286,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
                     <div class="form-group">
                         <label for="confirm_password">Confirm New Password</label>
                         <div class="password-input-wrapper">
-                            <input type="password" id="confirm_password" name="confirm_password" required>
-                            <button type="button" class="password-toggle" id="toggle-confirm-password">
+                            <input type="password" id="confirm_password" name="confirm_password" required disabled>
+                            <button type="button" class="password-toggle" id="toggle-confirm-password" disabled>
                                 <i class="fas fa-eye-slash"></i>
                             </button>
                         </div>
                     </div>
-                    <button type="submit" name="change_password" class="change-password-btn">Update Password</button>
+                    <div class="form-actions">
+                        <button type="submit" name="change_password" class="change-password-btn" disabled>Update Password</button>
+                        <button type="button" id="cancel-password-change" class="cancel-password-btn" style="display: none;">Cancel</button>
+                    </div>
                 </form>
             </div>
         </div>
