@@ -10,32 +10,49 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once '../Includes/connection.php';
 
-// Fetch user data
 $stmt = $conn->prepare("SELECT * FROM account WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Determine if user is an employee
 $isEmployee = strtoupper(trim($user['role_category'] ?? '')) === 'EMPLOYEE';
 $idLabel = $isEmployee ? 'Employee Number' : 'Student ID';
 
-// Handle password change
 $passwordMessage = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     $currentPassword = $_POST['current_password'];
     $newPassword = $_POST['new_password'];
     $confirmPassword = $_POST['confirm_password'];
 
-    // Verify current password
     if (password_verify($currentPassword, $user['password'])) {
         if ($newPassword === $confirmPassword) {
-            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-            $updateStmt = $conn->prepare("UPDATE account SET password = ? WHERE id = ?");
-            
-            if ($updateStmt->execute([$hashedPassword, $_SESSION['user_id']])) {
-                $passwordMessage = '<div class="alert success">Password successfully updated!</div>';
+            $validationErrors = [];
+            if (strlen($newPassword) < 12) {
+                $validationErrors[] = 'Password must be at least 12 characters long';
+            }
+            if (strlen($newPassword) > 64) {
+                $validationErrors[] = 'Password must not exceed 64 characters';
+            }
+            $digitCount = preg_match_all('/\d/', $newPassword);
+            if ($digitCount < 2) {
+                $validationErrors[] = 'Password must contain at least 2 numeric digits';
+            }
+            if (preg_match('/\s/', $newPassword)) {
+                $validationErrors[] = 'Password must not contain spaces';
+            }
+            if (empty($validationErrors)) {
+                $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+                $updateStmt = $conn->prepare("UPDATE account SET password = ? WHERE id = ?");
+                
+                if ($updateStmt->execute([$hashedPassword, $_SESSION['user_id']])) {
+                    $passwordMessage = '<div class="alert success">Password successfully updated!</div>';
+                } else {
+                    $passwordMessage = '<div class="alert error">Error updating password.</div>';
+                }
             } else {
-                $passwordMessage = '<div class="alert error">Error updating password.</div>';
+                $errorList = implode('<br>', array_map(function($error) {
+                    return '• ' . htmlspecialchars($error);
+                }, $validationErrors));
+                $passwordMessage = '<div class="alert error">Password validation failed:<br>' . $errorList . '</div>';
             }
         } else {
             $passwordMessage = '<div class="alert error">New passwords do not match!</div>';
@@ -104,18 +121,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
             <div class="password-section">
                 <h2>Change Password</h2>
                 <?php echo $passwordMessage; ?>
+                
+                <div class="password-requirements">
+                    <p><strong>Password Requirements:</strong></p>
+                    <ul>
+                        <li>12-64 characters long</li>
+                        <li>At least 2 numeric digits</li>
+                        <li>No spaces allowed</li>
+                    </ul>
+                </div>
+
                 <form method="POST" class="password-form">
                     <div class="form-group">
                         <label for="current_password">Current Password</label>
-                        <input type="password" id="current_password" name="current_password" required>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="current_password" name="current_password" required>
+                            <button type="button" class="password-toggle" id="toggle-current-password">
+                                <i class="fas fa-eye-slash"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="new_password">New Password</label>
-                        <input type="password" id="new_password" name="new_password" required>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="new_password" name="new_password" required>
+                            <button type="button" class="password-toggle" id="toggle-new-password">
+                                <i class="fas fa-eye-slash"></i>
+                            </button>
+                        </div>
+                        <div class="password-strength">
+                            <div class="password-strength-meter">
+                                <div id="password-strength-meter" class="strength-bar"></div>
+                            </div>
+                            <span id="password-strength-text" class="strength-text"></span>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="confirm_password">Confirm New Password</label>
-                        <input type="password" id="confirm_password" name="confirm_password" required>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="confirm_password" name="confirm_password" required>
+                            <button type="button" class="password-toggle" id="toggle-confirm-password">
+                                <i class="fas fa-eye-slash"></i>
+                            </button>
+                        </div>
                     </div>
                     <button type="submit" name="change_password" class="change-password-btn">Update Password</button>
                 </form>
@@ -123,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         </div>
     </div>
 
-    <!-- Include cart functionality -->
     <script src="../Javascript/cart.js"></script>
+    <script src="../Javascript/profile.js"></script>
 </body>
 </html>
