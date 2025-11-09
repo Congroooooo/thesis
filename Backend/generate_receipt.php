@@ -1,6 +1,7 @@
 <?php
 require_once '../Includes/connection.php';
 require_once '../vendor/autoload.php';
+require_once '../Includes/cashier_session_manager.php';
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -50,6 +51,10 @@ foreach ($order_items as $item) {
 }
 $preparedBy = isset($order['approved_by']) ? htmlspecialchars($order['approved_by']) : '';
 
+// Get cashier name for the order date
+$orderDateOnly = date('Y-m-d', strtotime($order['created_at']));
+$cashierName = getCashierByDate($conn, $orderDateOnly);
+
 $logo_path = realpath(__DIR__ . '/../Images/STI-LOGO.png');
 $logo_data = $logo_path && file_exists($logo_path) ? base64_encode(file_get_contents($logo_path)) : '';
 $logo_src = $logo_data ? 'data:image/png;base64,' . $logo_data : '';
@@ -82,7 +87,7 @@ body { font-family: Arial, sans-serif; font-size: 12px; }
 .receipt-footer-total { text-align: right; font-size: 1.05em; font-weight: bold; padding-top: 10px; }
 </style>';
 
-function renderReceipt($copyLabel, $logo_src, $studentName, $studentIdNumber, $transactionNumber, $orderDate, $order_items, $totalAmount, $preparedBy, $isEmployee = false) {
+function renderReceipt($copyLabel, $logo_src, $studentName, $studentIdNumber, $transactionNumber, $orderDate, $order_items, $totalAmount, $preparedBy, $cashierName, $isEmployee = false) {
     $dataRows = '';
     $rowspan = count($order_items);
     foreach ($order_items as $i => $item) {
@@ -104,7 +109,7 @@ function renderReceipt($copyLabel, $logo_src, $studentName, $studentIdNumber, $t
                     <tr><td class="sig-label">Prepared by:</td></tr>
                     <tr><td class="sig-box">' . $preparedBy . '</td></tr>
                     <tr><td class="sig-label">OR Issued by:</td></tr>
-                    <tr><td class="sig-box"><br><span style="font-weight:bold;">Cashier</span></td></tr>
+                    <tr><td class="sig-box">' . htmlspecialchars($cashierName) . '</td></tr>
                     <tr><td class="sig-label">Released by & date:</td></tr>
                     <tr><td class="sig-box"></td></tr>
                     <tr><td class="sig-label">RECEIVED BY:</td></tr>
@@ -181,7 +186,7 @@ function renderReceipt($copyLabel, $logo_src, $studentName, $studentIdNumber, $t
 }
 
 $html = '<html><head><meta charset="UTF-8">' . $css . '</head><body>';
-$html .= renderReceipt('COPY', $logo_src, $studentName, $studentIdNumber, $transactionNumber, $orderDate, $order_items, $totalAmount, $preparedBy, $isEmployee);
+$html .= renderReceipt('COPY', $logo_src, $studentName, $studentIdNumber, $transactionNumber, $orderDate, $order_items, $totalAmount, $preparedBy, $cashierName, $isEmployee);
 $html .= '</body></html>';
 
 $options = new Options();

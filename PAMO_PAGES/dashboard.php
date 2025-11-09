@@ -68,9 +68,11 @@ $low_stock_items = $low_stock_result->fetch(PDO::FETCH_ASSOC)['low_stock'] ?? 0;
         rel="stylesheet">
     <link rel="stylesheet" href="../PAMO CSS/dashboard.css">
     <link rel="stylesheet" href="../CSS/logout-modal.css">
+    <link rel="stylesheet" href="../PAMO CSS/cashier-modal.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="../Javascript/logout-modal.js"></script>
     <script src="../PAMO JS/dashboard.js"></script>
+    <script src="../PAMO_JS/cashier-modal.js"></script>
 </head>
 
 <body>

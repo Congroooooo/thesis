@@ -1,4 +1,7 @@
 <?php
+// Set PHP timezone to Philippines (UTC+8)
+date_default_timezone_set('Asia/Manila');
+
 $host = 'mysql-nicko.alwaysdata.net';
 $db = 'nicko_proware';
 $user = 'nicko';

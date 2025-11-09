@@ -343,7 +343,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Update order status
         if ($status === 'approved') {
-            $staff_name = isset($_SESSION['first_name'], $_SESSION['last_name']) ? $_SESSION['first_name'] . ' ' . $_SESSION['last_name'] : '';
+            $staff_name = isset($_SESSION['name']) ? $_SESSION['name'] : '';
             $updateStmt = $conn->prepare("UPDATE orders SET status = ?, approved_by = ?, updated_at = NOW() WHERE id = ?");
             if (!$updateStmt->execute([$status, $staff_name, $order_id])) {
                 throw new Exception('Failed to update order status with staff name');
@@ -368,7 +368,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             // If approved_by is still NULL, set it now
             if (empty($order['approved_by'])) {
-                $staff_name = isset($_SESSION['first_name'], $_SESSION['last_name']) ? $_SESSION['first_name'] . ' ' . $_SESSION['last_name'] : '';
+                $staff_name = isset($_SESSION['name']) ? $_SESSION['name'] : '';
                 if ($staff_name) {
                     $setStaffStmt = $conn->prepare("UPDATE orders SET approved_by = ? WHERE id = ?");
                     $setStaffStmt->execute([$staff_name, $order_id]);

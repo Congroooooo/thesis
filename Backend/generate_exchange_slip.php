@@ -6,6 +6,7 @@
 
 require_once '../Includes/connection.php';
 require_once '../vendor/autoload.php';
+require_once '../Includes/cashier_session_manager.php';
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -78,6 +79,10 @@ $totalPriceDifference = floatval($exchange['total_price_difference']);
 $adjustmentType = $exchange['adjustment_type'];
 $approvedBy = isset($exchange['approved_by']) ? htmlspecialchars($exchange['approved_by']) : '';
 
+// Get cashier name for the exchange date
+$exchangeDateOnly = date('Y-m-d', strtotime($exchange['exchange_date']));
+$cashierName = getCashierByDate($conn, $exchangeDateOnly);
+
 $logo_path = realpath(__DIR__ . '/../Images/STI-LOGO.png');
 $logo_data = $logo_path && file_exists($logo_path) ? base64_encode(file_get_contents($logo_path)) : '';
 $logo_src = $logo_data ? 'data:image/png;base64,' . $logo_data : '';
@@ -116,7 +121,7 @@ body { font-family: Arial, sans-serif; font-size: 12px; }
 .footer-note { font-size: 0.85em; margin-top: 8px; padding: 6px; background: #f5f5f5; border: 1px solid #ddd; }
 </style>';
 
-function renderExchangeSlip($copyLabel, $logo_src, $studentName, $studentIdNumber, $exchangeNumber, $orderNumber, $exchangeDate, $orderDate, $exchange_items, $totalPriceDifference, $adjustmentType, $approvedBy, $isEmployee = false) {
+function renderExchangeSlip($copyLabel, $logo_src, $studentName, $studentIdNumber, $exchangeNumber, $orderNumber, $exchangeDate, $orderDate, $exchange_items, $totalPriceDifference, $adjustmentType, $approvedBy, $cashierName, $isEmployee = false) {
     
     // Build item rows
     $itemRows = '';
@@ -248,8 +253,8 @@ function renderExchangeSlip($copyLabel, $logo_src, $studentName, $studentIdNumbe
             <div class="line">' . $approvedBy . '</div>
           </div>
           <div class="signature-box">
-            <div class="label">Approved by:</div>
-            <div class="line">PAMO Staff</div>
+            <div class="label">OR Issued by:</div>
+            <div class="line">' . htmlspecialchars($cashierName) . '</div>
           </div>
           <div class="signature-box">
             <div class="label">Customer Signature:</div>
@@ -266,8 +271,8 @@ function renderExchangeSlip($copyLabel, $logo_src, $studentName, $studentIdNumbe
 }
 
 $html = '<html><head><meta charset="UTF-8">' . $css . '</head><body><div class="slip-a4">';
-$html .= renderExchangeSlip('CUSTOMER COPY', $logo_src, $studentName, $studentIdNumber, $exchangeNumber, $orderNumber, $exchangeDate, $orderDate, $exchange_items, $totalPriceDifference, $adjustmentType, $approvedBy, $isEmployee);
-$html .= renderExchangeSlip('SHOP COPY', $logo_src, $studentName, $studentIdNumber, $exchangeNumber, $orderNumber, $exchangeDate, $orderDate, $exchange_items, $totalPriceDifference, $adjustmentType, $approvedBy, $isEmployee);
+$html .= renderExchangeSlip('CUSTOMER COPY', $logo_src, $studentName, $studentIdNumber, $exchangeNumber, $orderNumber, $exchangeDate, $orderDate, $exchange_items, $totalPriceDifference, $adjustmentType, $approvedBy, $cashierName, $isEmployee);
+$html .= renderExchangeSlip('SHOP COPY', $logo_src, $studentName, $studentIdNumber, $exchangeNumber, $orderNumber, $exchangeDate, $orderDate, $exchange_items, $totalPriceDifference, $adjustmentType, $approvedBy, $cashierName, $isEmployee);
 $html .= '</div></body></html>';
 
 $options = new Options();

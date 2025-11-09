@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../Includes/connection.php';
+require_once '../Includes/cashier_session_manager.php';
 require_once '../vendor/autoload.php';
 
 use Dompdf\Dompdf;
@@ -160,6 +161,12 @@ try {
         }
     }
     
+    // Get cashier name for today
+    $cashierName = getTodayCashier($conn);
+    if (empty($cashierName)) {
+        $cashierName = 'Cashier';
+    }
+    
     $isEmployee = ($roleCategory === 'EMPLOYEE');
     
     // Determine labels based on user type (role category)
@@ -205,7 +212,7 @@ try {
                     <tr><td class="sig-label">Prepared by:</td></tr>
                     <tr><td class="sig-box">' . htmlspecialchars($preparedBy) . '</td></tr>
                     <tr><td class="sig-label">OR Issued by:</td></tr>
-                    <tr><td class="sig-box"><br><span style="font-weight:bold;">Cashier</span></td></tr>
+                    <tr><td class="sig-box">' . htmlspecialchars($cashierName) . '</td></tr>
                     <tr><td class="sig-label">Released by & date:</td></tr>
                     <tr><td class="sig-box"></td></tr>
                     <tr><td class="sig-label">RECEIVED BY:</td></tr>

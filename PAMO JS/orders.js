@@ -165,7 +165,6 @@ function showOrderReceipt(orderId) {
   );
 
   if (!order) {
-    alert("[DEBUG] Order not found for orderId: " + orderId);
     return;
   }
 
@@ -177,12 +176,61 @@ function showOrderReceiptWithData(orderId, order) {
   currentOrderId = orderId;
 
   const orderItems = JSON.parse(order.items);
+  // Use approved_by from order if available, otherwise fall back to current PAMO user
   const preparedByName =
-    window.PAMO_USER && window.PAMO_USER.name ? window.PAMO_USER.name : "";
+    order.approved_by ||
+    (window.PAMO_USER && window.PAMO_USER.name ? window.PAMO_USER.name : "");
   const studentName = `${order.first_name} ${order.last_name}`;
   const studentIdNumber = order.id_number || "";
   const transactionNumber = order.order_number || "";
-  const cashierName = order.cashier_name || "";
+
+  // Get cashier name based on order date
+  const orderDate = new Date(order.created_at).toISOString().split("T")[0];
+
+  // Fetch cashier for the order date
+  fetch(`../PAMO_PAGES/get_cashier_status.php?date=${orderDate}`)
+    .then((response) => response.json())
+    .then((cashierData) => {
+      const cashierName = cashierData.is_set
+        ? cashierData.cashier_name
+        : "Cashier";
+      renderReceiptWithData(
+        orderId,
+        order,
+        orderItems,
+        preparedByName,
+        studentName,
+        studentIdNumber,
+        transactionNumber,
+        cashierName
+      );
+    })
+    .catch((error) => {
+      console.error("Error fetching cashier:", error);
+      // Fallback to "Cashier" if fetch fails
+      renderReceiptWithData(
+        orderId,
+        order,
+        orderItems,
+        preparedByName,
+        studentName,
+        studentIdNumber,
+        transactionNumber,
+        "Cashier"
+      );
+    });
+}
+
+function renderReceiptWithData(
+  orderId,
+  order,
+  orderItems,
+  preparedByName,
+  studentName,
+  studentIdNumber,
+  transactionNumber,
+  cashierName
+) {
   const totalAmount = orderItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
@@ -218,7 +266,7 @@ function showOrderReceiptWithData(orderId, order) {
             <tr><td class="sig-label">Prepared by:</td></tr>
             <tr><td class="sig-box">${preparedByName}</td></tr>
             <tr><td class="sig-label">OR Issued by:</td></tr>
-            <tr><td class="sig-box">${cashierName}<br><span style="font-weight:bold;">Cashier</span></td></tr>
+            <tr><td class="sig-box">${cashierName}</td></tr>
             <tr><td class="sig-label">Released by & date:</td></tr>
             <tr><td class="sig-box"></td></tr>
             <tr><td class="sig-label">RECEIVED BY:</td></tr>
