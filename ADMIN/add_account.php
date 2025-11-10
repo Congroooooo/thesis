@@ -17,7 +17,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     $firstName = ucwords(strtolower(trim($_POST['firstName'] ?? '')));
     $lastName = ucwords(strtolower(trim($_POST['lastName'] ?? '')));
-    $extensionName = ucwords(strtolower(trim($_POST['extensionName'] ?? '')));
     $birthday = trim($_POST['birthday'] ?? '');
     $idNumber = trim($_POST['idNumber'] ?? '');
     $role_category = trim($_POST['role_category'] ?? '');
@@ -55,14 +54,13 @@ try {
     $lastSixDigits = substr($idNumber, -6);
     $email = strtolower(str_replace(' ', '', $lastName . '.' . $lastSixDigits . '@lucena.sti.edu.ph'));
 
-    $sql = "INSERT INTO account (first_name, last_name, extension_name, birthday, id_number, email, password, role_category, program_or_position, status, date_created)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)";
+    $sql = "INSERT INTO account (first_name, last_name, birthday, id_number, email, password, role_category, program_or_position, status, date_created)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)";
         $stmt = $conn->prepare($sql);
         $result = $stmt->execute([
             $firstName,
             $lastName,
-        $extensionName !== '' ? $extensionName : null,
-        $birthday,
+            $birthday,
             $idNumber,
             $email,
             $password,

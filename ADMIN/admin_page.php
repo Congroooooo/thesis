@@ -271,9 +271,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             <div class="form-group"><label>Last Name<span class="text-danger" style="color: red;"> *</span></label>
                 <input type="text" name="lastName" id="modalLastName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
             </div>
-            <div class="form-group"><label>Extension Name</label>
-                <input type="text" name="extensionName" id="modalExtensionName" class="form-control" maxlength="10" pattern="^[A-Za-z. \-]*$" title="Only letters, spaces, hyphen, and period (e.g., Jr., Sr., III) are allowed">
-            </div>
             <div class="form-group"><label>Birthday<span class="text-danger" style="color: red;"> *</span></label>
                 <div class="birthday-inputs">
                     <input type="text" name="birthday_month" class="form-control birthday-field" placeholder="MM" maxlength="2" pattern="[0-9]{2}" required>
@@ -327,9 +324,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             </div>
             <div class="form-group"><label>Last Name<span class="text-danger" style="color: red;"> *</span></label>
                 <input type="text" name="lastName" id="employeeModalLastName" class="form-control" required pattern="[A-Za-z\s]+" title="Only letters and spaces are allowed">
-            </div>
-            <div class="form-group"><label>Extension Name</label>
-                <input type="text" name="extensionName" id="employeeModalExtensionName" class="form-control" maxlength="10" pattern="^[A-Za-z. \-]*$" title="Only letters, spaces, hyphen, and period (e.g., Jr., Sr., III) are allowed">
             </div>
             <div class="form-group"><label>Birthday<span class="text-danger" style="color: red;"> *</span></label>
                 <div class="birthday-inputs">
@@ -652,7 +646,6 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
                 } catch(e) { /* silent */ }
             });
             const onlyLetters = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^A-Za-z\s]/g,''); });
-            const onlySuffixChars = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/[^A-Za-z.\s-]/g,''); });
             const onlyDigits = (el)=> el && el.addEventListener('input', ()=>{ el.value = el.value.replace(/\D/g,'').slice(0,11); });
             const onlyDigitsSuffix = (el, maxLength)=> el && el.addEventListener('input', ()=>{ 
                 el.value = el.value.replace(/\D/g,'').slice(0, maxLength);
@@ -668,20 +661,16 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'ADMIN')) {
             });
             onlyLetters(document.getElementById('modalFirstName'));
             onlyLetters(document.getElementById('modalLastName'));
-            onlySuffixChars(document.getElementById('modalExtensionName'));
             onlyDigitsSuffix(document.getElementById('modalIdNumberSuffix'), 6);
 
             capitalizeNames(document.getElementById('modalFirstName'));
             capitalizeNames(document.getElementById('modalLastName'));
-            capitalizeNames(document.getElementById('modalExtensionName'));
 
             onlyLetters(document.getElementById('employeeModalFirstName'));
             onlyLetters(document.getElementById('employeeModalLastName'));
-            onlySuffixChars(document.getElementById('employeeModalExtensionName'));
 
             capitalizeNames(document.getElementById('employeeModalFirstName'));
             capitalizeNames(document.getElementById('employeeModalLastName'));
-            capitalizeNames(document.getElementById('employeeModalExtensionName'));
         }
 
         const addStudentForm = document.getElementById('addStudentAccountFormModal');

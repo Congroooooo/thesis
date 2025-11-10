@@ -17,7 +17,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     $firstName = ucwords(strtolower(trim($_POST['firstName'] ?? '')));
     $lastName = ucwords(strtolower(trim($_POST['lastName'] ?? '')));
-    $extensionName = ucwords(strtolower(trim($_POST['extensionName'] ?? '')));
     $birthday = trim($_POST['birthday'] ?? '');
     $employeeNumber = strtoupper(trim($_POST['employeeNumber'] ?? ''));
     $program_or_position = trim($_POST['program_position'] ?? '');
@@ -61,13 +60,12 @@ try {
         throw new Exception('An account with this email already exists');
     }
 
-    $sql = "INSERT INTO account (first_name, last_name, extension_name, birthday, id_number, email, password, role_category, program_or_position, status, date_created)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'EMPLOYEE', ?, 'active', CURRENT_TIMESTAMP)";
+    $sql = "INSERT INTO account (first_name, last_name, birthday, id_number, email, password, role_category, program_or_position, status, date_created)
+            VALUES (?, ?, ?, ?, ?, ?, 'EMPLOYEE', ?, 'active', CURRENT_TIMESTAMP)";
     $stmt = $conn->prepare($sql);
     $result = $stmt->execute([
         $firstName,
         $lastName,
-        $extensionName !== '' ? $extensionName : null,
         $birthday,
         $employeeNumber,
         $email,
