@@ -1,15 +1,10 @@
 <?php
-/**
- * Reject Exchange Request
- * Admin endpoint to reject an exchange
- */
 
 session_start();
 header('Content-Type: application/json');
 require_once '../Includes/connection.php';
 require_once '../Includes/exchange_helpers.php';
 
-// Check admin access
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
@@ -32,8 +27,7 @@ if (!$exchange_id || !$reason) {
 
 try {
     $conn->beginTransaction();
-    
-    // Get exchange details
+
     $stmt = $conn->prepare("SELECT * FROM order_exchanges WHERE id = ? AND status = 'pending'");
     $stmt->execute([$exchange_id]);
     $exchange = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -41,8 +35,7 @@ try {
     if (!$exchange) {
         throw new Exception('Exchange not found or not pending');
     }
-    
-    // Update exchange status
+
     $update_stmt = $conn->prepare("
         UPDATE order_exchanges 
         SET status = 'rejected',
@@ -53,8 +46,7 @@ try {
         WHERE id = ?
     ");
     $update_stmt->execute([$reason, $_SESSION['user_id'], $exchange_id]);
-    
-    // Log activity
+
     logExchangeActivity(
         $conn,
         $exchange_id,
@@ -62,7 +54,7 @@ try {
         "Exchange rejected by admin. Reason: " . $reason,
         $_SESSION['user_id']
     );
-    
+
     $conn->commit();
     
     echo json_encode([

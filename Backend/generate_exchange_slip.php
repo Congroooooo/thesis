@@ -1,8 +1,4 @@
 <?php
-/**
- * Generate Exchange Slip
- * Creates a PDF slip for exchange transactions with price adjustments
- */
 
 require_once '../Includes/connection.php';
 require_once '../vendor/autoload.php';
@@ -21,16 +17,13 @@ $is_admin = isset($_GET['admin']) && $_GET['admin'] == '1';
 
 if (!$exchange_id) die('No exchange ID');
 
-// Get exchange details
 if ($is_admin) {
-    // Admin access - check if user is PAMO employee
     $role = strtoupper($_SESSION['role_category'] ?? '');
     $programAbbr = strtoupper($_SESSION['program_abbreviation'] ?? '');
     if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
         die('Unauthorized - PAMO access required');
     }
-    
-    // Admin can view any exchange
+
     $stmt = $conn->prepare('
         SELECT oe.*, o.created_at as order_date
         FROM order_exchanges oe
@@ -39,7 +32,6 @@ if ($is_admin) {
     ');
     $stmt->execute([$exchange_id]);
 } else {
-    // Customer access - only their own exchanges
     $stmt = $conn->prepare('
         SELECT oe.*, o.created_at as order_date
         FROM order_exchanges oe

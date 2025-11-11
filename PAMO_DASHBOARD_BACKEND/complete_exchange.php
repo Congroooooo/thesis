@@ -231,28 +231,12 @@ try {
                     $originalSale['id']
                 ]);
                 
-                // Log: Original sale adjusted
-                $conn->prepare("
-                    INSERT INTO activities (description, item_code, user_id, timestamp) 
-                    VALUES (?, ?, ?, NOW())
-                ")->execute([
-                    "Exchange: Original sale adjusted - Order #{$exchange['order_number']}, Item: {$item['original_item_name']} (Size: {$item['original_size']}), Qty reduced from {$originalSale['quantity']} to {$newQuantity} due to Exchange #{$exchange['exchange_number']}",
-                    $item['original_item_code'],
-                    $_SESSION['user_id']
-                ]);
+                // Note: Activity logging removed - only final completion is logged
             } else {
                 // If all quantity is exchanged, delete the original record
                 $conn->prepare("DELETE FROM sales WHERE id = ?")->execute([$originalSale['id']]);
                 
-                // Log: Original sale fully exchanged
-                $conn->prepare("
-                    INSERT INTO activities (description, item_code, user_id, timestamp) 
-                    VALUES (?, ?, ?, NOW())
-                ")->execute([
-                    "Exchange: Original sale fully exchanged - Order #{$exchange['order_number']}, Item: {$item['original_item_name']} (Size: {$item['original_size']}), All {$item['exchange_quantity']} units exchanged via Exchange #{$exchange['exchange_number']}",
-                    $item['original_item_code'],
-                    $_SESSION['user_id']
-                ]);
+                // Note: Activity logging removed - only final completion is logged
             }
         }
         
@@ -284,27 +268,7 @@ try {
             $exchange['exchange_number']
         ]);
         
-        // -------------------------------------------------------------------
-        // 5. LOG TO ACTIVITIES TABLE FOR AUDIT TRAIL (ENHANCED)
-        // -------------------------------------------------------------------
-        $activityStmt = $conn->prepare("
-            INSERT INTO activities (
-                action_type,
-                description,
-                item_code,
-                user_id,
-                timestamp
-            ) VALUES (?, ?, ?, ?, NOW())
-        ");
-        
-        // Log: New exchange sale recorded
-        $desc_new_sale = "Exchange: New sale recorded - Order #{$exchange['order_number']}, Exchange #{$exchange['exchange_number']}, Item: {$item['new_item_name']} (Size: {$item['new_size']}), Qty: {$item['exchange_quantity']}, Price: ₱" . number_format($item['new_price'], 2) . ", Total: ₱" . number_format($item['new_price'] * $item['exchange_quantity'], 2);
-        $activityStmt->execute([
-            'Exchange Sale Recorded',
-            $desc_new_sale,
-            $item['new_item_code'],
-            $_SESSION['user_id']
-        ]);
+        // Note: Activity logging removed - only final completion is logged
         
         // -------------------------------------------------------------------
         // 6. UPDATE MONTHLY INVENTORY SYSTEM (PROPER FIX)
@@ -425,7 +389,7 @@ try {
         ) VALUES (?, ?, NULL, ?, NOW())
     ");
     $stmt->execute([
-        'Exchange Completed',
+        'Exchange Item Completed',
         "Exchange #{$exchange['exchange_number']} marked as completed. Original sales adjusted, exchange sales recorded with transaction_type='Exchange', inventory and monthly reports updated.",
         $_SESSION['user_id']
     ]);

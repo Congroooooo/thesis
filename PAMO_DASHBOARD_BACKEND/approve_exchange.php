@@ -83,25 +83,17 @@ try {
         $_SESSION['user_id']
     );
     
-    // Log to activities table for audit trail
-    $exchange_info = $conn->prepare("SELECT exchange_number FROM order_exchanges WHERE id = ?");
-    $exchange_info->execute([$exchange_id]);
-    $exchange_data = $exchange_info->fetch(PDO::FETCH_ASSOC);
-    
-    $stmt = $conn->prepare("
-        INSERT INTO activities (
-            action_type,
-            description,
-            item_code,
-            user_id,
-            timestamp
-        ) VALUES (?, ?, NULL, ?, NOW())
-    ");
-    $stmt->execute([
-        'Approve Exchange',
-        "Exchange approved - Exchange #: {$exchange_data['exchange_number']}, Ready for completion by admin",
+    // Log activity to exchange_activities table (internal tracking only)
+    logExchangeActivity(
+        $conn,
+        $exchange_id,
+        'approved',
+        "Exchange approved by admin. Awaiting completion for inventory update.",
         $_SESSION['user_id']
-    ]);
+    );
+    
+    // Note: No activity log to activities table for approval
+    // Only slip generation and completion are logged to audit trail
     
     $conn->commit();
     

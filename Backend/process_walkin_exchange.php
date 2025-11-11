@@ -310,7 +310,7 @@ try {
         ) VALUES (?, ?, NULL, ?, NOW())
     ");
     $stmt->execute([
-        'Generate Exchange Slip',
+        'Generated Exchange Item Slip',
         "Exchange slip generated - Exchange #: {$exchange_number}, Order: {$order['order_number']}, Customer: {$order['first_name']} {$order['last_name']}, Status: {$initial_status}",
         $pamo_staff_id
     ]);
