@@ -83,16 +83,36 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                          CASE WHEN s.transaction_type = 'Original' OR s.transaction_type IS NULL THEN 0
                               WHEN s.transaction_type = 'Exchange' THEN 1
                               WHEN s.transaction_type = 'Return' THEN 2
-                              ELSE 3 END ASC,
+                              WHEN s.transaction_type = 'Voided' THEN 3
+                              WHEN s.transaction_type = 'Cancelled' THEN 4
+                              ELSE 5 END ASC,
                          s.id ASC";
                 
                 $stmt = $conn->prepare($sql);
                 $stmt->execute($params);
                 
+                // Calculate total excluding voided and cancelled
+                $totalSql = "SELECT SUM(s.total_amount) as grand_total FROM sales s";
+                $totalParams = array();
+                $whereConditions = [];
+                
+                if ($startDate && $endDate) {
+                    $whereConditions[] = "s.sale_date >= :start_date AND s.sale_date < :end_date";
+                    $totalParams[':start_date'] = $startDate;
+                    $totalParams[':end_date'] = $endDate;
+                }
+                $whereConditions[] = "(s.transaction_type NOT IN ('Voided', 'Cancelled') OR s.transaction_type IS NULL)";
+                
+                $totalSql .= " WHERE " . implode(' AND ', $whereConditions);
+                $totalStmt = $conn->prepare($totalSql);
+                $totalStmt->execute($totalParams);
+                $totalRow = $totalStmt->fetch(PDO::FETCH_ASSOC);
+                $grandTotal = $totalRow['grand_total'] ?? 0;
+                
                 echo '<div class="report-table">';
                 echo '<h3>Sales Report</h3>';
                 echo '<div class="total-amount-display">';
-                echo '<h4>Total Sales Amount: <span id="totalSalesAmount">₱0.00</span></h4>';
+                echo '<h4>Total Sales Amount (excluding voided/cancelled): <span id="totalSalesAmount">₱' . number_format($grandTotal, 2) . '</span></h4>';
                 echo '</div>';
                 echo '<div class="scroll-table-container">';
                 echo '<table>';
@@ -104,11 +124,14 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                         <th>Quantity</th>
                         <th>Price Per Item</th>
                         <th>Total Amount</th>
+                        <th>Transaction Type</th>
                         <th>Sale Date</th>
                       </tr></thead><tbody>';
                 
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    echo "<tr>";
+                    $transactionType = $row['transaction_type'] ?? 'Original';
+                    $rowStyle = in_array($transactionType, ['Voided', 'Cancelled']) ? ' style="background-color: #ffebee; color: #c62828;"' : '';
+                    echo "<tr{$rowStyle}>";
                     echo "<td>{$row['transaction_number']}</td>";
                     echo "<td>{$row['item_code']}</td>";
                     echo "<td>{$row['item_name']}</td>";
@@ -116,6 +139,7 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                     echo "<td>{$row['quantity']}</td>";
                     echo "<td>₱" . number_format($row['price_per_item'], 2) . "</td>";
                     echo "<td>₱" . number_format($row['total_amount'], 2) . "</td>";
+                    echo "<td>{$transactionType}</td>";
                     echo "<td>{$row['sale_date']}</td>";
                     echo "</tr>";
                 }

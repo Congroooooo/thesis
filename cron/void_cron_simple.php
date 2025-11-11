@@ -152,29 +152,48 @@ try {
             $notif = "Your order #{$orderNumber} has been voided because payment was not made within 5 minutes.{$strikeMessage}";
             createNotification($conn, $userId, $notif, $orderNumber, 'voided');
  
-            // 5️⃣ Log item-level activity (optimized)
+            // 5️⃣ Create sales records for voided order (for sequence continuity in Sales Entry)
+            // These will show in Sales Entry but NOT in Audit Trail (system action, not PAMO action)
             $items = json_decode($order['items'], true);
             if (is_array($items)) {
-                $activityStmt = $conn->prepare("
-                    INSERT INTO activities (action_type, description, item_code, user_id, timestamp)
-                    VALUES (?, ?, ?, ?, NOW())
+                $salesStmt = $conn->prepare("
+                    INSERT INTO sales (
+                        transaction_number,
+                        item_code,
+                        size,
+                        quantity,
+                        price_per_item,
+                        total_amount,
+                        sale_date,
+                        transaction_type
+                    ) VALUES (?, ?, ?, ?, ?, 0, NOW(), 'Voided')
                 ");
 
                 foreach ($items as $item) {
                     $itemCode = $item['item_code'] ?? null;
+                    $size = $item['size'] ?? 'One Size';
+                    $quantity = $item['quantity'] ?? 0;
+                    $price = $item['price'] ?? 0;
 
-                    // Skip invalid item codes
+                    // Validate item code exists
                     if ($itemCode) {
                         $check = $conn->prepare("SELECT COUNT(*) FROM inventory WHERE item_code = ?");
                         $check->execute([$itemCode]);
                         if ($check->fetchColumn() == 0) {
-                            $itemCode = null;
+                            $itemCode = null; // Invalid item code, set to null
                         }
                     }
 
-                    $desc = "Voided - Order #: {$orderNumber}, Item: {$item['item_name']}, Qty: {$item['quantity']}";
-                    $activityStmt->execute(['Voided', $desc, $itemCode, null]);
+                    $salesStmt->execute([
+                        $orderNumber,
+                        $itemCode,
+                        $size,
+                        $quantity,
+                        $price
+                    ]);
                 }
+                // NOTE: NO activities table logging - system voiding should NOT appear in Audit Trail
+                // They will appear in Sales Entry with ₱0 amount for sequence continuity
             }
 
             $conn->commit();

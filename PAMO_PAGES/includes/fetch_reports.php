@@ -171,19 +171,26 @@ if ($type === 'inventory') {
     $total_pages = ceil($total_items / $limit);
     
     // Get paginated results - Group exchanges with originals (Original first, then Exchange)
+    // Include ALL transaction types including Voided and Cancelled for sequence continuity
     $sql = "SELECT s.*, i.item_name FROM sales s LEFT JOIN inventory i ON s.item_code = i.item_code $where_clause 
             ORDER BY s.transaction_number DESC, 
                      CASE WHEN s.transaction_type = 'Original' OR s.transaction_type IS NULL THEN 0
                           WHEN s.transaction_type = 'Exchange' THEN 1
                           WHEN s.transaction_type = 'Return' THEN 2
-                          ELSE 3 END ASC,
+                          WHEN s.transaction_type = 'Voided' THEN 3
+                          WHEN s.transaction_type = 'Cancelled' THEN 4
+                          ELSE 5 END ASC,
                      s.id ASC 
             LIMIT $limit OFFSET $offset";
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
     
-    // Calculate grand total for all filtered data
-    $grand_total_sql = "SELECT SUM(s.total_amount) as grand_total FROM sales s LEFT JOIN inventory i ON s.item_code = i.item_code $where_clause";
+    // Calculate grand total for all filtered data - EXCLUDE voided and cancelled
+    $grand_total_sql = "SELECT SUM(s.total_amount) as grand_total 
+                        FROM sales s 
+                        LEFT JOIN inventory i ON s.item_code = i.item_code 
+                        $where_clause 
+                        AND (s.transaction_type NOT IN ('Voided', 'Cancelled') OR s.transaction_type IS NULL)";
     $grand_stmt = $conn->prepare($grand_total_sql);
     $grand_stmt->execute($params);
     $grand_total_row = $grand_stmt->fetch(PDO::FETCH_ASSOC);
@@ -193,12 +200,14 @@ if ($type === 'inventory') {
         $tableHtml .= '<div class="total-amount-display" style="display: none;"><h4>Total Sales Amount: <span id="totalSalesAmount">₱0.00</span></h4></div>';
     }
     $tableHtml .= '<table><thead><tr>';
-    $tableHtml .= '<th>Order Number</th><th>Item Code</th><th>Item Name</th><th>Size</th><th>Quantity</th><th>Price Per Item</th><th>Total Amount</th><th>Sale Date</th>';
+    $tableHtml .= '<th>Order Number</th><th>Item Code</th><th>Item Name</th><th>Size</th><th>Quantity</th><th>Price Per Item</th><th>Total Amount</th><th>Transaction Type</th><th>Sale Date</th>';
     $tableHtml .= '</tr></thead><tbody>';
     $rowCount = 0;
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $rowCount++;
-        $tableHtml .= '<tr>';
+        $transactionType = $row['transaction_type'] ?? 'Original';
+        $rowClass = in_array($transactionType, ['Voided', 'Cancelled']) ? ' style="background-color: #ffebee; color: #c62828;"' : '';
+        $tableHtml .= '<tr' . $rowClass . '>';
         $tableHtml .= '<td>' . $row['transaction_number'] . '</td>';
         $tableHtml .= '<td>' . $row['item_code'] . '</td>';
         $tableHtml .= '<td>' . $row['item_name'] . '</td>';
@@ -206,11 +215,12 @@ if ($type === 'inventory') {
         $tableHtml .= '<td>' . $row['quantity'] . '</td>';
         $tableHtml .= '<td>₱' . number_format($row['price_per_item'], 2) . '</td>';
         $tableHtml .= '<td>₱' . number_format($row['total_amount'], 2) . '</td>';
+        $tableHtml .= '<td>' . $transactionType . '</td>';
         $tableHtml .= '<td>' . $row['sale_date'] . '</td>';
         $tableHtml .= '</tr>';
     }
     if ($rowCount === 0) {
-        $tableHtml .= '<tr><td colspan="8" style="text-align:center; background:#fffbe7; color:#bdb76b; font-size:1.1em; font-style:italic;">No results found.</td></tr>';
+        $tableHtml .= '<tr><td colspan="9" style="text-align:center; background:#fffbe7; color:#bdb76b; font-size:1.1em; font-style:italic;">No results found.</td></tr>';
     }
     $tableHtml .= '</tbody></table>';
     $params = [];

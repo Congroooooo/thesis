@@ -50,31 +50,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
     $stmt = $conn->prepare("UPDATE orders SET status = 'cancelled' WHERE id = ? AND user_id = ? AND status = 'pending'");
     $stmt->execute([$cancel_order_id, $_SESSION['user_id']]);
     
-    // Log activity for each item in the cancelled order
+    // Create sales records for cancelled order (for sequence continuity in Sales Entry)
+    // These will show in Sales Entry but NOT in Audit Trail (customer action, not PAMO action)
     $order_stmt = $conn->prepare("SELECT * FROM orders WHERE id = ? AND user_id = ?");
     $order_stmt->execute([$cancel_order_id, $_SESSION['user_id']]);
     $order = $order_stmt->fetch(PDO::FETCH_ASSOC);
     if ($order) {
         $order_items = json_decode($order['items'], true);
         if ($order_items && is_array($order_items)) {
+            $salesStmt = $conn->prepare(
+                "INSERT INTO sales (
+                    transaction_number,
+                    item_code,
+                    size,
+                    quantity,
+                    price_per_item,
+                    total_amount,
+                    sale_date,
+                    transaction_type
+                ) VALUES (?, ?, ?, ?, ?, 0, NOW(), 'Cancelled')"
+            );
+            
             foreach ($order_items as $item) {
-                $activity_description = "Cancelled - Order #: {$order['order_number']}, Item: {$item['item_name']}, Quantity: {$item['quantity']}";
-                $activityStmt = $conn->prepare(
-                    "INSERT INTO activities (
-                        action_type,
-                        description,
-                        item_code,
-                        user_id,
-                        timestamp
-                    ) VALUES (?, ?, ?, ?, NOW())"
-                );
-                $activityStmt->execute([
-                    'Cancelled',
-                    $activity_description,
+                $salesStmt->execute([
+                    $order['order_number'],
                     $item['item_code'],
-                    $_SESSION['user_id']
+                    $item['size'] ?? 'One Size',
+                    $item['quantity'],
+                    $item['price'] ?? 0
                 ]);
             }
+            // NOTE: NO activities table logging - customer cancellations should NOT appear in Audit Trail
+            // They will appear in Sales Entry with ₱0 amount for sequence continuity
         }
     }
     // Optionally, add a notification or message here
@@ -105,31 +112,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
         $updateRequestStmt->execute([$preorder['preorder_item_id'], $_SESSION['user_id']]);
     }
     
-    // Log activity
-    
-    if ($preorder) {
-        $preorder_items = json_decode($preorder['items'], true);
-        if ($preorder_items && is_array($preorder_items)) {
-            foreach ($preorder_items as $item) {
-                $activity_description = "Cancelled Pre-Order - PRE-ORDER #: {$preorder['preorder_number']}, Item: {$item['item_name']}, Quantity: {$item['quantity']}";
-                $activityStmt = $conn->prepare(
-                    "INSERT INTO activities (
-                        action_type,
-                        description,
-                        item_code,
-                        user_id,
-                        timestamp
-                    ) VALUES (?, ?, ?, ?, NOW())"
-                );
-                $activityStmt->execute([
-                    'Cancelled',
-                    $activity_description,
-                    null,
-                    $_SESSION['user_id']
-                ]);
-            }
-        }
-    }
+    // NOTE: Pre-order cancellations are customer actions, not PAMO actions
+    // Therefore, NO activities table logging - should NOT appear in Audit Trail
+    // Pre-orders don't need sales records since they're not converted to orders yet
     
     header("Location: MyOrders.php?tab=preorders&status=" . urlencode($status_filter));
     exit();
