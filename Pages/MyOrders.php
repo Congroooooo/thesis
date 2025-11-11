@@ -144,7 +144,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
     <title>My Orders <?php echo $current_tab === 'preorders' ? '& Pre-Orders' : ''; ?></title>
     <link rel="stylesheet" href="../CSS/MyOrders.css">
     <link rel="stylesheet" href="../CSS/global.css">
-    <link rel="stylesheet" href="../CSS/exchange.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Smooch+Sans:wght@100..900&display=swap" rel="stylesheet">
@@ -363,20 +362,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                                         <a href="../Backend/generate_receipt.php?order_id=<?php echo $order['id']; ?>" class="download-receipt-btn" target="_blank" style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
                                             <i class="fas fa-file-pdf"></i> Download Receipt
                                         </a>
-                                    <?php elseif ($order['status'] === 'completed'): ?>
-                                        <!-- For COMPLETED orders: Show Request Exchange button only (if within 24 hours and no existing exchange) -->
-                                        <?php
-                                        $order_time = strtotime($order['created_at']);
-                                        $current_time = time();
-                                        $hours_passed = ($current_time - $order_time) / 3600;
-                                        $can_exchange = ($hours_passed <= 24) && empty($order['has_exchange']);
-                                        
-                                        if ($can_exchange):
-                                        ?>
-                                            <button onclick="openExchangeModal(<?php echo $order['id']; ?>)" class="exchange-btn-trigger" style="background: #764ba2; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; border: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                                                <i class="fas fa-exchange-alt"></i> Request Exchange
-                                            </button>
-                                        <?php endif; ?>
                                     <?php endif; ?>
                                 </div>
                             <?php endif; ?>
@@ -649,12 +634,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                     <div class="rejection-content">${order.rejection_reason.replace(/\n/g, '<br>')}</div>
                 </div>` : '';
 
-            // Calculate if order can be exchanged (completed + within 24 hours)
-            const orderTime = new Date(order.created_at).getTime();
-            const currentTime = new Date().getTime();
-            const hoursPassed = (currentTime - orderTime) / (1000 * 60 * 60);
-            const canExchange = (order.status === 'completed' && hoursPassed <= 24);
-
             return `
                 <div class="order-card" data-order-id="${order.id}">
                     <div class="order-header">
@@ -694,21 +673,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                         </div>
                     </div>
                     
-                    ${(order.status === 'approved' || order.status === 'completed') ? `
+                    ${order.status === 'approved' ? `
                         <div class="action-buttons-container" style="margin-top: 1rem; text-align: right; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
-                            ${order.status === 'approved' ? `
-                                <a href="../Backend/generate_receipt.php?order_id=${order.id}" 
-                                   class="download-receipt-btn" 
-                                   target="_blank" 
-                                   style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
-                                    <i class="fas fa-file-pdf"></i> Download Receipt
-                                </a>
-                            ` : ''}
-                            ${order.status === 'completed' && canExchange ? `
-                                <button onclick="openExchangeModal(${order.id})" class="exchange-btn-trigger" style="background: #764ba2; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; border: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                                    <i class="fas fa-exchange-alt"></i> Request Exchange
-                                </button>
-                            ` : ''}
+                            <a href="../Backend/generate_receipt.php?order_id=${order.id}" 
+                               class="download-receipt-btn" 
+                               target="_blank" 
+                               style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
+                                <i class="fas fa-file-pdf"></i> Download Receipt
+                            </a>
                         </div>
                     ` : ''}
                 </div>
@@ -856,7 +828,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                 existingForm.remove();
             }
 
-            // Update action buttons container (Receipt + Exchange buttons)
+            // Update action buttons container (Receipt button)
             const orderFooter = cardElement.querySelector('.order-footer');
             
             // First, remove ALL existing action button containers to prevent duplicates
@@ -883,24 +855,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                 receiptBtn.style.cssText = 'background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;';
                 receiptBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Download Receipt';
                 actionButtonsContainer.appendChild(receiptBtn);
-            }
-            
-            // For COMPLETED orders: Show Request Exchange button only (if within 24 hours and no existing exchange)
-            if (order.status === 'completed') {
-                // Calculate if order is within exchange window (24 hours)
-                const orderTime = new Date(order.created_at).getTime();
-                const currentTime = new Date().getTime();
-                const hoursPassed = (currentTime - orderTime) / (1000 * 60 * 60);
-                
-                // Only show button if within 24 hours AND no existing exchange
-                if (hoursPassed <= 24 && !order.has_exchange) {
-                    const exchangeBtn = document.createElement('button');
-                    exchangeBtn.onclick = () => openExchangeModal(order.id);
-                    exchangeBtn.className = 'exchange-btn-trigger';
-                    exchangeBtn.style.cssText = 'background: #764ba2; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; border: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;';
-                    exchangeBtn.innerHTML = '<i class="fas fa-exchange-alt"></i> Request Exchange';
-                    actionButtonsContainer.appendChild(exchangeBtn);
-                }
             }
         }
 
@@ -935,12 +889,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                     </div>
                     <div class="rejection-content">${order.rejection_reason}</div>
                 </div>` : '';
-
-            // Calculate if order can be exchanged (completed + within 24 hours + no existing exchange)
-            const orderTime = new Date(order.created_at).getTime();
-            const currentTime = new Date().getTime();
-            const hoursPassed = (currentTime - orderTime) / (1000 * 60 * 60);
-            const canExchange = (order.status === 'completed' && hoursPassed <= 24 && !order.has_exchange);
 
             const orderCard = document.createElement('div');
             orderCard.className = 'order-card';
@@ -983,21 +931,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                     </div>
                 </div>
                 
-                ${(order.status === 'approved' || order.status === 'completed') ? `
+                ${order.status === 'approved' ? `
                     <div class="action-buttons-container" style="margin-top: 1rem; text-align: right; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
-                        ${order.status === 'approved' ? `
-                            <a href="../Backend/generate_receipt.php?order_id=${order.id}" 
-                               class="download-receipt-btn" 
-                               target="_blank" 
-                               style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
-                                <i class="fas fa-file-pdf"></i> Download Receipt
-                            </a>
-                        ` : ''}
-                        ${order.status === 'completed' && canExchange ? `
-                            <button onclick="openExchangeModal(${order.id})" class="exchange-btn-trigger" style="background: #764ba2; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; border: none; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                                <i class="fas fa-exchange-alt"></i> Request Exchange
-                            </button>
-                        ` : ''}
+                        <a href="../Backend/generate_receipt.php?order_id=${order.id}" 
+                           class="download-receipt-btn" 
+                           target="_blank" 
+                           style="background: #007bff; color: #fff; padding: 0.5rem 1.2rem; border-radius: 4px; text-decoration: none; font-weight: 500; display: inline-block;">
+                            <i class="fas fa-file-pdf"></i> Download Receipt
+                        </a>
                     </div>
                 ` : ''}
             `;
@@ -1265,78 +1206,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
             align-items: center;
             gap: 10px;
         }
-        
-        /* Exchange notification */
-        .exchange-notification {
-            position: fixed;
-            top: 20px;
-            right: -400px;
-            background: white;
-            padding: 16px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            z-index: 10000;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-width: 300px;
-            max-width: 500px;
-            transition: all 0.3s ease;
-            opacity: 0;
-        }
-        
-        .exchange-notification.success {
-            border-left: 4px solid #4caf50;
-        }
-        
-        .exchange-notification.error {
-            border-left: 4px solid #f44336;
-        }
-        
-        .exchange-notification.warning {
-            border-left: 4px solid #ff9800;
-        }
-        
-        .exchange-notification.success i {
-            color: #4caf50;
-            font-size: 24px;
-        }
-        
-        .exchange-notification.error i {
-            color: #f44336;
-            font-size: 24px;
-        }
-        
-        .exchange-notification.warning i {
-            color: #ff9800;
-            font-size: 24px;
-        }
     </style>
 </head>
 <body>
     <?php // Body content continues... ?>
-    
-    <!-- Exchange Modal -->
-    <div id="exchangeModal" class="exchange-modal">
-        <div class="exchange-modal-content">
-            <div class="exchange-modal-header">
-                <h2><i class="fas fa-exchange-alt"></i> Request Item Exchange</h2>
-                <span class="exchange-close" onclick="closeExchangeModal()">&times;</span>
-            </div>
-            <div class="exchange-modal-body">
-                <!-- Content will be dynamically loaded -->
-            </div>
-            <div class="exchange-modal-footer">
-                <button type="button" class="exchange-btn exchange-btn-secondary" onclick="closeExchangeModal()">
-                    <i class="fas fa-times"></i> Cancel
-                </button>
-                <button type="button" class="exchange-btn exchange-btn-primary" id="submitExchangeBtn" onclick="submitExchangeRequest()" disabled>
-                    <i class="fas fa-exchange-alt"></i> Submit Exchange Request
-                </button>
-            </div>
-        </div>
-    </div>
-    
-    <script src="../Javascript/exchange.js"></script>
 </body>
 </html>
