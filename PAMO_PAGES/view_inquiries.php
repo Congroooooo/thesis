@@ -12,7 +12,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
 }
 require_once '../Includes/connection.php';
 $basePath = '';
-include 'includes/sidebar.php';
+
 $sql = "SELECT inquiries.id, inquiries.question, inquiries.submitted_at, inquiries.status, inquiries.reply, account.first_name, account.last_name, account.email, account.id_number
         FROM inquiries
         JOIN account ON inquiries.user_id = account.id
@@ -22,15 +22,17 @@ $stmt->execute();
 $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Student Inquiries</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAMO - Student Inquiries</title>
     
     <link rel="stylesheet" href="../PAMO CSS/styles.css">
+    <link rel="stylesheet" href="../PAMO CSS/view_inquiries.css">
     <link rel="stylesheet" href="../CSS/logout-modal.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="../PAMO CSS/view_inquiries.css">
     
 </head>
 <body>
@@ -93,8 +95,8 @@ $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </form>
         </div>
     </div>
-    <script src="../Javascript/logout-modal.js"></script>
-    <script src="../PAMO JS/view_inquiries.js"></script>
+    <script src="../Javascript/logout-modal.js" defer></script>
+    <script src="../PAMO JS/view_inquiries.js" defer></script>
 </body>
 </html>
 <?php $conn = null; ?> 
