@@ -82,6 +82,30 @@ function updateLowStockThreshold($conn, $newValue) {
     return false;
 }
 
+/**
+ * Get total inventory quantity across all items
+ * This is the single source of truth for inventory totals
+ * 
+ * @param PDO|mysqli $conn Database connection
+ * @return int Total quantity of all inventory items
+ */
+function getTotalInventoryQuantity($conn) {
+    if ($conn instanceof PDO) {
+        $stmt = $conn->prepare("SELECT SUM(actual_quantity) as total FROM inventory");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return intval($result['total'] ?? 0);
+    } elseif ($conn instanceof mysqli) {
+        $sql = "SELECT SUM(actual_quantity) as total FROM inventory";
+        $result = mysqli_query($conn, $sql);
+        if ($result && $row = mysqli_fetch_assoc($result)) {
+            return intval($row['total'] ?? 0);
+        }
+        return 0;
+    }
+    return 0;
+}
+
 function logActivity($conn, $action_type, $description, $user_id = null) {
     if ($conn instanceof PDO) {
         $stmt = $conn->prepare("INSERT INTO activities (action_type, description, user_id, timestamp) VALUES (:action_type, :description, :user_id, NOW())");

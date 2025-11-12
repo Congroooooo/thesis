@@ -24,10 +24,14 @@ const centerTextPlugin = {
 
     ctx.save();
 
-    // Calculate total - ensure proper number conversion
-    const total = chart.data.datasets[0].data.reduce((sum, value) => {
-      return sum + (parseInt(value, 10) || 0);
-    }, 0);
+    // Use the actualTotal from chart's custom property if available (from backend API)
+    // Otherwise, calculate from dataset
+    let total = chart.config.options.plugins.centerText?.actualTotal;
+    if (total === undefined || total === null) {
+      total = chart.data.datasets[0].data.reduce((sum, value) => {
+        return sum + (parseInt(value, 10) || 0);
+      }, 0);
+    }
 
     // Draw total number
     ctx.font = "bold 36px 'Segoe UI'";
@@ -40,7 +44,6 @@ const centerTextPlugin = {
     ctx.font = "600 13px 'Segoe UI'";
     ctx.fillStyle = "#64748b";
     ctx.fillText("Total Items", centerX, centerY + 20);
-
     ctx.restore();
   },
 };
@@ -93,13 +96,21 @@ async function fetchStockData(category = "", subcategory = "") {
     );
     if (!res.ok) {
       console.error("Stock endpoint error:", res.status, res.statusText);
-      return [];
+      return { data: [], total: null };
     }
-    const data = await res.json();
-    return data;
+    const response = await res.json();
+
+    // Handle both old format (array) and new format (object with data and total)
+    if (Array.isArray(response)) {
+      return { data: response, total: null };
+    } else if (response.data && Array.isArray(response.data)) {
+      return response;
+    }
+
+    return { data: [], total: null };
   } catch (error) {
     console.error("Fetch stock data error:", error);
-    return [];
+    return { data: [], total: null };
   }
 }
 
@@ -121,13 +132,20 @@ async function fetchSalesData(category, subcategory, period) {
   }
 }
 
-function renderStockPieChart(data) {
+function renderStockPieChart(stockResponse) {
   const canvas = document.getElementById("stockPieChart");
   if (!canvas) {
     console.error("stockPieChart canvas not found");
     return;
   }
   const ctx = canvas.getContext("2d");
+
+  // Handle both old and new response formats
+  const data = Array.isArray(stockResponse)
+    ? stockResponse
+    : stockResponse.data || [];
+  const actualTotal = stockResponse.total || null;
+
   const labels = data.map((d) => d.category);
   const quantities = data.map((d) => parseInt(d.quantity, 10) || 0);
 
@@ -173,6 +191,7 @@ function renderStockPieChart(data) {
       plugins: {
         centerText: {
           enabled: true, // Ensure plugin is active
+          actualTotal: actualTotal, // Pass the actual total from backend
         },
         legend: {
           display: false,
@@ -194,8 +213,11 @@ function renderStockPieChart(data) {
             label: function (context) {
               const label = context.label || "";
               const value = context.parsed || 0;
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percentage = ((value / total) * 100).toFixed(1);
+              // Use actualTotal if available, otherwise calculate from dataset
+              const total =
+                actualTotal || context.dataset.data.reduce((a, b) => a + b, 0);
+              const percentage =
+                total > 0 ? ((value / total) * 100).toFixed(1) : 0;
               return `${label}: ${value} units (${percentage}%)`;
             },
           },

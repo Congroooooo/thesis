@@ -35,9 +35,8 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
 }
 
 
-$total_items_query = "SELECT SUM(actual_quantity) as total FROM inventory";
-$total_result = $conn->query($total_items_query);
-$total_items = $total_result->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+// Use centralized function for total items calculation
+$total_items = getTotalInventoryQuantity($conn);
 
 $pending_orders_query = "SELECT COUNT(*) as pending FROM orders WHERE status = 'pending'";
 $pending_result = $conn->query($pending_orders_query);

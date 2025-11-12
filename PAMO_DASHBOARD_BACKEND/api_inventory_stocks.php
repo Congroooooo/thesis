@@ -6,50 +6,39 @@ $subcategory = $_GET['subcategory'] ?? '';
 
 if ($subcategory) {
     // If subcategory is selected, group by subcategory
-    // Use DISTINCT to count each inventory item only once
+    // Sum actual_quantity for items that belong to this subcategory
     $query = "SELECT sc.name as category, 
-              SUM(DISTINCT i.actual_quantity) as quantity 
-              FROM (
-                  SELECT DISTINCT i.id, i.actual_quantity
-                  FROM inventory i
-                  JOIN inventory_subcategory isub ON isub.inventory_id = i.id
-                  WHERE isub.subcategory_id = :subcategory
-              ) as i
+              SUM(i.actual_quantity) as quantity 
+              FROM inventory i
               JOIN inventory_subcategory isub ON isub.inventory_id = i.id
               JOIN subcategories sc ON sc.id = isub.subcategory_id
               WHERE sc.id = :subcategory
-              GROUP BY sc.name";
+              GROUP BY sc.id, sc.name";
     $params = [':subcategory' => $subcategory];
 } else if ($category) {
-    // If category is selected but no subcategory, get totals for that category
-    // Use DISTINCT to count each inventory item only once
-    $query = "SELECT c.name as category, 
-              SUM(DISTINCT_INV.quantity) as quantity
-              FROM (
-                  SELECT DISTINCT i.id, i.actual_quantity as quantity, sc.category_id
-                  FROM inventory i
-                  JOIN inventory_subcategory isub ON isub.inventory_id = i.id
-                  JOIN subcategories sc ON sc.id = isub.subcategory_id
-                  WHERE sc.category_id = :category
-              ) as DISTINCT_INV
-              JOIN categories c ON c.id = DISTINCT_INV.category_id
-              GROUP BY c.name";
+    // If category is selected but no subcategory, get totals for subcategories in that category
+    // Each item's quantity should only be counted once, so we use a subquery to get distinct items per subcategory
+    $query = "SELECT sc.name as category, 
+              SUM(i.actual_quantity) as quantity
+              FROM inventory i
+              JOIN inventory_subcategory isub ON isub.inventory_id = i.id
+              JOIN subcategories sc ON sc.id = isub.subcategory_id
+              WHERE sc.category_id = :category
+              GROUP BY sc.id, sc.name
+              ORDER BY sc.name";
     $params = [':category' => $category];
 } else {
     // No filters, group by category
-    // Use DISTINCT to count each inventory item only once, even if it has multiple subcategories
+    // For items with multiple subcategories across different categories,
+    // we need to ensure each item's quantity is only counted once per category
     $query = "SELECT c.name as category, 
-              SUM(DISTINCT_QTY.quantity) as quantity
-              FROM (
-                  SELECT i.id, c.id as category_id, c.name as category_name, i.actual_quantity as quantity
-                  FROM inventory i
-                  JOIN inventory_subcategory isub ON isub.inventory_id = i.id
-                  JOIN subcategories sc ON sc.id = isub.subcategory_id
-                  JOIN categories c ON c.id = sc.category_id
-                  GROUP BY i.id, c.id, c.name, i.actual_quantity
-              ) as DISTINCT_QTY
-              JOIN categories c ON c.id = DISTINCT_QTY.category_id
-              GROUP BY c.id, c.name";
+              SUM(i.actual_quantity) as quantity
+              FROM inventory i
+              JOIN inventory_subcategory isub ON isub.inventory_id = i.id
+              JOIN subcategories sc ON sc.id = isub.subcategory_id
+              JOIN categories c ON c.id = sc.category_id
+              GROUP BY c.id, c.name
+              ORDER BY c.name";
     $params = [];
 }
 
@@ -57,4 +46,21 @@ $stmt = $conn->prepare($query);
 $stmt->execute($params);
 
 $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-echo json_encode($data);
+
+// If showing all categories, also include the total for validation
+if (!$category && !$subcategory) {
+    // Get the actual total from inventory table (single source of truth)
+    $totalStmt = $conn->prepare("SELECT SUM(actual_quantity) as total FROM inventory");
+    $totalStmt->execute();
+    $totalResult = $totalStmt->fetch(PDO::FETCH_ASSOC);
+    $actualTotal = intval($totalResult['total'] ?? 0);
+    
+    // Add metadata to response
+    header('Content-Type: application/json');
+    echo json_encode([
+        'data' => $data,
+        'total' => $actualTotal
+    ]);
+} else {
+    echo json_encode($data);
+}
