@@ -3,7 +3,6 @@ date_default_timezone_set('Asia/Manila');
 session_start();
 require_once '../Includes/connection.php';
 
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
@@ -80,11 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_order_id'])) {
                     $item['price'] ?? 0
                 ]);
             }
-            // NOTE: NO activities table logging - customer cancellations should NOT appear in Audit Trail
-            // They will appear in Sales Entry with ₱0 amount for sequence continuity
         }
     }
-    // Optionally, add a notification or message here
     header("Location: MyOrders.php?tab=" . urlencode($current_tab) . "&status=" . urlencode($status_filter)); // Refresh page
     exit();
 }
@@ -111,11 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
         ");
         $updateRequestStmt->execute([$preorder['preorder_item_id'], $_SESSION['user_id']]);
     }
-    
-    // NOTE: Pre-order cancellations are customer actions, not PAMO actions
-    // Therefore, NO activities table logging - should NOT appear in Audit Trail
-    // Pre-orders don't need sales records since they're not converted to orders yet
-    
+
     header("Location: MyOrders.php?tab=preorders&status=" . urlencode($status_filter));
     exit();
 }
@@ -129,6 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
     <title>My Orders <?php echo $current_tab === 'preorders' ? '& Pre-Orders' : ''; ?></title>
     <link rel="stylesheet" href="../CSS/MyOrders.css">
     <link rel="stylesheet" href="../CSS/global.css">
+    <link rel="stylesheet" href="../CSS/cancel-order-modal.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Smooch+Sans:wght@100..900&display=swap" rel="stylesheet">
@@ -241,7 +234,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                                         <?php echo ucfirst($order['status']); ?>
                                     </span>
                                     <?php if ($order['status'] === 'pending'): ?>
-                                        <form method="post" onsubmit="return confirm('Are you sure you want to cancel this order?');" style="display:inline;">
+                                        <form method="post" data-cancel-order onsubmit="return showCancelOrderConfirmation(this, 'order');" style="display:inline;">
                                             <input type="hidden" name="cancel_order_id" value="<?php echo $order['id']; ?>">
                                             <button type="submit" class="cancel-btn">Cancel Order</button>
                                         </form>
@@ -444,7 +437,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                                         ?>
                                     </span>
                                     <?php if ($preorder['status'] === 'pending'): ?>
-                                        <form method="post" onsubmit="return confirm('Are you sure you want to cancel this pre-order?');" style="display:inline; margin-left: 10px;">
+                                        <form method="post" data-cancel-preorder onsubmit="return showCancelOrderConfirmation(this, 'preorder');" style="display:inline; margin-left: 10px;">
                                             <input type="hidden" name="cancel_preorder_id" value="<?php echo $preorder['id']; ?>">
                                             <button type="submit" class="cancel-btn">Cancel</button>
                                         </form>
@@ -637,7 +630,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                         <div class="order-actions">
                             <span class="status-badge ${order.status}">${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}</span>
                             ${order.status === 'pending' ? `
-                                <form method="post" onsubmit="return confirm('Are you sure you want to cancel this order?');" style="display:inline;">
+                                <form method="post" data-cancel-order onsubmit="return showCancelOrderConfirmation(this, 'order');" style="display:inline;">
                                     <input type="hidden" name="cancel_order_id" value="${order.id}">
                                     <button type="submit" class="cancel-btn">Cancel Order</button>
                                 </form>
@@ -801,7 +794,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                 // Add cancel button for pending orders
                 const cancelForm = document.createElement('form');
                 cancelForm.method = 'post';
-                cancelForm.onsubmit = function() { return confirm('Are you sure you want to cancel this order?'); };
+                cancelForm.setAttribute('data-cancel-order', '');
+                cancelForm.onsubmit = function() { return showCancelOrderConfirmation(this, 'order'); };
                 cancelForm.style.display = 'inline';
                 cancelForm.innerHTML = `
                     <input type="hidden" name="cancel_order_id" value="${order.id}">
@@ -895,7 +889,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
                     <div class="order-actions">
                         <span class="status-badge ${order.status}">${order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Unknown'}</span>
                         ${order.status === 'pending' ? `
-                            <form method="post" onsubmit="return confirm('Are you sure you want to cancel this order?');" style="display:inline;">
+                            <form method="post" data-cancel-order onsubmit="return showCancelOrderConfirmation(this, 'order');" style="display:inline;">
                                 <input type="hidden" name="cancel_order_id" value="${order.id}">
                                 <button type="submit" class="cancel-btn">Cancel Order</button>
                             </form>
@@ -940,6 +934,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_preorder_id'])
             setInterval(updateOrdersRealTime, 15000);
         });
     </script>
+
+    <!-- Cancel Order Modal Script -->
+    <script src="../Javascript/cancel-order-modal.js"></script>
 
     <style>
         .status-badge.cancelled {
