@@ -40,7 +40,10 @@ $sql = "SELECT s.transaction_number, s.item_code, i.item_name, s.size, s.quantit
                  CASE WHEN s.transaction_type = 'Original' OR s.transaction_type IS NULL THEN 0
                       WHEN s.transaction_type = 'Exchange' THEN 1
                       WHEN s.transaction_type = 'Return' THEN 2
-                      ELSE 3 END ASC,
+                      WHEN s.transaction_type = 'Voided' THEN 3
+                      WHEN s.transaction_type = 'Cancelled' THEN 4
+                      WHEN s.transaction_type = 'Rejected' THEN 5
+                      ELSE 6 END ASC,
                  s.id ASC";
 
 $stmt = $conn->prepare($sql);

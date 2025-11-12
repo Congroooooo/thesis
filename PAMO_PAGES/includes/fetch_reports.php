@@ -171,7 +171,7 @@ if ($type === 'inventory') {
     $total_pages = ceil($total_items / $limit);
     
     // Get paginated results - Group exchanges with originals (Original first, then Exchange)
-    // Include ALL transaction types including Voided and Cancelled for sequence continuity
+    // Include ALL transaction types including Voided, Cancelled, and Rejected for sequence continuity
     $sql = "SELECT s.*, i.item_name FROM sales s LEFT JOIN inventory i ON s.item_code = i.item_code $where_clause 
             ORDER BY s.transaction_number DESC, 
                      CASE WHEN s.transaction_type = 'Original' OR s.transaction_type IS NULL THEN 0
@@ -179,18 +179,19 @@ if ($type === 'inventory') {
                           WHEN s.transaction_type = 'Return' THEN 2
                           WHEN s.transaction_type = 'Voided' THEN 3
                           WHEN s.transaction_type = 'Cancelled' THEN 4
-                          ELSE 5 END ASC,
+                          WHEN s.transaction_type = 'Rejected' THEN 5
+                          ELSE 6 END ASC,
                      s.id ASC 
             LIMIT $limit OFFSET $offset";
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
     
-    // Calculate grand total for all filtered data - EXCLUDE voided and cancelled
+    // Calculate grand total for all filtered data - EXCLUDE voided, cancelled, and rejected
     $grand_total_sql = "SELECT SUM(s.total_amount) as grand_total 
                         FROM sales s 
                         LEFT JOIN inventory i ON s.item_code = i.item_code 
                         $where_clause 
-                        AND (s.transaction_type NOT IN ('Voided', 'Cancelled') OR s.transaction_type IS NULL)";
+                        AND (s.transaction_type NOT IN ('Voided', 'Cancelled', 'Rejected') OR s.transaction_type IS NULL)";
     $grand_stmt = $conn->prepare($grand_total_sql);
     $grand_stmt->execute($params);
     $grand_total_row = $grand_stmt->fetch(PDO::FETCH_ASSOC);
@@ -206,7 +207,7 @@ if ($type === 'inventory') {
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $rowCount++;
         $transactionType = $row['transaction_type'] ?? 'Original';
-        $rowClass = in_array($transactionType, ['Voided', 'Cancelled']) ? ' style="background-color: #ffebee; color: #c62828;"' : '';
+        $rowClass = in_array($transactionType, ['Voided', 'Cancelled', 'Rejected']) ? ' style="background-color: #ffebee; color: #c62828;"' : '';
         $tableHtml .= '<tr' . $rowClass . '>';
         $tableHtml .= '<td>' . $row['transaction_number'] . '</td>';
         $tableHtml .= '<td>' . $row['item_code'] . '</td>';

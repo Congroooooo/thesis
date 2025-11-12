@@ -136,6 +136,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception('Failed to auto-reject order due to insufficient stock');
                 }
                 
+                // Create sales records for auto-rejected order - one per item (with ₱0 amount)
+                foreach ($order_items as $item) {
+                    $salesStmt = $conn->prepare("
+                        INSERT INTO sales (
+                            transaction_number,
+                            item_code,
+                            size,
+                            quantity,
+                            price_per_item,
+                            total_amount,
+                            transaction_type,
+                            sale_date
+                        ) VALUES (?, ?, ?, ?, ?, 0.00, 'Rejected', NOW())
+                    ");
+                    if (!$salesStmt->execute([
+                        $order['order_number'],
+                        $item['item_code'],
+                        $item['size'],
+                        $item['quantity'],
+                        $item['price']
+                    ])) {
+                        throw new Exception('Failed to create sales record for auto-rejected order item');
+                    }
+                }
+                
                 // Log the rejection activity
                 foreach ($order_items as $item) {
                     $activity_description = "Order Rejected (Auto) - Order #: {$order['order_number']}, Item: {$item['item_name']}, Quantity: {$item['quantity']} - Insufficient Stock";
@@ -352,6 +377,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $updateStmt = $conn->prepare("UPDATE orders SET status = ?, rejection_reason = ?, updated_at = NOW() WHERE id = ?");
             if (!$updateStmt->execute([$status, $rejection_reason, $order_id])) {
                 throw new Exception('Failed to update order status with rejection reason');
+            }
+            
+            // Create sales records for rejected order - one per item (with ₱0 amount)
+            $order_items = json_decode($order['items'], true);
+            if ($order_items && is_array($order_items)) {
+                foreach ($order_items as $item) {
+                    $salesStmt = $conn->prepare("
+                        INSERT INTO sales (
+                            transaction_number,
+                            item_code,
+                            size,
+                            quantity,
+                            price_per_item,
+                            total_amount,
+                            transaction_type,
+                            sale_date
+                        ) VALUES (?, ?, ?, ?, ?, 0.00, 'Rejected', NOW())
+                    ");
+                    if (!$salesStmt->execute([
+                        $order['order_number'],
+                        $item['item_code'],
+                        $item['size'],
+                        $item['quantity'],
+                        $item['price']
+                    ])) {
+                        throw new Exception('Failed to create sales record for rejected order item');
+                    }
+                }
             }
         } else {
             $updateStmt = $conn->prepare("UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?");

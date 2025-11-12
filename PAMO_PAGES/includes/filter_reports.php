@@ -85,7 +85,8 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                               WHEN s.transaction_type = 'Return' THEN 2
                               WHEN s.transaction_type = 'Voided' THEN 3
                               WHEN s.transaction_type = 'Cancelled' THEN 4
-                              ELSE 5 END ASC,
+                              WHEN s.transaction_type = 'Rejected' THEN 5
+                              ELSE 6 END ASC,
                          s.id ASC";
                 
                 $stmt = $conn->prepare($sql);
@@ -101,7 +102,7 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                     $totalParams[':start_date'] = $startDate;
                     $totalParams[':end_date'] = $endDate;
                 }
-                $whereConditions[] = "(s.transaction_type NOT IN ('Voided', 'Cancelled') OR s.transaction_type IS NULL)";
+                $whereConditions[] = "(s.transaction_type NOT IN ('Voided', 'Cancelled', 'Rejected') OR s.transaction_type IS NULL)";
                 
                 $totalSql .= " WHERE " . implode(' AND ', $whereConditions);
                 $totalStmt = $conn->prepare($totalSql);
@@ -112,7 +113,7 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                 echo '<div class="report-table">';
                 echo '<h3>Sales Report</h3>';
                 echo '<div class="total-amount-display">';
-                echo '<h4>Total Sales Amount (excluding voided/cancelled): <span id="totalSalesAmount">₱' . number_format($grandTotal, 2) . '</span></h4>';
+                echo '<h4>Total Sales Amount (excluding voided/cancelled/rejected): <span id="totalSalesAmount">₱' . number_format($grandTotal, 2) . '</span></h4>';
                 echo '</div>';
                 echo '<div class="scroll-table-container">';
                 echo '<table>';
@@ -130,7 +131,7 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                 
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     $transactionType = $row['transaction_type'] ?? 'Original';
-                    $rowStyle = in_array($transactionType, ['Voided', 'Cancelled']) ? ' style="background-color: #ffebee; color: #c62828;"' : '';
+                    $rowStyle = in_array($transactionType, ['Voided', 'Cancelled', 'Rejected']) ? ' style="background-color: #ffebee; color: #c62828;"' : '';
                     echo "<tr{$rowStyle}>";
                     echo "<td>{$row['transaction_number']}</td>";
                     echo "<td>{$row['item_code']}</td>";
