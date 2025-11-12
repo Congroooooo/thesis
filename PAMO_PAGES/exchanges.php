@@ -352,6 +352,7 @@ $total_items = count($exchanges);
         </main>
     </div>
 
+    <script src="../Javascript/logout-modal.js"></script>
     <script>
         // Filter by status
         function filterByStatus(status) {
