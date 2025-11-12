@@ -74,8 +74,8 @@ try {
         }
 
         // Record the sale in sales table (unchanged)
-        $sql = "INSERT INTO sales (transaction_number, item_code, size, quantity, price_per_item, total_amount, sale_date) 
-                VALUES (?, ?, ?, ?, ?, ?, NOW())";
+        $sql = "INSERT INTO sales (transaction_number, item_code, size, quantity, price_per_item, total_amount, transaction_type, sale_date) 
+                VALUES (?, ?, ?, ?, ?, ?, 'Original', NOW())";
         $stmt = $conn->prepare($sql);
         if (!$stmt->execute([$transactionNumber, $itemId, $size, $quantityToDeduct, $pricePerItem, $itemTotal])) {
             throw new Exception("Error recording sale for item $itemId");

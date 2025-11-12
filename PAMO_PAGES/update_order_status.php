@@ -250,8 +250,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         quantity, 
                         price_per_item, 
                         total_amount, 
+                        transaction_type,
                         sale_date
-                    ) VALUES (?, ?, ?, ?, ?, ?, NOW())"
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'Original', NOW())"
                 );
                 
                 $transaction_number = $order['order_number'];
