@@ -54,6 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $isAdminPosition = $isEmployee && ($programAbbrUpper === 'ADMIN');
             $isPamoPosition = $isEmployee && ($programAbbrUpper === 'PAMO');
 
+            // Policy modal is now handled by JavaScript (policy-modal.js) after login
+            // No need for server-side redirection to accept_terms.php
+
             if ($isAdminPosition) {
                 header("Location: ../ADMIN/admin_page.php");
                 exit();

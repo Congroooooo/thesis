@@ -205,6 +205,18 @@ if (isset($_SESSION['user_id'])) {
 <link rel="stylesheet" href="../CSS/cart.css">
 <link rel="stylesheet" href="../CSS/logout-modal.css">
 
+<?php
+// Include Policy Modal for customers only (not Admin/PAMO)
+if (isset($_SESSION['user_id'])) {
+    $program = isset($_SESSION['program_abbreviation']) ? strtoupper(trim($_SESSION['program_abbreviation'])) : '';
+    $isCustomer = ($program !== 'ADMIN' && $program !== 'PAMO');
+    if ($isCustomer) {
+        echo '<link rel="stylesheet" href="../CSS/policy-modal.css">';
+        echo '<script src="../Javascript/policy-modal.js"></script>';
+    }
+}
+?>
+
 <script>
     function redirectToLogin(destination) {
         window.location.href = `login.php?redirect=${encodeURIComponent(destination)}`;

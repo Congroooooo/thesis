@@ -60,8 +60,8 @@ try {
         throw new Exception('An account with this email already exists');
     }
 
-    $sql = "INSERT INTO account (first_name, last_name, birthday, id_number, email, password, role_category, program_or_position, status, date_created)
-            VALUES (?, ?, ?, ?, ?, ?, 'EMPLOYEE', ?, 'active', CURRENT_TIMESTAMP)";
+    $sql = "INSERT INTO account (first_name, last_name, birthday, id_number, email, password, role_category, program_or_position, status, date_created, policy_acknowledged, dont_show_policy_again)
+            VALUES (?, ?, ?, ?, ?, ?, 'EMPLOYEE', ?, 'active', CURRENT_TIMESTAMP, 0, 0)";
     $stmt = $conn->prepare($sql);
     $result = $stmt->execute([
         $firstName,

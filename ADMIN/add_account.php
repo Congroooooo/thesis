@@ -54,8 +54,8 @@ try {
     $lastSixDigits = substr($idNumber, -6);
     $email = strtolower(str_replace(' ', '', $lastName . '.' . $lastSixDigits . '@lucena.sti.edu.ph'));
 
-    $sql = "INSERT INTO account (first_name, last_name, birthday, id_number, email, password, role_category, program_or_position, status, date_created)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)";
+    $sql = "INSERT INTO account (first_name, last_name, birthday, id_number, email, password, role_category, program_or_position, status, date_created, policy_acknowledged, dont_show_policy_again)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP, 0, 0)";
         $stmt = $conn->prepare($sql);
         $result = $stmt->execute([
             $firstName,
