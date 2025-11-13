@@ -10,7 +10,7 @@ try {
             c.name, 
             c.has_subcategories,
             GROUP_CONCAT(
-                CONCAT(s.id, ':', s.name) 
+                CONCAT(s.id, ':', s.name, ':', IFNULL(s.is_active, 1)) 
                 ORDER BY s.name ASC 
                 SEPARATOR '|'
             ) as subcategories
@@ -28,11 +28,18 @@ try {
         if ($row['subcategories']) {
             $subPairs = explode('|', $row['subcategories']);
             foreach ($subPairs as $pair) {
-                $parts = explode(':', $pair, 2);
-                if (count($parts) === 2) {
+                $parts = explode(':', $pair);
+                if (count($parts) >= 3) {
                     $subcategories[] = [
                         'id' => $parts[0],
-                        'name' => $parts[1]
+                        'name' => $parts[1],
+                        'is_active' => (int)$parts[2]
+                    ];
+                } elseif (count($parts) === 2) {
+                    $subcategories[] = [
+                        'id' => $parts[0],
+                        'name' => $parts[1],
+                        'is_active' => 1 // default to active if missing
                     ];
                 }
             }

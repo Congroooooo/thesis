@@ -63,18 +63,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_category'])) {
     }
 }
 
-// Handle subcategory deletion
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_subcategory'])) {
+// Handle subcategory status toggle (activate/deactivate)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_subcategory_status'])) {
     $subcategoryId = intval($_POST['subcategory_id']);
+    $newStatus = intval($_POST['new_status']);
     try {
-        $deleteStmt = $conn->prepare("DELETE FROM subcategories WHERE id = ?");
-        $deleteStmt->execute([$subcategoryId]);
-        
-        $success_message = "Subcategory deleted successfully!";
+        $updateStmt = $conn->prepare("UPDATE subcategories SET is_active = ? WHERE id = ?");
+        $updateStmt->execute([$newStatus, $subcategoryId]);
+        $success_message = "Subcategory status updated successfully!";
         $user_id = $_SESSION['user_id'] ?? null;
-        logActivity($conn, 'Subcategory Deleted', "Subcategory with ID $subcategoryId was deleted.", $user_id);
+        logActivity($conn, 'Subcategory Status Changed', "Subcategory with ID $subcategoryId status changed to $newStatus.", $user_id);
     } catch (Exception $e) {
-        $error_message = "Error deleting subcategory: " . $e->getMessage();
+        $error_message = "Error updating subcategory status: " . $e->getMessage();
     }
 }
 
@@ -286,9 +286,7 @@ $current_threshold = getLowStockThreshold($conn);
                                 ${category.has_subcategories ? `<button class="btn btn-secondary btn-sm" onclick="toggleSubcategoryForm(${category.id})">
                                     <i class="material-icons">add</i> Add Subcategory
                                 </button>` : ''}
-                                ${!category.is_legacy ? `<button class="btn btn-danger btn-sm" onclick="deleteCategory(${category.id}, '${category.name}')">
-                                    <i class="material-icons">delete</i> Delete
-                                </button>` : ''}
+                                <!-- Category delete button removed: categories are now permanent/static -->
                             </div>
                         </div>
                         
@@ -317,9 +315,16 @@ $current_threshold = getLowStockThreshold($conn);
                                 ${category.subcategories.map(sub => `
                                     <div class="subcategory-item">
                                         <span>${sub.name}</span>
-                                        <button class="btn btn-danger btn-sm" onclick="deleteSubcategory(${sub.id}, '${sub.name}')">
-                                            <i class="material-icons">delete</i>
-                                        </button>
+                                        <form method="POST" style="display:inline; margin:0;">
+                                            <input type="hidden" name="toggle_subcategory_status" value="1">
+                                            <input type="hidden" name="subcategory_id" value="${sub.id}">
+                                            <input type="hidden" name="new_status" value="${sub.is_active ? 0 : 1}">
+                                            <button type="submit" class="btn btn-sm ${sub.is_active ? 'btn-warning' : 'btn-success'}"
+                                                onclick="return confirm('Are you sure you want to ${sub.is_active ? 'deactivate' : 'activate'} this subcategory?')">
+                                                <i class="fas ${sub.is_active ? 'fa-pause' : 'fa-play'}"></i>
+                                                ${sub.is_active ? 'Deactivate' : 'Activate'}
+                                            </button>
+                                        </form>
                                     </div>
                                 `).join('')}
                             </div>
