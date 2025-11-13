@@ -658,7 +658,12 @@ include '../Includes/Header.php';
             e.preventDefault();
 
             const form = this;
+            const submitBtn = form.querySelector('.submit-btn');
             const formData = new FormData(form);
+
+            // Disable button and show processing state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
 
             fetch('submit_question.php', {
                 method: 'POST',
@@ -685,6 +690,11 @@ include '../Includes/Header.php';
                 setTimeout(() => {
                     toast.classList.remove('show');
                 }, 3000);
+            })
+            .finally(() => {
+                // Re-enable button and restore original text
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Question';
             });
         });
 

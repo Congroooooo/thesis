@@ -226,7 +226,7 @@
 }
 
 .reply-btn::before {
-  content: "reply";
+  content: "\e15e";
   font-family: "Material Icons";
   font-size: 18px;
 }
@@ -469,7 +469,7 @@
 }
 
 .reply-modal-btn::before {
-  content: "send";
+  content: "\e163";
   font-family: "Material Icons";
   font-size: 20px;
 }
