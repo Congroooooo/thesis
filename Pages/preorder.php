@@ -60,9 +60,13 @@ $is_logged_in = isset($_SESSION['user_id']);
                         $sql = "
                             SELECT pi.*, 
                                    COALESCE((SELECT SUM(quantity) FROM preorder_requests r WHERE r.preorder_item_id = pi.id AND r.status='active'),0) AS total_requests,
-                                   EXISTS(SELECT 1 FROM preorder_orders po WHERE po.preorder_item_id = pi.id AND po.user_id = ? AND po.status IN ('pending', 'delivered')) AS has_pending_order
+                                   EXISTS(SELECT 1 FROM preorder_orders po WHERE po.preorder_item_id = pi.id AND po.user_id = ? AND po.status IN ('pending', 'delivered')) AS has_pending_order,
+                                   GROUP_CONCAT(DISTINCT sc.name SEPARATOR ', ') AS subcategories
                             FROM preorder_items pi
+                            LEFT JOIN preorder_item_subcategory pis ON pis.preorder_item_id = pi.id
+                            LEFT JOIN subcategories sc ON sc.id = pis.subcategory_id
                             WHERE pi.status='pending'
+                            GROUP BY pi.id
                             ORDER BY pi.created_at DESC
                             LIMIT $limit OFFSET $offset
                         ";
@@ -73,9 +77,13 @@ $is_logged_in = isset($_SESSION['user_id']);
                         $sql = "
                             SELECT pi.*, 
                                    COALESCE((SELECT SUM(quantity) FROM preorder_requests r WHERE r.preorder_item_id = pi.id AND r.status='active'),0) AS total_requests,
-                                   0 AS has_pending_order
+                                   0 AS has_pending_order,
+                                   GROUP_CONCAT(DISTINCT sc.name SEPARATOR ', ') AS subcategories
                             FROM preorder_items pi
+                            LEFT JOIN preorder_item_subcategory pis ON pis.preorder_item_id = pi.id
+                            LEFT JOIN subcategories sc ON sc.id = pis.subcategory_id
                             WHERE pi.status='pending'
+                            GROUP BY pi.id
                             ORDER BY pi.created_at DESC
                             LIMIT $limit OFFSET $offset
                         ";
@@ -126,8 +134,27 @@ $is_logged_in = isset($_SESSION['user_id']);
                     }
                     $title = htmlspecialchars($row['item_name']);
                     $price = number_format((float)$row['price'], 2);
-                    // For pre-orders, make all standard sizes available
-                    $allSizes = 'XS,S,M,L,XL,XXL,3XL,4XL,5XL,6XL,7XL,One Size';
+                    
+                    // Conditionally include One Size based on subcategories or item name
+                    $standardSizes = 'XS,S,M,L,XL,XXL,3XL,4XL,5XL,6XL,7XL';
+                    $subcategories = strtolower($row['subcategories'] ?? '');
+                    $itemName = strtolower($row['item_name'] ?? '');
+                    
+                    // Check if should include One Size (STI Accessories/STI-Accessories subcategory or item name contains accessories)
+                    // Remove spaces and hyphens for flexible matching
+                    $normalizedSubcategories = str_replace([' ', '-'], '', $subcategories);
+                    if (strpos($normalizedSubcategories, 'stiaccessories') !== false || 
+                        strpos($subcategories, 'accessories') !== false || 
+                        strpos($itemName, 'accessories') !== false ||
+                        strpos($itemName, 'lace') !== false ||
+                        strpos($itemName, 'lanyard') !== false ||
+                        strpos($itemName, 'pin') !== false ||
+                        strpos($itemName, 'id') !== false && strpos($itemName, 'holder') !== false) {
+                        $allSizes = 'One Size'; // Only One Size for accessories
+                    } else {
+                        $allSizes = $standardSizes; // XS to 7XL for clothing
+                    }
+                    
                     $preId = (int)$row['id'];
                     $requests = (int)$row['total_requests'];
                     $hasPending = (bool)$row['has_pending_order'];

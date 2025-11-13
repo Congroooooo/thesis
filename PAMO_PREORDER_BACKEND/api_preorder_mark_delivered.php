@@ -228,26 +228,68 @@ try {
         
         $orderNumber = sprintf('SI-%s-%06d', $date, $new_seq);
         
-        // Update items JSON to use proper suffixed inventory item codes and add category
+        // Update items JSON to use proper suffixed inventory item codes, update prices, and add category
         $items = json_decode($preorder['items'], true);
+        $priceChanges = []; // Track items with price differences
+        $newTotalAmount = 0;
+        
         if (is_array($items)) {
             foreach ($items as &$item) {
                 $size = $item['size'] ?? 'One Size';
                 
-                // Generate suffixed item code (e.g., PREORDER2-001 for XS)
-                // This matches the format used in inventory
-                $sizeNumber = $getSizeNumber($size);
-                $suffixedItemCode = $base . '-' . str_pad($sizeNumber, 3, '0', STR_PAD_LEFT);
+                // Get the delivered data for this size
+                $sizeData = $deliveredData[$size] ?? [];
                 
+                // Query inventory to get the ACTUAL item code that exists
+                // This ensures we match exactly what's in the inventory table
+                if (isset($sizeData['item_code']) && !empty($sizeData['item_code'])) {
+                    $suffixedItemCode = trim($sizeData['item_code']);
+                } else {
+                    // Fallback: generate suffixed item code and verify it exists
+                    $sizeNumber = $getSizeNumber($size);
+                    $suffixedItemCode = $base . '-' . str_pad($sizeNumber, 3, '0', STR_PAD_LEFT);
+                }
+                
+                // Verify the item code exists in inventory and get the actual price
+                $invCheckStmt = $conn->prepare('SELECT item_code, price FROM inventory WHERE item_code = ? OR (item_code LIKE ? AND sizes = ?) LIMIT 1');
+                $invCheckStmt->execute([$suffixedItemCode, $base . '%', $size]);
+                $invRecord = $invCheckStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($invRecord) {
+                    // Use the exact item_code from inventory
+                    $suffixedItemCode = $invRecord['item_code'];
+                    $deliveredPrice = floatval($invRecord['price']);
+                } else {
+                    // If not found, use the delivered data or original price
+                    $deliveredPrice = isset($sizeData['price']) ? floatval($sizeData['price']) : floatval($item['price']);
+                }
+                
+                // Track price changes
+                $originalPrice = floatval($item['price']);
+                if (abs($deliveredPrice - $originalPrice) > 0.01) { // Use small epsilon for float comparison
+                    $priceChanges[] = [
+                        'item_name' => $itemName,
+                        'size' => $size,
+                        'original_price' => $originalPrice,
+                        'new_price' => $deliveredPrice,
+                        'quantity' => $item['quantity']
+                    ];
+                }
+                
+                // Update item with new price and suffixed code
                 $item['item_code'] = $suffixedItemCode;
+                $item['price'] = $deliveredPrice; // Update to delivery price
                 $item['size'] = $size; // Ensure size is preserved
                 $item['category'] = $catName ?? 'Uncategorized';
+                
+                // Calculate new total
+                $newTotalAmount += $deliveredPrice * $item['quantity'];
             }
             unset($item);
         }
         $updatedItemsJson = json_encode($items);
         
-        // Create entry in orders table with status 'approved' (ready for payment)
+        // Create entry in orders table with UPDATED total amount
         $insertOrderStmt = $conn->prepare("
             INSERT INTO orders (
                 order_number,
@@ -265,7 +307,7 @@ try {
             $preorder['user_id'],
             $updatedItemsJson,
             '',
-            $preorder['total_amount']
+            $newTotalAmount // Use recalculated total with new prices
         ]);
         
         $newOrderId = $conn->lastInsertId();
@@ -287,10 +329,62 @@ try {
             $preorder['id']
         ]);
         
-        // Send notification to customer about order conversion
-        $notificationMessage = "🎉 Great news! Your pre-order '{$itemName}' (PRE-ORDER #: {$preorder['preorder_number']}) has been delivered and is ready for pickup! " .
-                             "Your order has been automatically approved (ORDER #: {$orderNumber}). " .
-                             "Please download your e-slip, pay at the cashier, and claim your item within 5 minutes.";
+        // Send notification to customer - include price change details if any
+        if (!empty($priceChanges)) {
+            // Build detailed price change message
+            $priceChangeDetails = "<br><br><strong>⚠️ Price Updates:</strong><br>";
+            foreach ($priceChanges as $change) {
+                $priceDiff = $change['new_price'] - $change['original_price'];
+                $diffSymbol = $priceDiff > 0 ? '▲' : '▼';
+                $diffColor = $priceDiff > 0 ? 'red' : 'green';
+                
+                $priceChangeDetails .= sprintf(
+                    "• <strong>%s</strong> (Size: %s)<br>" .
+                    "&nbsp;&nbsp;Pre-order price: ₱%.2f<br>" .
+                    "&nbsp;&nbsp;Delivery price: <span style='color:%s'>₱%.2f</span> " .
+                    "(<span style='color:%s'>%s ₱%.2f</span>)<br>" .
+                    "&nbsp;&nbsp;Qty: %d | Total: <strong>₱%.2f</strong><br>",
+                    $change['item_name'],
+                    $change['size'],
+                    $change['original_price'],
+                    $diffColor,
+                    $change['new_price'],
+                    $diffColor,
+                    $diffSymbol,
+                    abs($priceDiff),
+                    $change['quantity'],
+                    $change['new_price'] * $change['quantity']
+                );
+            }
+            
+            $originalTotal = floatval($preorder['total_amount']);
+            $totalDiff = $newTotalAmount - $originalTotal;
+            $totalDiffSymbol = $totalDiff > 0 ? '▲' : '▼';
+            $totalDiffColor = $totalDiff > 0 ? 'red' : 'green';
+            
+            $priceChangeDetails .= sprintf(
+                "<br><strong>Total Amount:</strong><br>" .
+                "• Original: ₱%.2f<br>" .
+                "• Updated: <span style='color:%s'><strong>₱%.2f</strong></span> " .
+                "(<span style='color:%s'>%s ₱%.2f</span>)",
+                $originalTotal,
+                $totalDiffColor,
+                $newTotalAmount,
+                $totalDiffColor,
+                $totalDiffSymbol,
+                abs($totalDiff)
+            );
+            
+            $notificationMessage = "🎉 Your pre-order '{$itemName}' (PRE-ORDER #: {$preorder['preorder_number']}) has been delivered!" .
+                                 $priceChangeDetails .
+                                 "<br><br>Your order has been approved (ORDER #: {$orderNumber}). " .
+                                 "Please download your e-slip, pay at the cashier, and claim your item within 5 minutes.";
+        } else {
+            // No price changes - standard message
+            $notificationMessage = "🎉 Great news! Your pre-order '{$itemName}' (PRE-ORDER #: {$preorder['preorder_number']}) has been delivered and is ready for pickup! " .
+                                 "Your order has been automatically approved (ORDER #: {$orderNumber}). " .
+                                 "Please download your e-slip, pay at the cashier, and claim your item within 5 minutes.";
+        }
         
         createNotification($conn, $preorder['user_id'], $notificationMessage, $orderNumber, 'preorder_delivered');
         
@@ -335,35 +429,18 @@ try {
         // Non-critical error, don't fail the request 
     }
 
-    // Update monthly inventory snapshots
+    // Update monthly inventory snapshots using MonthlyInventoryManager
     try {
         require_once __DIR__ . '/../Includes/MonthlyInventoryManager.php';
         $monthlyInventory = new MonthlyInventoryManager($conn);
         
-        // Get current active period
-        $currentYear = date('Y');
-        $currentMonth = date('n');
+        // Get current user for processed_by field
+        $processedBy = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : 0;
         
-        // Check if period exists, if not create it
-        $periodStmt = $conn->prepare("SELECT id FROM monthly_inventory_periods WHERE year = ? AND month = ?");
-        $periodStmt->execute([$currentYear, $currentMonth]);
-        $period = $periodStmt->fetch(PDO::FETCH_ASSOC);
+        // Generate unique delivery order number for this pre-order delivery
+        $deliveryOrderNumber = 'PREORDER-DELIVERY-' . $orderNumber . '-' . date('YmdHis');
         
-        if (!$period) {
-            // Create period for current month
-            $periodStart = date('Y-m-01');
-            $periodEnd = date('Y-m-t');
-            $createPeriodStmt = $conn->prepare("
-                INSERT INTO monthly_inventory_periods (year, month, period_start, period_end, is_closed)
-                VALUES (?, ?, ?, ?, 0)
-            ");
-            $createPeriodStmt->execute([$currentYear, $currentMonth, $periodStart, $periodEnd]);
-            $periodId = $conn->lastInsertId();
-        } else {
-            $periodId = $period['id'];
-        }
-        
-        // Update snapshots for each delivered item
+        // Record each delivered item using the proper MonthlyInventoryManager workflow
         foreach ($delivered as $size => $qty) {
             $size = trim($size);
             $qty = intval($qty);
@@ -375,58 +452,21 @@ try {
                         ? trim($sizeData['item_code']) 
                         : $base; // fallback
             
-            // Check if snapshot exists
-            $snapshotStmt = $conn->prepare("
-                SELECT id, new_delivery_total, ending_quantity 
-                FROM monthly_inventory_snapshots 
-                WHERE period_id = ? AND item_code = ?
-            ");
-            $snapshotStmt->execute([$periodId, $itemCode]);
-            $snapshot = $snapshotStmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($snapshot) {
-                // Update existing snapshot - add to deliveries and ending quantity
-                $updateSnapshotStmt = $conn->prepare("
-                    UPDATE monthly_inventory_snapshots 
-                    SET new_delivery_total = new_delivery_total + ?,
-                        ending_quantity = ending_quantity + ?
-                    WHERE id = ?
-                ");
-                $updateSnapshotStmt->execute([$qty, $qty, $snapshot['id']]);
-            } else {
-                // Create new snapshot for this item
-                // Get current inventory quantities
-                $invStmt = $conn->prepare("
-                    SELECT actual_quantity, beginning_quantity, sold_quantity 
-                    FROM inventory 
-                    WHERE item_code = ? AND sizes = ?
-                    LIMIT 1
-                ");
-                $invStmt->execute([$itemCode, $size]);
-                $invData = $invStmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($invData) {
-                    $insertSnapshotStmt = $conn->prepare("
-                        INSERT INTO monthly_inventory_snapshots (
-                            period_id, item_code, beginning_quantity, 
-                            new_delivery_total, sales_total, ending_quantity
-                        ) VALUES (?, ?, ?, ?, ?, ?)
-                    ");
-                    
-                    $beginningQty = intval($invData['beginning_quantity']);
-                    $salesTotal = intval($invData['sold_quantity']);
-                    $endingQty = intval($invData['actual_quantity']);
-                    
-                    $insertSnapshotStmt->execute([
-                        $periodId, $itemCode, $beginningQty, 
-                        $qty, $salesTotal, $endingQty
-                    ]);
-                }
-            }
+            // Use recordDelivery() to properly track the delivery
+            // This creates delivery_records entry AND updates snapshots correctly
+            // useTransaction=false because we're already in a transaction
+            $monthlyInventory->recordDelivery(
+                $deliveryOrderNumber,
+                $itemCode,
+                $qty,
+                $processedBy,
+                false  // Don't use internal transaction since we're already in one
+            );
         }
     } catch (Throwable $e) { 
-        // Non-critical - log error but don't fail the transaction
-        error_log("Monthly inventory snapshot update failed: " . $e->getMessage());
+        // This is critical - if monthly inventory tracking fails, we should know
+        error_log("Monthly inventory update failed for pre-order delivery: " . $e->getMessage());
+        throw new Exception("Failed to update monthly inventory tracking: " . $e->getMessage());
     }
     
     // Audit trail: log this delivery action

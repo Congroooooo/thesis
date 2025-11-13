@@ -340,6 +340,8 @@ $basePath = '';
     
     // Function to close and reset Add Pre-Order Modal
     function closeAddPreModal() {
+        // Clear any existing alerts
+        $('.alert').remove();
         $('#addPreModal').hide();
         const form = document.getElementById('addPreForm');
         if (form) {
@@ -351,6 +353,8 @@ $basePath = '';
             $('#preCategory').val('').trigger('change');
             $('#preSubcategories').empty();
             $('#preSubcatGroup').hide();
+            // Reset file info message
+            $('#preImageInput').siblings('.file-info').html('<span class="file-info">Recommended: JPG/PNG, max 1MB</span>');
         }
     }
     
@@ -702,50 +706,14 @@ $basePath = '';
     });
 
     $('#addPreItemBtn').on('click', function(){
+        // Clear any existing alerts
+        $('.alert').remove();
         $('#addPreForm')[0].reset();
         $('#preSubcatGroup').hide();
         $('#addPreModal').show();
     });
 
-    $('#addPreForm').on('submit', function(e){
-        e.preventDefault();
-        const form = this;
-        
-        // Check and compress image if needed
-        const imageInput = document.getElementById('preImageInput');
-        if (imageInput.files.length > 0) {
-            const file = imageInput.files[0];
-            if (file.size > 2 * 1024 * 1024) { // 2MB
-                showAlert('Image size too large. Please select an image smaller than 2MB.', 'error');
-                return;
-            }
-        }
-        
-        // Get the Save button and show processing state
-        const saveButton = $(form).find('.save-btn');
-        const originalText = saveButton.html();
-        saveButton.html('<i class="material-icons" style="font-size: 16px; vertical-align: middle;">hourglass_empty</i> Saving...').prop('disabled', true);
-        
-        const fd = new FormData(form);
-        
-        $.ajax({
-            url: '../PAMO_PREORDER_BACKEND/api_preorder_create.php',
-            method: 'POST',
-            data: fd,
-            processData: false,
-            contentType: false
-        }).done((response)=>{ 
-            showAlert('Pre-order item created successfully!', 'success');
-            loadPreorderItems();
-            // Close modal and reset everything
-            closeAddPreModal();
-        })
-        .fail(xhr=> {
-            showAlert(xhr.responseJSON?.message || 'Failed to create pre-order item', 'error');
-            // Restore button state on error
-            saveButton.html(originalText).prop('disabled', false);
-        });
-    });
+    // Note: Form submission is handled by the new handler with image compression below
 
     // Category dynamic add and subcategory prompt behavior
     $('#preCategory').on('change', async function(){
@@ -788,6 +756,176 @@ $basePath = '';
                 if (!data.success) throw new Error(data.message||'Failed');
                 await loadSubcategories(categoryId, [String(data.id)]);
             } catch(err) { alert(err.message); }
+        }
+    });
+
+    function compressImage(file, maxWidth = 1000, quality = 0.7) {
+        return new Promise((resolve, reject) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+
+            img.onerror = () => {
+                reject(new Error('Failed to load image'));
+            };
+
+            img.onload = function() {
+                // Calculate new dimensions - more aggressive resize for large files
+                let { width, height } = img;
+                
+                // For very large images, resize more aggressively
+                if (width > 2000 || height > 2000) {
+                    maxWidth = 800;
+                    quality = 0.6;
+                }
+
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                // Draw and compress
+                ctx.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error('Failed to compress image'));
+                        }
+                    },
+                    'image/jpeg',
+                    quality
+                );
+            };
+
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    // Handle form submission with image compression and duplicate prevention
+    let isSubmitting = false;
+    
+    $('#addPreForm').on('submit', async function(e) {
+        e.preventDefault();
+        
+        // Prevent duplicate submissions
+        if (isSubmitting) {
+            showAlert('Please wait, still processing...', 'error');
+            return;
+        }
+        
+        const form = this;
+        const submitBtn = $(form).find('.save-btn');
+        const fileInput = document.getElementById('preImageInput');
+        const fileInfoElement = $(fileInput).siblings('.file-info');
+        
+        try {
+            isSubmitting = true;
+            submitBtn.html('Processing...').prop('disabled', true);
+            
+            // Create FormData
+            const formData = new FormData(form);
+            
+            // Check if image needs compression
+            if (fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                const maxFileSize = 2 * 1024 * 1024; // Reduced to 2MB to stay well under nginx limit
+                
+                // Validate file type
+                if (!file.type.startsWith('image/')) {
+                    throw new Error('Please select a valid image file');
+                }
+                
+                // Always compress images larger than 500KB for safety
+                if (file.size > 500 * 1024) {
+                    fileInfoElement.html('<span class="processing-images">🔄 Compressing image, please wait...</span>');
+                    
+                    const compressedBlob = await compressImage(file);
+                    const compressedFile = new File([compressedBlob], file.name, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+                    
+                    const compressedSizeMB = (compressedFile.size / 1024 / 1024).toFixed(2);
+                    fileInfoElement.html(`<span class="good-size">✅ Compressed to ${compressedSizeMB}MB</span>`);
+                    
+                    // Check if still too large after compression
+                    if (compressedFile.size > maxFileSize) {
+                        throw new Error(`Image is still too large (${compressedSizeMB}MB). Please use a smaller image or lower resolution.`);
+                    }
+                    
+                    // Replace the file in FormData
+                    formData.set('image', compressedFile, file.name);
+                } else {
+                    fileInfoElement.html('<span class="good-size">✅ Image size OK</span>');
+                }
+            }
+            
+            // Submit via AJAX with timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            
+            const response = await fetch('../PAMO_PREORDER_BACKEND/api_preorder_create.php', {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            // Check if response is HTML (error page) instead of JSON
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                throw new Error('Server error: Request too large. Please use a smaller image (recommended under 1MB).');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showAlert('Pre-order item added successfully!', 'success');
+                closeAddPreModal();
+                await loadPreorderItems();
+            } else {
+                throw new Error(data.message || 'Failed to add pre-order item');
+            }
+            
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            
+            if (error.name === 'AbortError') {
+                showAlert('Request timed out. Please try again with a smaller image.', 'error');
+            } else {
+                showAlert(error.message || 'Error adding pre-order item', 'error');
+            }
+            
+            fileInfoElement.html('<span class="file-info">Recommended: JPG/PNG, max 1MB</span>');
+        } finally {
+            isSubmitting = false;
+            submitBtn.html('Save').prop('disabled', false);
+        }
+    });
+
+    // File input change handler to show file size info
+    $('#preImageInput').on('change', function() {
+        const fileInfoElement = $(this).siblings('.file-info');
+        if (this.files && this.files[0]) {
+            const file = this.files[0];
+            const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+            
+            if (sizeMB > 3) {
+                fileInfoElement.html(`<span class="large-file">⚠️ ${sizeMB}MB - Will be heavily compressed</span>`);
+            } else if (sizeMB > 0.5) {
+                fileInfoElement.html(`<span class="file-info">${sizeMB}MB (Will be compressed)</span>`);
+            } else {
+                fileInfoElement.html(`<span class="good-size">✅ ${sizeMB}MB - Good size</span>`);
+            }
+        } else {
+            fileInfoElement.html('<span class="file-info">Recommended: JPG/PNG, max 1MB</span>');
         }
     });
 
@@ -1124,6 +1262,21 @@ $basePath = '';
         font-size: 12px !important;
         margin-top: 4px !important;
         display: block !important;
+    }
+
+    /* Image upload feedback styles */
+    .file-info.large-file {
+        color: #e74c3c !important;
+        font-weight: bold !important;
+    }
+
+    .file-info.good-size {
+        color: #27ae60 !important;
+    }
+
+    .processing-images {
+        color: #3498db !important;
+        font-style: italic !important;
     }
     </style>
 

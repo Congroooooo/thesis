@@ -25,9 +25,12 @@ try {
             pi.status,
             pi.image_path,
             pi.created_at,
-            COALESCE(SUM(CASE WHEN pr.status = 'active' THEN pr.quantity ELSE 0 END), 0) AS total_requests
+            COALESCE(SUM(CASE WHEN pr.status = 'active' THEN pr.quantity ELSE 0 END), 0) AS total_requests,
+            GROUP_CONCAT(DISTINCT sc.name SEPARATOR ', ') AS subcategories
         FROM preorder_items pi
         LEFT JOIN preorder_requests pr ON pr.preorder_item_id = pi.id
+        LEFT JOIN preorder_item_subcategory pis ON pis.preorder_item_id = pi.id
+        LEFT JOIN subcategories sc ON sc.id = pis.subcategory_id
         $whereSql
         GROUP BY pi.id
         ORDER BY pi.created_at DESC
@@ -38,10 +41,29 @@ try {
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Add all standard sizes to each preorder item since they're all available for pre-order
-    $standardSizes = 'XS,S,M,L,XL,XXL,3XL,4XL,5XL,6XL,7XL,One Size';
+    // Add sizes to each preorder item - conditionally include One Size
     foreach ($rows as &$row) {
-        $row['sizes'] = $standardSizes;
+        $standardSizes = 'XS,S,M,L,XL,XXL,3XL,4XL,5XL,6XL,7XL';
+        
+        // Check if should include One Size (STI Accessories/STI-Accessories subcategory or item name contains accessories)
+        $subcategories = strtolower($row['subcategories'] ?? '');
+        $itemName = strtolower($row['item_name'] ?? '');
+        
+        // Remove spaces and hyphens for flexible matching
+        $normalizedSubcategories = str_replace([' ', '-'], '', $subcategories);
+        if (strpos($normalizedSubcategories, 'stiaccessories') !== false || 
+            strpos($subcategories, 'accessories') !== false || 
+            strpos($itemName, 'accessories') !== false ||
+            strpos($itemName, 'lace') !== false ||
+            strpos($itemName, 'lanyard') !== false ||
+            strpos($itemName, 'pin') !== false ||
+            strpos($itemName, 'id') !== false && strpos($itemName, 'holder') !== false) {
+            // For accessories, only show One Size
+            $row['sizes'] = 'One Size';
+        } else {
+            // For clothing, show standard sizes
+            $row['sizes'] = $standardSizes;
+        }
     }
 
     echo json_encode(['success' => true, 'items' => $rows]);
