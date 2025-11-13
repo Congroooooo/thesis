@@ -349,13 +349,13 @@ $is_logged_in = isset($_SESSION['user_id']);
                     c.name, 
                     c.has_subcategories,
                     GROUP_CONCAT(
-                        CONCAT(s.id, ':', s.name) 
+                        CONCAT(s.id, ':', s.name)
                         ORDER BY s.name ASC 
                         SEPARATOR '|'
                     ) as subcategories,
                     'regular' as category_type
                 FROM categories c
-                LEFT JOIN subcategories s ON c.id = s.category_id
+                LEFT JOIN subcategories s ON c.id = s.category_id AND s.is_active = 1
                 GROUP BY c.id, c.name, c.has_subcategories
                 
                 UNION ALL
@@ -382,7 +382,7 @@ $is_logged_in = isset($_SESSION['user_id']);
                         $subPairs = explode('|', $row['subcategories']);
                         foreach ($subPairs as $pair) {
                             $parts = explode(':', $pair, 2);
-                            if (count($parts) === 2) {
+                            if (count($parts) === 2 && $parts[0] !== '' && $parts[1] !== '') {
                                 $subcategories[] = [
                                     'id' => $parts[0],
                                     'name' => $parts[1]
