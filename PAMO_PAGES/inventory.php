@@ -246,6 +246,9 @@ function page_link($page, $query_string) {
                     <button onclick="showGeneratePayableSlipModal()" class="action-btn" style="background-color: #17a2b8; border-color: #17a2b8;">
                         <i class="material-icons">receipt</i> Walk-in Payable Slip
                     </button>
+                    <button onclick="exportInventoryToExcel()" class="action-btn" style="background-color: #28a745; border-color: #28a745;">
+                        <i class="material-icons">table_view</i> Export to Excel
+                    </button>
                     <button onclick="showRemoveItemModal()" class="action-btn" style="background-color: #dc3545;">
                         <i class="material-icons">delete_sweep</i> Remove Stocks
                     </button>

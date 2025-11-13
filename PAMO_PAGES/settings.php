@@ -68,11 +68,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_subcategory_st
     $subcategoryId = intval($_POST['subcategory_id']);
     $newStatus = intval($_POST['new_status']);
     try {
+        // Get subcategory name before updating
+        $getNameStmt = $conn->prepare("SELECT name FROM subcategories WHERE id = ?");
+        $getNameStmt->execute([$subcategoryId]);
+        $subcategoryName = $getNameStmt->fetchColumn();
+        
         $updateStmt = $conn->prepare("UPDATE subcategories SET is_active = ? WHERE id = ?");
         $updateStmt->execute([$newStatus, $subcategoryId]);
+        
+        $action = $newStatus == 1 ? 'activated' : 'deactivated';
+        $actionType = $newStatus == 1 ? 'Subcategory Activated' : 'Subcategory Deactivated';
         $success_message = "Subcategory status updated successfully!";
         $user_id = $_SESSION['user_id'] ?? null;
-        logActivity($conn, 'Subcategory Status Changed', "Subcategory with ID $subcategoryId status changed to $newStatus.", $user_id);
+        logActivity($conn, $actionType, "Subcategory '$subcategoryName' (ID: $subcategoryId) was $action.", $user_id);
     } catch (Exception $e) {
         $error_message = "Error updating subcategory status: " . $e->getMessage();
     }
@@ -109,12 +117,12 @@ $current_threshold = getLowStockThreshold($conn);
                     </div>
 
                     <?php if (isset($success_message)): ?>
-                        <div class="message success">
+                        <div class="message success auto-hide">
                             <i class="material-icons">check_circle</i> <?php echo $success_message; ?>
                         </div>
                     <?php endif; ?>
                     <?php if (isset($error_message)): ?>
-                        <div class="message error">
+                        <div class="message error auto-hide">
                             <i class="material-icons">error</i> <?php echo $error_message; ?>
                         </div>
                     <?php endif; ?>
@@ -222,6 +230,30 @@ $current_threshold = getLowStockThreshold($conn);
         </div>
     </div>
 
+    <!-- Subcategory Confirmation Modal -->
+    <div id="subcategoryConfirmModal" class="modal">
+        <div class="modal-content confirm-modal-content">
+            <div class="modal-header">
+                <h2 id="confirmModalTitle">Confirm Action</h2>
+                <span class="close" onclick="closeConfirmModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-icon-wrapper">
+                    <i class="material-icons" id="confirmModalIcon">help_outline</i>
+                </div>
+                <p id="confirmModalMessage">Are you sure you want to proceed?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="confirm-btn" id="confirmActionBtn">
+                    <span id="confirmActionText">Confirm</span>
+                </button>
+                <button type="button" class="cancel-btn" onclick="closeConfirmModal()">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="../Javascript/logout-modal.js"></script>
     <script>
         // Tab switching functionality
@@ -315,12 +347,12 @@ $current_threshold = getLowStockThreshold($conn);
                                 ${category.subcategories.map(sub => `
                                     <div class="subcategory-item">
                                         <span>${sub.name}</span>
-                                        <form method="POST" style="display:inline; margin:0;">
+                                        <form method="POST" style="display:inline; margin:0;" id="subcategoryForm_${sub.id}">
                                             <input type="hidden" name="toggle_subcategory_status" value="1">
                                             <input type="hidden" name="subcategory_id" value="${sub.id}">
                                             <input type="hidden" name="new_status" value="${sub.is_active ? 0 : 1}">
-                                            <button type="submit" class="btn btn-sm ${sub.is_active ? 'btn-warning' : 'btn-success'}"
-                                                onclick="return confirm('Are you sure you want to ${sub.is_active ? 'deactivate' : 'activate'} this subcategory?')">
+                                            <button type="button" class="btn btn-sm ${sub.is_active ? 'btn-warning' : 'btn-success'}"
+                                                onclick="confirmSubcategoryToggle(${sub.id}, '${sub.name.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', ${sub.is_active})">
                                                 <i class="fas ${sub.is_active ? 'fa-pause' : 'fa-play'}"></i>
                                                 ${sub.is_active ? 'Deactivate' : 'Activate'}
                                             </button>
@@ -488,6 +520,44 @@ $current_threshold = getLowStockThreshold($conn);
         // Load categories on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadCategories();
+            
+            // Setup confirm button click handler
+            const confirmBtn = document.getElementById('confirmActionBtn');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', function() {
+                    console.log('Confirm button clicked', pendingSubcategoryAction);
+                    if (pendingSubcategoryAction) {
+                        const { subcategoryId } = pendingSubcategoryAction;
+                        const form = document.getElementById(`subcategoryForm_${subcategoryId}`);
+                        
+                        console.log('Form found:', form);
+                        if (form) {
+                            console.log('Submitting form...');
+                            form.submit();
+                        } else {
+                            console.error('Form not found for subcategoryId:', subcategoryId);
+                        }
+                        
+                        closeConfirmModal();
+                    } else {
+                        console.error('No pending action');
+                    }
+                });
+            } else {
+                console.error('Confirm button not found');
+            }
+            
+            // Auto-hide messages after 5 seconds
+            const autoHideMessages = document.querySelectorAll('.message.auto-hide');
+            autoHideMessages.forEach(function(message) {
+                setTimeout(function() {
+                    message.style.opacity = '0';
+                    message.style.transform = 'translateY(-10px)';
+                    setTimeout(function() {
+                        message.remove();
+                    }, 300);
+                }, 5000);
+            });
         });
 
         // Threshold Modal Functions
@@ -597,6 +667,71 @@ $current_threshold = getLowStockThreshold($conn);
         document.getElementById('thresholdModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeThresholdModal();
+            }
+        });
+
+        // Subcategory Confirmation Modal Functions
+        let pendingSubcategoryAction = null;
+
+        function confirmSubcategoryToggle(subcategoryId, subcategoryName, isActive) {
+            console.log('confirmSubcategoryToggle called:', { subcategoryId, subcategoryName, isActive });
+            pendingSubcategoryAction = { subcategoryId, subcategoryName, isActive };
+            
+            const modal = document.getElementById('subcategoryConfirmModal');
+            const icon = document.getElementById('confirmModalIcon');
+            const title = document.getElementById('confirmModalTitle');
+            const message = document.getElementById('confirmModalMessage');
+            const confirmBtn = document.getElementById('confirmActionBtn');
+            const confirmText = document.getElementById('confirmActionText');
+            
+            if (!modal) {
+                console.error('Modal not found!');
+                return;
+            }
+            
+            // Update modal content based on action
+            if (isActive) {
+                // Deactivating
+                icon.textContent = 'pause_circle';
+                icon.style.color = '#ffc107';
+                title.textContent = 'Deactivate Subcategory';
+                message.innerHTML = `Are you sure you want to <strong>deactivate</strong> the subcategory <strong>"${subcategoryName}"</strong>?<br><br>This subcategory will no longer be available for selection.`;
+                confirmBtn.className = 'confirm-btn btn-warning';
+                confirmText.textContent = 'Deactivate';
+            } else {
+                // Activating
+                icon.textContent = 'play_circle';
+                icon.style.color = '#28a745';
+                title.textContent = 'Activate Subcategory';
+                message.innerHTML = `Are you sure you want to <strong>activate</strong> the subcategory <strong>"${subcategoryName}"</strong>?<br><br>This subcategory will become available for selection.`;
+                confirmBtn.className = 'confirm-btn btn-success';
+                confirmText.textContent = 'Activate';
+            }
+            
+            // Display modal with flex to center it
+            modal.style.display = 'flex';
+            console.log('Modal displayed');
+        }
+
+        function closeConfirmModal() {
+            const modal = document.getElementById('subcategoryConfirmModal');
+            modal.style.display = 'none';
+            pendingSubcategoryAction = null;
+            console.log('Modal closed');
+        }
+
+        // Close confirmation modal when clicking outside
+        document.getElementById('subcategoryConfirmModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeConfirmModal();
+            }
+        });
+
+        // Close modals with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeThresholdModal();
+                closeConfirmModal();
             }
         });
     </script>

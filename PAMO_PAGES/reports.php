@@ -12,7 +12,7 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
     header("Location: ../Pages/home.php");
     exit();
 }
-$reportType = isset($_GET['type']) ? $_GET['type'] : 'inventory';
+$reportType = isset($_GET['type']) ? $_GET['type'] : 'sales';
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $limit = 15;
 $offset = ($page - 1) * $limit;
@@ -41,11 +41,11 @@ require_once '../Includes/connection.php';
         <main class="main-content">
             <header class="reports-header">
                 <h2 class="reports-title">Reports</h2>
-                <div class="search-bar">
+                <div class="search-bar" style="display: <?php echo $reportType == 'monthly' ? 'none' : 'flex'; ?>;">
                     <i class="material-icons">search</i>
                     <input type="text" id="searchInput" placeholder="Search reports...">
                 </div>
-                <div class="date-filters">
+                <div class="date-filters" style="display: <?php echo $reportType == 'monthly' ? 'none' : 'flex'; ?>;">
                     <label for="startDate" class="date-label">From</label>
                     <input type="date" id="startDate" placeholder="Start Date">
                     <label for="endDate" class="date-label">To</label>
@@ -78,26 +78,15 @@ require_once '../Includes/connection.php';
                 <div class="report-filters">
                     <h3>Report Filters</h3>
                     <select id="reportType" onchange="changeReportType()">
-                        <option value="inventory"<?php if($reportType=='inventory') echo ' selected'; ?>>Inventory Report</option>
-                        <option value="monthly"<?php if($reportType=='monthly') echo ' selected'; ?>>Monthly Inventory</option>
                         <option value="sales"<?php if($reportType=='sales') echo ' selected'; ?>>Sales Report</option>
+                        <option value="monthly"<?php if($reportType=='monthly') echo ' selected'; ?>>Monthly Inventory</option>
                         <option value="audit"<?php if($reportType=='audit') echo ' selected'; ?>>Audit Trail</option>
                     </select>
-                    
-                    <div id="stockStatusFilter" class="stock-status-filter" style="display: <?php echo $reportType == 'inventory' ? 'block' : 'none'; ?>; margin-top: 15px;">
-                        <label for="stockStatus" class="filter-label">Stock Status</label>
-                        <select id="stockStatus" onchange="applyStockStatusFilter()">
-                            <option value="">All Stock Levels</option>
-                            <option value="In Stock">In Stock</option>
-                            <option value="Low Stock">Low Stock</option>
-                            <option value="Out of Stock">Out of Stock</option>
-                        </select>
-                    </div>
                 </div>
 
-                <!-- Inventory Report Table -->
+                <!-- Sales Report Table -->
                 <div class="report-table-responsive">
-                    <div id="inventoryReport" class="report-table" style="display: <?php echo $reportType == 'inventory' ? 'block' : 'none'; ?>;"></div>
+                    <div id="salesReport" class="report-table" style="display: <?php echo $reportType == 'sales' ? 'block' : 'none'; ?>;"></div>
                 </div>
 
                 <!-- Monthly Inventory Report -->
@@ -447,11 +436,6 @@ require_once '../Includes/connection.php';
                         }
                         </script>
                     </div>
-                </div>
-
-                <!-- Sales Report Table -->
-                <div class="report-table-responsive">
-                    <div id="salesReport" class="report-table" style="display: <?php echo $reportType == 'sales' ? 'block' : 'none'; ?>;"></div>
                 </div>
 
                 <!-- Audit Trail Table -->
