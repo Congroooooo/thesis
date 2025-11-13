@@ -348,10 +348,8 @@ class PolicyModal {
       const result = await response.json();
 
       if (result.success) {
-        // Only mark as shown in session if user checked "don't show again"
-        if (dontShow) {
-          sessionStorage.setItem("policyShown", "true");
-        }
+        // Mark as shown in session to prevent re-showing
+        sessionStorage.setItem("policyShown", "true");
         this.hide();
       } else {
         console.error("Failed to save policy acceptance:", result.message);
@@ -543,17 +541,17 @@ let policyModalInstance = null;
 
 // Global function to check and show policy modal
 async function checkAndShowPolicyModal() {
+  // Check if already shown in this session
+  if (sessionStorage.getItem("policyShown") === "true") {
+    return;
+  }
+
   try {
     // Check if user needs to see the policy
     const response = await fetch("../Includes/check_policy_status.php");
     const result = await response.json();
 
     if (result.should_show) {
-      // Check if already shown in this session (only for users who checked "don't show again")
-      if (sessionStorage.getItem("policyShown") === "true") {
-        return;
-      }
-
       if (!policyModalInstance) {
         policyModalInstance = new PolicyModal();
       }

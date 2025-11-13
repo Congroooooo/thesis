@@ -294,8 +294,6 @@ function exportToExcel() {
   let exportUrl = "";
   if (reportType === "sales") {
     exportUrl = "../PAMO_PAGES/includes/export_sales_report.php?" + params;
-  } else if (reportType === "inventory") {
-    exportUrl = "../PAMO_PAGES/includes/export_inventory_report.php?" + params;
   } else if (reportType === "audit") {
     exportUrl = "../PAMO_PAGES/includes/export_audit_report.php?" + params;
   } else {

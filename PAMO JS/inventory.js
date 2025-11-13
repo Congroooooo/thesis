@@ -886,3 +886,34 @@ document.addEventListener("DOMContentLoaded", function () {
     true
   ); // Use capture phase to catch events early
 });
+
+// Export Inventory to Excel function
+function exportInventoryToExcel() {
+  // Get current filter values from the filter form
+  const searchInput = document.getElementById("searchInput");
+  const categoryFilter = document.getElementById("categoryFilter");
+  const sizeFilter = document.getElementById("sizeFilter");
+  const statusFilter = document.getElementById("statusFilter");
+
+  // Build query parameters based on current filters
+  const params = new URLSearchParams();
+
+  if (searchInput && searchInput.value.trim()) {
+    params.append("search", searchInput.value.trim());
+  }
+  if (categoryFilter && categoryFilter.value) {
+    params.append("category", categoryFilter.value);
+  }
+  if (sizeFilter && sizeFilter.value) {
+    params.append("size", sizeFilter.value);
+  }
+  if (statusFilter && statusFilter.value) {
+    params.append("status", statusFilter.value);
+  }
+
+  const exportUrl =
+    "../PAMO_PAGES/includes/export_inventory_report.php?" + params.toString();
+
+  // Open the export URL in a new window/tab to trigger download
+  window.open(exportUrl, "_blank");
+}
