@@ -1052,6 +1052,7 @@ function page_link($page, $query_string) {
     .save-btn {
         background: #007bff;
         color: white;
+        transition: all 0.3s ease;
     }
 
     .cancel-btn {
@@ -1059,8 +1060,14 @@ function page_link($page, $query_string) {
         color: white;
     }
 
-    .save-btn:hover {
+    .save-btn:hover:not(:disabled) {
         background: #0056b3;
+    }
+
+    .save-btn:disabled {
+        background: #6c757d;
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
     .cancel-btn:hover {

@@ -2,6 +2,7 @@
 
 let selectedItemCode = null;
 let selectedPrice = null;
+let originalPrice = null; // Store original price for comparison
 
 function selectRow(row, itemCode, price) {
   if (selectedItemCode === itemCode) {
@@ -52,9 +53,47 @@ function handleEdit() {
 function showEditPriceModal() {
   document.getElementById("priceItemId").value =
     document.getElementById("editItemId").value;
-  document.getElementById("newPrice").value =
-    document.getElementById("editPrice").value;
+  const currentPrice = document.getElementById("editPrice").value;
+  document.getElementById("newPrice").value = currentPrice;
+
+  // Store original price for comparison
+  originalPrice = parseFloat(currentPrice);
+
+  // Disable save button initially (price hasn't changed yet)
+  const saveButton = document.querySelector("#editPriceModal .save-btn");
+  if (saveButton) {
+    saveButton.disabled = true;
+    saveButton.style.opacity = "0.5";
+    saveButton.style.cursor = "not-allowed";
+  }
+
+  // Add event listener to price input to enable/disable save button
+  const priceInput = document.getElementById("newPrice");
+  if (priceInput) {
+    // Remove any existing listeners first
+    priceInput.removeEventListener("input", checkPriceChange);
+    priceInput.addEventListener("input", checkPriceChange);
+  }
+
   document.getElementById("editPriceModal").style.display = "block";
+}
+
+function checkPriceChange() {
+  const newPrice = parseFloat(document.getElementById("newPrice").value);
+  const saveButton = document.querySelector("#editPriceModal .save-btn");
+
+  if (!saveButton) return;
+
+  // Enable button only if price has changed and is valid
+  if (!isNaN(newPrice) && newPrice !== originalPrice && newPrice >= 0) {
+    saveButton.disabled = false;
+    saveButton.style.opacity = "1";
+    saveButton.style.cursor = "pointer";
+  } else {
+    saveButton.disabled = true;
+    saveButton.style.opacity = "0.5";
+    saveButton.style.cursor = "not-allowed";
+  }
 }
 
 function showEditImageModal() {
@@ -111,7 +150,19 @@ function showEditImageModal() {
 
 function submitEditPrice() {
   const itemId = document.getElementById("priceItemId").value;
-  const newPrice = document.getElementById("newPrice").value;
+  const newPrice = parseFloat(document.getElementById("newPrice").value);
+
+  // Check if price has actually changed
+  if (newPrice === originalPrice) {
+    alert("No changes detected. Price is the same as the original value.");
+    return;
+  }
+
+  // Validate price
+  if (isNaN(newPrice) || newPrice < 0) {
+    alert("Please enter a valid price.");
+    return;
+  }
 
   fetch("../PAMO Inventory backend/edit_price.php", {
     method: "POST",
@@ -126,7 +177,16 @@ function submitEditPrice() {
         updatePriceDisplay(itemId, newPrice);
         showMessage(`Updated price for item ${itemId} to ${newPrice}.`);
         closeModal("editPriceModal");
+        closeModal("editItemModal"); // Also close the main Edit modal
         document.getElementById("newPrice").value = "";
+
+        // Clear selection
+        selectedItemCode = null;
+        selectedPrice = null;
+        document.querySelectorAll(".inventory-table tbody tr").forEach((tr) => {
+          tr.classList.remove("selected");
+        });
+        document.getElementById("editBtn").disabled = true;
       } else {
         alert("Error updating price");
       }
