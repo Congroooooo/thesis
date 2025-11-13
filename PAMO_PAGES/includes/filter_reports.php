@@ -20,53 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 function displayReport($reportType, $startDate, $endDate, $conn) {
     try {
         switch ($reportType) {
-            case 'inventory':
-                $sql = "SELECT * FROM inventory";
-                $params = array();
-                
-                if ($startDate && $endDate) {
-                    $sql .= " WHERE created_at >= :start_date AND created_at < :end_date";
-                    $params[':start_date'] = $startDate;
-                    $params[':end_date'] = $endDate;
-                }
-                
-                $sql .= " ORDER BY created_at DESC";
-                
-                $stmt = $conn->prepare($sql);
-                $stmt->execute($params);
-                
-                echo '<div class="report-table">';
-                echo '<h3>Inventory Report</h3>';
-                echo '<div class="scroll-table-container">';
-                echo '<table>';
-                echo '<thead><tr>
-                        <th>Item Code</th>
-                        <th>Item Name</th>
-                        <th>Category</th>
-                        <th>Beginning Quantity</th>
-                        <th>New Delivery</th>
-                        <th>Actual Quantity</th>
-                        <th>Sold Quantity</th>
-                        <th>Status</th>
-                        <th>Date Delivered</th>
-                      </tr></thead><tbody>';
-                
-                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    echo "<tr>";
-                    echo "<td>{$row['item_code']}</td>";
-                    echo "<td>{$row['item_name']}</td>";
-                    echo "<td>{$row['category']}</td>";
-                    echo "<td>{$row['beginning_quantity']}</td>";
-                    echo "<td>{$row['new_delivery']}</td>";
-                    echo "<td>{$row['actual_quantity']}</td>";
-                    echo "<td>{$row['sold_quantity']}</td>";
-                    echo "<td>{$row['status']}</td>";
-                    echo "<td>{$row['created_at']}</td>";
-                    echo "</tr>";
-                }
-                echo '</tbody></table></div></div>';
-                break;
-
             case 'sales':
                 $sql = "SELECT s.*, i.item_name FROM sales s LEFT JOIN inventory i ON s.item_code = i.item_code";
                 $params = array();

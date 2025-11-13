@@ -1,4 +1,5 @@
 <?php
+session_start();
 ini_set('zlib.output_compression', 0);
 if (ob_get_level()) ob_end_clean();
 
@@ -12,6 +13,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 
 require_once __DIR__ . '/../../Includes/connection.php';
 require_once __DIR__ . '/../../Includes/MonthlyInventoryManager.php';
+require_once __DIR__ . '/config_functions.php';
 
 $selectedYear = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
 $selectedMonth = isset($_GET['month']) ? intval($_GET['month']) : date('n');
@@ -291,6 +293,12 @@ foreach (range('A', 'H') as $col) {
 $sheet->getColumnDimension('A')->setWidth(15);
 $sheet->getColumnDimension('B')->setWidth(35);
 $sheet->getColumnDimension('C')->setWidth(20);
+
+// Log the export activity
+$user_id = $_SESSION['user_id'] ?? null;
+$totalItems = count($inventoryData);
+$monthYearDisplay = date('F Y', mktime(0, 0, 0, $selectedMonth, 1, $selectedYear));
+logActivity($conn, 'Monthly Inventory Report Exported', "Monthly inventory report for $monthYearDisplay exported to Excel with $totalItems items", $user_id);
 
 // Generate filename
 $filename = 'Monthly_Inventory_Report_' . date('F_Y', mktime(0, 0, 0, $selectedMonth, 1, $selectedYear)) . '.xlsx';

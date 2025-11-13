@@ -1,4 +1,5 @@
 <?php
+session_start();
 ini_set('zlib.output_compression', 0);
 if (ob_get_level()) ob_end_clean();
 
@@ -58,18 +59,21 @@ if ($endDate) {
 }
 
 $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-$sql = "SELECT item_code, item_name, category, beginning_quantity, new_delivery, actual_quantity, sold_quantity, IFNULL(date_delivered, created_at) AS display_date FROM inventory $where_clause ORDER BY display_date DESC";
+$sql = "SELECT item_code, item_name, category, new_delivery, actual_quantity, IFNULL(date_delivered, created_at) AS display_date FROM inventory $where_clause ORDER BY display_date DESC";
 
 $stmt = $conn->prepare($sql);
 $stmt->execute($params);
 
+// Get total count for logging
+$totalItems = $stmt->rowCount();
+
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 
-$headers = ['Item Code', 'Item Name', 'Category', 'Beginning Quantity', 'New Delivery', 'Actual Quantity', 'Sold Quantity', 'Status', 'Date Delivered'];
+$headers = ['Item Code', 'Item Name', 'Category', 'New Delivery', 'Actual Quantity', 'Status'];
 $sheet->fromArray($headers, NULL, 'A1');
 
-$sheet->getStyle('A1:I1')->getFont()->setBold(true);
+$sheet->getStyle('A1:F1')->getFont()->setBold(true);
 
 $rowNum = 2;
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -84,15 +88,12 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $row['item_code'],
         $row['item_name'],
         $row['category'],
-        $row['beginning_quantity'],
         $row['new_delivery'],
         $row['actual_quantity'],
-        $row['sold_quantity'],
-        $status,
-        $row['display_date']
+        $status
     ], NULL, 'A' . $rowNum);
 
-    $statusCell = 'H' . $rowNum;
+    $statusCell = 'F' . $rowNum;
     $statusLower = strtolower($status);
     if ($statusLower === 'in stock') {
         $sheet->getStyle($statusCell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
@@ -108,11 +109,30 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 }
 
 $lastDataRow = $rowNum - 1;
-$sheet->getStyle('D2:G' . $lastDataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+$sheet->getStyle('D2:E' . $lastDataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
 foreach (range('A', $sheet->getHighestColumn()) as $col) {
     $sheet->getColumnDimension($col)->setAutoSize(true);
 }
+
+// Log the export activity
+$user_id = $_SESSION['user_id'] ?? null;
+$filterDescription = '';
+$filters = [];
+
+if ($search) $filters[] = "Search: '$search'";
+if ($category) $filters[] = "Category: '$category'";
+if ($size) $filters[] = "Size: '$size'";
+if ($status) $filters[] = "Status: '$status'";
+if ($stockStatus) $filters[] = "Stock Status: '$stockStatus'";
+if ($startDate) $filters[] = "Start Date: '$startDate'";
+if ($endDate) $filters[] = "End Date: '$endDate'";
+
+if (!empty($filters)) {
+    $filterDescription = ' with filters: ' . implode(', ', $filters);
+}
+
+logActivity($conn, 'Inventory Exported', "Inventory report exported to Excel with $totalItems items" . $filterDescription, $user_id);
 
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header('Content-Disposition: attachment; filename="inventory_report_' . date('Y-m-d') . '.xlsx"');
