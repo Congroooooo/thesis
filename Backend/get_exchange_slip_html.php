@@ -30,10 +30,12 @@ if (!($role === 'EMPLOYEE' && $programAbbr === 'PAMO')) {
 // Get exchange details
 $stmt = $conn->prepare('
     SELECT oe.*, o.order_number, o.created_at as order_date,
-           a.first_name, a.last_name, a.id_number, a.email
+           a.first_name, a.last_name, a.id_number, a.email,
+           processor.first_name as processor_fname, processor.last_name as processor_lname
     FROM order_exchanges oe
     JOIN orders o ON oe.order_id = o.id
     JOIN account a ON oe.user_id = a.id
+    LEFT JOIN account processor ON oe.processed_by = processor.id
     WHERE oe.id = ?
 ');
 $stmt->execute([$exchange_id]);
@@ -93,8 +95,9 @@ if ($exchange['adjustment_type'] === 'additional_payment') {
             width: 100%;
             max-width: 800px;
             margin: 0 auto;
-            padding: 15px;
+            padding: 0;
             background: #fff;
+            box-sizing: border-box;
         }
         
         /* Header similar to receipt */
@@ -104,22 +107,34 @@ if ($exchange['adjustment_type'] === 'additional_payment') {
             flex-direction: row;
             align-items: flex-start;
             justify-content: space-between;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
             border-bottom: 2px solid #222;
         }
         
         .slip-header-logo img {
-            height: 60px;
+            height: 50px;
             width: auto;
             display: block;
         }
         
         .slip-header-logo {
-            flex: 0 0 80px;
+            flex: 0 0 70px;
             display: flex;
             align-items: center;
             justify-content: flex-start;
+        }
+        
+        .copy-label {
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #0072bc;
+            margin-bottom: 8px;
+            padding: 5px;
+            border: 2px solid #0072bc;
+            background: #f0f8ff;
+            letter-spacing: 1px;
         }
         
         .slip-header-center {
@@ -154,7 +169,7 @@ if ($exchange['adjustment_type'] === 'additional_payment') {
         
         /* Info section */
         .info-section {
-            margin-bottom: 15px;
+            margin-bottom: 6px;
         }
         
         .info-table {
@@ -182,14 +197,15 @@ if ($exchange['adjustment_type'] === 'additional_payment') {
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 15px 0;
+            margin: 6px 0;
         }
         
         .items-table th,
         .items-table td {
             border: 1px solid #222;
-            padding: 8px;
+            padding: 5px 6px;
             text-align: left;
+            font-size: 11px;
         }
         
         .items-table th {
@@ -205,10 +221,11 @@ if ($exchange['adjustment_type'] === 'additional_payment') {
         
         .adjustment-box {
             border: 2px solid #222;
-            padding: 12px 15px;
-            margin: 15px 0;
+            padding: 6px 8px;
+            margin: 6px 0;
             text-align: center;
             background: #fffef0;
+            font-size: 0.85em;
         }
         
         .adjustment-box h3 {
@@ -224,36 +241,38 @@ if ($exchange['adjustment_type'] === 'additional_payment') {
         }
         
         .notes {
-            margin: 15px 0;
-            padding: 10px 12px;
+            margin: 6px 0;
+            padding: 6px 8px;
             background: #f8f8f8;
             border-left: 3px solid #222;
-            font-size: 0.95em;
+            font-size: 0.85em;
         }
         
         .footer-section {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 2px solid #222;
+            margin-top: 8px;
+            padding-top: 3px;
         }
         
         .footer-note {
             text-align: center;
-            font-size: 0.9em;
-            margin-bottom: 20px;
+            font-size: 0.8em;
+            margin-bottom: 6px;
             color: #555;
+            line-height: 1.3;
         }
         
         .signature-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 4px;
         }
         
         .signature-table td {
-            border: 1px solid #222;
-            padding: 8px;
-            vertical-align: top;
+            border: none;
+            padding: 28px 8px 2px 8px;
+            vertical-align: bottom;
+            text-align: center;
+            width: 33.33%;
         }
         
         .signature-table .sig-label {
@@ -261,26 +280,84 @@ if ($exchange['adjustment_type'] === 'additional_payment') {
             font-size: 0.95em;
             background: #f8f8f8;
             height: 30px;
-        }
-        
-        .signature-table .sig-box {
-            height: 50px;
-            background: #fff;
+            padding: 8px;
         }
         
         .signature-table .sig-name {
-            font-weight: bold;
+            font-weight: normal;
             text-align: center;
-            padding-top: 20px;
-            font-size: 12px;
+            border-top: 1px solid #222;
+            padding-top: 2px;
+            font-size: 0.85em;
         }
         
         @media print {
+            @page {
+                size: A4;
+                margin: 8mm;
+            }
+            
             body {
                 padding: 0;
+                margin: 0;
             }
+            
             .slip-container {
-                padding: 10px;
+                padding: 0;
+                max-width: 100%;
+            }
+            
+            .copy-label {
+                page-break-after: avoid;
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+            
+            .slip-header-flex {
+                margin-bottom: 4px;
+                padding-bottom: 4px;
+            }
+            
+            .slip-header-logo img {
+                height: 45px;
+            }
+            
+            .items-table {
+                margin: 4px 0;
+                font-size: 10px;
+            }
+            
+            .items-table th,
+            .items-table td {
+                padding: 4px 5px;
+            }
+            
+            .adjustment-box {
+                margin: 4px 0;
+                padding: 5px 6px;
+                font-size: 0.8em;
+            }
+            
+            .footer-section {
+                margin-top: 6px;
+            }
+            
+            .footer-note {
+                margin-bottom: 4px;
+                font-size: 0.75em;
+                line-height: 1.2;
+            }
+            
+            .signature-table {
+                margin-top: 3px;
+            }
+            
+            .signature-table td {
+                padding: 22px 6px 2px 6px;
+            }
+            
+            .signature-table .sig-name {
+                font-size: 0.8em;
             }
         }
     </style>
@@ -303,7 +380,6 @@ if ($exchange['adjustment_type'] === 'additional_payment') {
                 <div class="sti-lucena">STI LUCENA</div>
                 <div class="exchange-slip-title">EXCHANGE SLIP</div>
             </div>
-            <div class="slip-header-type">PAMO COPY</div>
         </div>
         
         <!-- Info section -->
@@ -417,24 +493,21 @@ if ($exchange['adjustment_type'] === 'additional_payment') {
             
             <table class="signature-table">
                 <tr>
-                    <td class="sig-label" style="width: 50%;">Processed by (PAMO):</td>
-                    <td class="sig-label" style="width: 50%;">Customer Received by:</td>
-                </tr>
-                <tr>
-                    <td class="sig-box">
-                        <div class="sig-name"><?php echo htmlspecialchars($exchange['processed_by'] ?? 'PAMO Staff'); ?></div>
+                    <td>
+                        <div class="sig-name"><?php 
+                            $processor_name = 'PAMO Staff';
+                            if (!empty($exchange['processor_fname']) && !empty($exchange['processor_lname'])) {
+                                $processor_name = $exchange['processor_fname'] . ' ' . $exchange['processor_lname'];
+                            }
+                            echo htmlspecialchars($processor_name); 
+                        ?></div>
                     </td>
-                    <td class="sig-box">
+                    <td>
+                        <div class="sig-name">Agnes Eublon</div>
+                    </td>
+                    <td>
                         <div class="sig-name"><?php echo htmlspecialchars($exchange['first_name'] . ' ' . $exchange['last_name']); ?></div>
                     </td>
-                </tr>
-                <tr>
-                    <td class="sig-label">Signature & Date:</td>
-                    <td class="sig-label">Signature & Date:</td>
-                </tr>
-                <tr>
-                    <td class="sig-box" style="height: 60px;"></td>
-                    <td class="sig-box" style="height: 60px;"></td>
                 </tr>
             </table>
         </div>

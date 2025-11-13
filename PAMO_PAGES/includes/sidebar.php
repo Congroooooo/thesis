@@ -84,7 +84,7 @@ try {
         <li <?php echo basename($_SERVER['PHP_SELF']) == 'pamo_preorder.php' ? 'class="active"' : ''; ?>
             onclick="window.location.href='<?php echo $basePath; ?>pamo_preorder.php'">
             <span class="active-bar"></span>
-            <i class="material-icons">shopping_cart</i>Pre-Order
+            <i class="material-icons">schedule</i>Pre-Order
         </li>
         <li <?php echo basename($_SERVER['PHP_SELF']) == 'reports.php' ? 'class="active"' : ''; ?>
             onclick="window.location.href='<?php echo $basePath; ?>reports.php'">

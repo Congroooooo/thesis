@@ -25,17 +25,21 @@ if ($is_admin) {
     }
 
     $stmt = $conn->prepare('
-        SELECT oe.*, o.created_at as order_date
+        SELECT oe.*, o.created_at as order_date,
+               CONCAT(staff.first_name, " ", staff.last_name) as processed_by_name
         FROM order_exchanges oe
         JOIN orders o ON oe.order_id = o.id
+        LEFT JOIN account staff ON oe.processed_by = staff.id
         WHERE oe.id = ?
     ');
     $stmt->execute([$exchange_id]);
 } else {
     $stmt = $conn->prepare('
-        SELECT oe.*, o.created_at as order_date
+        SELECT oe.*, o.created_at as order_date,
+               CONCAT(staff.first_name, " ", staff.last_name) as processed_by_name
         FROM order_exchanges oe
         JOIN orders o ON oe.order_id = o.id
+        LEFT JOIN account staff ON oe.processed_by = staff.id
         WHERE oe.id = ? AND oe.user_id = ?
     ');
     $stmt->execute([$exchange_id, $_SESSION['user_id']]);
@@ -69,7 +73,7 @@ $exchangeDate = date('F d, Y', strtotime($exchange['exchange_date']));
 $orderDate = date('F d, Y', strtotime($exchange['order_date']));
 $totalPriceDifference = floatval($exchange['total_price_difference']);
 $adjustmentType = $exchange['adjustment_type'];
-$approvedBy = isset($exchange['approved_by']) ? htmlspecialchars($exchange['approved_by']) : '';
+$processedBy = isset($exchange['processed_by_name']) ? htmlspecialchars($exchange['processed_by_name']) : 'PAMO Staff';
 
 // Get cashier name for the exchange date
 $exchangeDateOnly = date('Y-m-d', strtotime($exchange['exchange_date']));
@@ -263,8 +267,8 @@ function renderExchangeSlip($copyLabel, $logo_src, $studentName, $studentIdNumbe
 }
 
 $html = '<html><head><meta charset="UTF-8">' . $css . '</head><body><div class="slip-a4">';
-$html .= renderExchangeSlip('CUSTOMER COPY', $logo_src, $studentName, $studentIdNumber, $exchangeNumber, $orderNumber, $exchangeDate, $orderDate, $exchange_items, $totalPriceDifference, $adjustmentType, $approvedBy, $cashierName, $isEmployee);
-$html .= renderExchangeSlip('SHOP COPY', $logo_src, $studentName, $studentIdNumber, $exchangeNumber, $orderNumber, $exchangeDate, $orderDate, $exchange_items, $totalPriceDifference, $adjustmentType, $approvedBy, $cashierName, $isEmployee);
+$html .= renderExchangeSlip('CUSTOMER COPY', $logo_src, $studentName, $studentIdNumber, $exchangeNumber, $orderNumber, $exchangeDate, $orderDate, $exchange_items, $totalPriceDifference, $adjustmentType, $processedBy, $cashierName, $isEmployee);
+$html .= renderExchangeSlip('SHOP COPY', $logo_src, $studentName, $studentIdNumber, $exchangeNumber, $orderNumber, $exchangeDate, $orderDate, $exchange_items, $totalPriceDifference, $adjustmentType, $processedBy, $cashierName, $isEmployee);
 $html .= '</div></body></html>';
 
 $options = new Options();

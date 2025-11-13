@@ -1149,7 +1149,11 @@ unset($order);
     <!-- Walk-In Exchange Styles -->
     <link rel="stylesheet" href="../CSS/exchange.css">
     <style>
-        /* Walk-in Exchange Modal Specific Styles */
+        /* =================================
+           PROCESS EXCHANGE MODAL - REDESIGNED
+           ================================= */
+        
+        /* Modal Overlay */
         #walkinExchangeModal.modal {
             display: none;
             position: fixed;
@@ -1157,89 +1161,212 @@ unset($order);
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             z-index: 10000;
             align-items: center;
             justify-content: center;
+            animation: modalFadeIn 0.3s ease-out;
+        }
+        
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
         }
         
         #walkinExchangeModal.modal[style*="flex"] {
             display: flex !important;
         }
         
+        /* Modal Content Container */
         #walkinExchangeModal .modal-content {
-            background: white;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 1100px;
-            max-height: 90vh;
+            background: #ffffff;
+            border-radius: 20px;
+            width: 85%;
+            max-width: 1000px;
+            max-height: 92vh;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3), 
+                        0 10px 25px rgba(0, 114, 188, 0.2),
+                        0 0 0 1px rgba(255, 255, 255, 0.1);
+            animation: modalSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
         }
         
+        @keyframes modalSlideUp {
+            from {
+                transform: translateY(50px) scale(0.95);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+        
+        /* Modal Header - Enhanced Gradient */
         #walkinExchangeModal .modal-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0072bc 0%, #005a94 50%, #004d7a 100%);
             color: white;
-            padding: 20px 30px;
-            border-radius: 12px 12px 0 0;
+            padding: 28px 36px;
+            border-radius: 20px 20px 0 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 114, 188, 0.3);
+        }
+        
+        /* Subtle header decoration */
+        #walkinExchangeModal .modal-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
         }
         
         #walkinExchangeModal .modal-header h2 {
             margin: 0;
-            font-size: 22px;
-            font-weight: 600;
+            font-size: 24px;
+            font-weight: 700;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        #walkinExchangeModal .modal-header h2 i {
+            font-size: 26px;
+            animation: iconPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes iconPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
         
         #walkinExchangeModal .modal-header .close {
             color: white;
-            font-size: 32px;
-            font-weight: bold;
+            font-size: 36px;
+            font-weight: 300;
             cursor: pointer;
             line-height: 1;
-            transition: transform 0.2s;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            background: rgba(255, 255, 255, 0.1);
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
         }
         
         #walkinExchangeModal .modal-header .close:hover {
-            transform: rotate(90deg);
+            transform: rotate(90deg) scale(1.15);
+            background: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
         
+        /* Modal Body - Enhanced Spacing */
         #walkinExchangeModal .modal-body {
             flex: 1;
             overflow-y: auto;
-            padding: 25px 30px;
+            overflow-x: hidden;
+            padding: 32px 36px;
             min-height: 0;
+            background: linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%);
         }
         
+        /* Custom Scrollbar */
+        #walkinExchangeModal .modal-body::-webkit-scrollbar {
+            width: 10px;
+        }
+        
+        #walkinExchangeModal .modal-body::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        
+        #walkinExchangeModal .modal-body::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #0072bc 0%, #005a94 100%);
+            border-radius: 10px;
+            border: 2px solid #f1f5f9;
+        }
+        
+        #walkinExchangeModal .modal-body::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #005a94 0%, #004d7a 100%);
+        }
+        
+        /* Modal Footer - Enhanced Design */
         #walkinExchangeModal .modal-footer {
-            padding: 15px 30px;
-            background: #f8f9fa;
-            border-top: 1px solid #dee2e6;
+            padding: 24px 36px;
+            background: linear-gradient(to bottom, #f8fafc 0%, #f1f5f9 100%);
+            border-top: 2px solid #e2e8f0;
             display: flex;
             justify-content: flex-end;
-            gap: 12px;
+            gap: 16px;
             flex-shrink: 0;
-            border-radius: 0 0 12px 12px;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.03);
         }
         
-        /* Exchange Info Box */
+        /* Exchange Info Box - Redesigned */
         .exchange-info-box {
-            background: #f0f7ff;
-            border: 1px solid #b3d9ff;
-            border-radius: 8px;
-            padding: 15px 20px;
-            margin-bottom: 20px;
+            background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+            border: 2px solid #0072bc;
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 28px;
+            box-shadow: 0 4px 12px rgba(0, 114, 188, 0.1),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .exchange-info-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(0, 114, 188, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
         }
         
         .exchange-info-box .info-row {
             display: flex;
             justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px dashed #cce5ff;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(0, 114, 188, 0.15);
+            transition: all 0.2s ease;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .exchange-info-box .info-row:hover {
+            padding-left: 8px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 8px;
         }
         
         .exchange-info-box .info-row:last-child {
@@ -1247,85 +1374,193 @@ unset($order);
         }
         
         .exchange-info-box .info-label {
-            font-weight: 600;
-            color: #0056b3;
+            font-weight: 700;
+            color: #0072bc;
+            font-size: 14px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .exchange-info-box .info-label::before {
+            content: '▸';
+            color: #0072bc;
+            font-weight: bold;
         }
         
         .exchange-info-box .info-value {
-            color: #333;
+            color: #1e293b;
+            font-weight: 600;
+            font-size: 14px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
         }
         
-        /* Exchange Note */
+        /* Exchange Note - Enhanced Design */
         .exchange-note {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 12px 15px;
-            margin-bottom: 20px;
-            border-radius: 4px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 5px solid #f59e0b;
+            padding: 18px 22px;
+            margin-bottom: 28px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 14px;
             font-size: 14px;
-            color: #856404;
+            color: #92400e;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
         }
         
-        /* Exchange Items Container */
+        .exchange-note::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20px;
+            width: 120px;
+            height: 200px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+            transform: rotate(15deg);
+            pointer-events: none;
+        }
+        
+        .exchange-note i {
+            font-size: 22px;
+            color: #f59e0b;
+            flex-shrink: 0;
+            animation: noteIconBounce 2s ease-in-out infinite;
+        }
+        
+        @keyframes noteIconBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+        
+        /* Exchange Items Container - Enhanced */
         .exchange-items-container {
-            margin-bottom: 20px;
+            margin-bottom: 32px;
         }
         
         .exchange-items-container h4 {
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e9ecef;
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 20px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-radius: 12px;
+            border-left: 5px solid #0072bc;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            box-shadow: 0 2px 8px rgba(0, 114, 188, 0.08);
         }
         
-        /* Exchange Item Card */
+        .exchange-items-container h4 i {
+            color: #0072bc;
+            font-size: 20px;
+        }
+        
+        /* Exchange Item Card - Redesigned */
         .exchange-item-card {
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            padding: 18px;
-            margin-bottom: 15px;
-            background: #fafafa;
-            transition: all 0.3s ease;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 2px 8px rgba(0, 114, 188, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .exchange-item-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: linear-gradient(135deg, #0072bc 0%, #005a94 100%);
+            transform: scaleY(0);
+            transform-origin: bottom;
+            transition: transform 0.3s ease;
+        }
+        
+        .exchange-item-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 114, 188, 0.15);
+            border-color: #0072bc;
+        }
+        
+        .exchange-item-card:hover::before {
+            transform: scaleY(1);
         }
         
         .exchange-item-card .item-header {
             display: flex;
-            gap: 15px;
+            gap: 18px;
             align-items: flex-start;
         }
         
         .exchange-item-card .exchange-item-checkbox {
-            width: 20px;
-            height: 20px;
-            margin-top: 5px;
+            width: 24px;
+            height: 24px;
+            margin-top: 8px;
             cursor: pointer;
             flex-shrink: 0;
+            accent-color: #0072bc;
+            transition: transform 0.2s ease;
+        }
+        
+        .exchange-item-card .exchange-item-checkbox:hover {
+            transform: scale(1.15);
+        }
+        
+        .exchange-item-card .exchange-item-checkbox:checked {
+            filter: drop-shadow(0 2px 4px rgba(0, 114, 188, 0.4));
         }
         
         .exchange-item-card .item-basic-info {
             flex: 1;
             display: flex;
-            gap: 15px;
+            gap: 18px;
             cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+        
+        .exchange-item-card .item-basic-info:hover {
+            opacity: 0.8;
         }
         
         .exchange-item-card .item-image {
-            width: 70px;
-            height: 70px;
+            width: 85px;
+            height: 85px;
             flex-shrink: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .exchange-item-card .item-image:hover {
+            transform: scale(1.05);
         }
         
         .exchange-item-card .item-image img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 6px;
-            border: 1px solid #ddd;
+            transition: transform 0.3s ease;
+        }
+        
+        .exchange-item-card .item-image:hover img {
+            transform: scale(1.1);
         }
         
         .exchange-item-card .item-details {
@@ -1333,91 +1568,337 @@ unset($order);
         }
         
         .exchange-item-card .item-details h5 {
-            margin: 0 0 8px 0;
-            font-size: 15px;
-            font-weight: 600;
-            color: #333;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            line-height: 1.4;
         }
         
         .exchange-item-card .item-details p {
-            margin: 4px 0;
+            margin: 6px 0;
             font-size: 13px;
-            color: #666;
+            color: #64748b;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .exchange-item-card .item-details .item-code {
+            font-weight: 600;
+            color: #475569;
+            background: #f1f5f9;
+            padding: 4px 10px;
+            border-radius: 6px;
+            display: inline-block;
+            font-size: 12px;
+        }
+        
+        .exchange-item-card .item-details .item-available {
+            color: #059669;
+            font-weight: 600;
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            padding: 6px 12px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-top: 6px;
+            box-shadow: 0 2px 6px rgba(5, 150, 105, 0.15);
         }
         
         .exchange-item-card .item-exchange-options {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px dashed #ccc;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px dashed #cbd5e1;
         }
         
         .exchange-item-card .exchange-option-row {
             display: grid;
             grid-template-columns: 2fr 1fr 2fr;
-            gap: 15px;
+            gap: 18px;
             align-items: start;
         }
         
         .exchange-item-card .option-group label {
             display: block;
             font-size: 13px;
-            font-weight: 600;
-            color: #555;
-            margin-bottom: 6px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 8px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 11px;
         }
         
         .exchange-item-card .option-group select,
         .exchange-item-card .option-group input {
             width: 100%;
-            padding: 8px 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 12px 14px;
+            border: 2px solid #cbd5e1;
+            border-radius: 10px;
             font-size: 14px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            transition: all 0.3s ease;
+            background: #ffffff;
+            color: #1e293b;
+        }
+        
+        .exchange-item-card .option-group select:focus,
+        .exchange-item-card .option-group input:focus {
+            outline: none;
+            border-color: #0072bc;
+            box-shadow: 0 0 0 3px rgba(0, 114, 188, 0.1);
         }
         
         .exchange-item-card .price-diff-group .price-info {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            padding: 10px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
         }
         
         .exchange-item-card .price-row {
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
+            padding: 6px 0;
             font-size: 13px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            color: #475569;
         }
         
         .exchange-item-card .exchange-price-diff {
-            font-weight: 700;
-            font-size: 14px;
+            font-weight: 800;
+            font-size: 15px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            display: inline-block;
         }
         
         .exchange-item-card .exchange-price-diff.positive {
-            color: #dc3545;
+            color: #dc2626;
+            background: #fee2e2;
         }
         
         .exchange-item-card .exchange-price-diff.negative {
-            color: #28a745;
+            color: #059669;
+            background: #d1fae5;
         }
         
         .exchange-item-card .exchange-price-diff.neutral {
-            color: #6c757d;
+            color: #475569;
+            background: #e2e8f0;
         }
         
-        /* Loading Spinner */
+        /* Loading Spinner - Enhanced */
         .loading-spinner {
             text-align: center;
-            padding: 40px;
-            color: #667eea;
+            padding: 60px 40px;
+            color: #0072bc;
             font-size: 18px;
+            font-weight: 600;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
         }
         
         .loading-spinner i {
-            font-size: 32px;
-            margin-bottom: 10px;
+            font-size: 48px;
+            margin-bottom: 16px;
             display: block;
+            animation: spinPulse 1.5s ease-in-out infinite;
+            color: #0072bc;
+        }
+        
+        @keyframes spinPulse {
+            0%, 100% {
+                transform: rotate(0deg) scale(1);
+            }
+            25% {
+                transform: rotate(90deg) scale(1.1);
+            }
+            50% {
+                transform: rotate(180deg) scale(1);
+            }
+            75% {
+                transform: rotate(270deg) scale(1.1);
+            }
+        }
+        
+        /* Exchange Summary Section - Completely Redesigned */
+        .exchange-summary-section {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 3px solid #0072bc;
+            border-radius: 20px;
+            padding: 28px 32px 32px 32px;
+            margin: 32px 0 28px 0;
+            box-shadow: 0 8px 24px rgba(0, 114, 188, 0.15),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .exchange-summary-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: 0;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(0, 114, 188, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        .exchange-summary-section h4 {
+            font-size: 20px;
+            font-weight: 800;
+            color: #0072bc;
+            margin: 0 0 24px 0;
+            padding-bottom: 16px;
+            border-bottom: 3px solid rgba(0, 114, 188, 0.2);
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .exchange-summary-section h4 i {
+            font-size: 24px;
+            animation: calculatorBounce 2s ease-in-out infinite;
+        }
+        
+        @keyframes calculatorBounce {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-3px) rotate(-5deg); }
+            75% { transform: translateY(-3px) rotate(5deg); }
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.5fr 1.5fr;
+            gap: 14px;
+            margin-bottom: 24px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .summary-item {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0, 114, 188, 0.1);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 100px;
+        }
+        
+        .summary-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #0072bc 0%, #005a94 100%);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+        
+        .summary-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 114, 188, 0.18);
+            border-color: #0072bc;
+        }
+        
+        .summary-item:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .summary-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 0;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            line-height: 1.4;
+        }
+        
+        .summary-value {
+            display: block;
+            font-size: 24px;
+            font-weight: 800;
+            color: #0072bc;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            line-height: 1.2;
+            margin-top: auto;
+        }
+        
+        /* Exchange Adjustment Box - Enhanced */
+        .exchange-adjustment-box {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 3px solid #f59e0b;
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+        }
+        
+        .exchange-adjustment-box::before {
+            content: '⚠';
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            font-size: 80px;
+            color: rgba(245, 158, 11, 0.1);
+            pointer-events: none;
+        }
+        
+        .adjustment-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .adjustment-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #92400e;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+        }
+        
+        .adjustment-amount {
+            font-size: 32px;
+            font-weight: 900;
+            color: #b45309;
+            margin-bottom: 8px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            text-shadow: 0 2px 4px rgba(180, 83, 9, 0.2);
+        }
+        
+        .adjustment-note {
+            font-size: 14px;
+            color: #92400e;
+            font-weight: 600;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
         }
         
         /* Exchange Slip Preview Modal */
@@ -1449,115 +1930,571 @@ unset($order);
             padding: 20px;
         }
         
-        /* Multi-Size Exchange Styles */
+        /* Multi-Size Exchange Styles - Enhanced */
         .exchange-variants-header {
-            margin-bottom: 15px;
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 6px;
+            margin-bottom: 20px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-radius: 12px;
+            border-left: 4px solid #0072bc;
+            box-shadow: 0 2px 8px rgba(0, 114, 188, 0.08);
         }
         
         .exchange-variants-header h5 {
-            margin: 0 0 5px 0;
-            font-size: 14px;
-            font-weight: 600;
+            margin: 0 0 8px 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
         }
         
         .exchange-variants-header .text-muted {
-            margin: 0 0 10px 0;
-            font-size: 12px;
-            color: #666;
+            margin: 0 0 14px 0;
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
         }
         
         .add-size-btn {
-            background: #667eea;
+            background: linear-gradient(135deg, #0072bc 0%, #005a94 100%);
             color: white;
             border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
+            padding: 10px 18px;
+            border-radius: 10px;
             cursor: pointer;
             font-size: 13px;
-            transition: background 0.3s;
+            font-weight: 600;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 12px rgba(0, 114, 188, 0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .add-size-btn:hover {
-            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 114, 188, 0.3);
+            background: linear-gradient(135deg, #005a94 0%, #004d7a 100%);
+        }
+        
+        .add-size-btn:active {
+            transform: translateY(0);
+        }
+        
+        .add-size-btn i {
+            font-size: 14px;
         }
         
         .exchange-variants-list {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         
         .size-variant-row {
             display: grid;
             grid-template-columns: 2fr 1fr auto;
-            gap: 12px;
-            align-items: end;
-            padding: 12px;
-            margin-bottom: 10px;
-            background: #fff;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
+            gap: 16px;
+            align-items: start;
+            padding: 18px;
+            margin-bottom: 14px;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .size-variant-row:hover {
+            border-color: #0072bc;
+            box-shadow: 0 4px 12px rgba(0, 114, 188, 0.12);
         }
         
         .size-variant-row .option-group {
             margin: 0;
+            display: flex;
+            flex-direction: column;
         }
         
         .size-variant-row .option-group label {
             display: block;
-            font-size: 12px;
-            font-weight: 600;
-            color: #555;
-            margin-bottom: 5px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 8px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            line-height: 1;
+            height: 14px;
+        }
+        
+        /* Align button with input fields */
+        .size-variant-row .option-group:last-child {
+            padding-top: 22px;
         }
         
         .size-variant-row select,
         .size-variant-row input {
             width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 13px;
+            padding: 10px 12px;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            transition: all 0.3s ease;
+            background: #ffffff;
+            color: #1e293b;
+            height: 44px;
+            box-sizing: border-box;
+        }
+        
+        .size-variant-row select:focus,
+        .size-variant-row input:focus {
+            outline: none;
+            border-color: #0072bc;
+            box-shadow: 0 0 0 3px rgba(0, 114, 188, 0.1);
         }
         
         .remove-variant-btn {
-            background: #dc3545;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
             color: white;
             border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
+            padding: 10px 14px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 13px;
-            transition: background 0.3s;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 44px;
+            box-sizing: border-box;
         }
         
         .remove-variant-btn:hover {
-            background: #c82333;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(220, 38, 38, 0.3);
+            background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+        }
+        
+        .remove-variant-btn:active {
+            transform: translateY(0);
         }
         
         .exchange-totals {
-            padding: 12px;
-            background: #e9ecef;
-            border-radius: 6px;
-            margin-top: 10px;
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border-radius: 12px;
+            margin-top: 16px;
+            border: 2px solid #cbd5e1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
         
         .exchange-totals .total-row {
             display: flex;
             justify-content: space-between;
-            padding: 5px 0;
-            font-weight: 600;
+            align-items: center;
+            padding: 8px 0;
+            font-weight: 700;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            font-size: 14px;
+            color: #1e293b;
         }
         
         .exchange-totals .total-row span:last-child {
-            color: #495057;
+            color: #0072bc;
+            font-size: 16px;
         }
         
         .size-variant-info {
             font-size: 11px;
-            color: #6c757d;
-            margin-top: 3px;
+            color: #64748b;
+            margin-top: 6px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            font-weight: 500;
+            line-height: 1;
+            min-height: 16px;
+        }
+        
+        .variant-price {
+            font-weight: 700;
+            color: #0072bc;
+            font-size: 14px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+        }
+        
+        /* Form Groups - Enhanced Styling */
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 10px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+        }
+        
+        .form-group textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #cbd5e1;
+            border-radius: 12px;
+            font-size: 14px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            transition: all 0.3s ease;
+            resize: vertical;
+            background: #ffffff;
+            color: #1e293b;
+        }
+        
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #0072bc;
+            box-shadow: 0 0 0 3px rgba(0, 114, 188, 0.1);
+        }
+        
+        .form-group textarea::placeholder {
+            color: #94a3b8;
+        }
+        
+        .form-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            accent-color: #0072bc;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+        
+        .form-group label:has(input[type="checkbox"]) {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 600;
+            transition: color 0.2s ease;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 10px;
+            border: 2px solid transparent;
+        }
+        
+        .form-group label:has(input[type="checkbox"]):hover {
+            background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+            border-color: #0072bc;
+        }
+        
+        /* Modal Buttons - Enhanced Design */
+        #walkinExchangeModal .save-btn,
+        #walkinExchangeModal .cancel-btn {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 15px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        #walkinExchangeModal .save-btn {
+            background: linear-gradient(135deg, #0072bc 0%, #005a94 100%);
+            color: white;
+            box-shadow: 0 4px 16px rgba(0, 114, 188, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #walkinExchangeModal .save-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        #walkinExchangeModal .save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(0, 114, 188, 0.4);
+            background: linear-gradient(135deg, #005a94 0%, #004d7a 100%);
+        }
+        
+        #walkinExchangeModal .save-btn:hover::before {
+            left: 100%;
+        }
+        
+        #walkinExchangeModal .save-btn:active {
+            transform: translateY(0);
+        }
+        
+        #walkinExchangeModal .save-btn:disabled {
+            background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+            opacity: 0.6;
+        }
+        
+        #walkinExchangeModal .save-btn:disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        
+        #walkinExchangeModal .cancel-btn {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #475569;
+            border: 2px solid #cbd5e1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        
+        #walkinExchangeModal .cancel-btn:hover {
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            color: #1e293b;
+            border-color: #94a3b8;
+        }
+        
+        #walkinExchangeModal .cancel-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            #walkinExchangeModal .modal-content {
+                width: 95%;
+                max-width: none;
+            }
+            
+            #walkinExchangeModal .modal-header {
+                padding: 24px 28px;
+            }
+            
+            #walkinExchangeModal .modal-header h2 {
+                font-size: 20px;
+            }
+            
+            #walkinExchangeModal .modal-body {
+                padding: 24px 28px;
+            }
+            
+            #walkinExchangeModal .modal-footer {
+                padding: 20px 28px;
+            }
+            
+            .exchange-item-card .exchange-option-row {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+            
+            .size-variant-row {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+            
+            .remove-variant-btn {
+                width: 100%;
+            }
+            
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            #walkinExchangeModal .modal-content {
+                width: 98%;
+                max-height: 95vh;
+                border-radius: 16px;
+            }
+            
+            #walkinExchangeModal .modal-header {
+                padding: 20px 24px;
+                border-radius: 16px 16px 0 0;
+            }
+            
+            #walkinExchangeModal .modal-header h2 {
+                font-size: 18px;
+            }
+            
+            #walkinExchangeModal .modal-header h2 i {
+                font-size: 20px;
+            }
+            
+            #walkinExchangeModal .modal-header .close {
+                width: 36px;
+                height: 36px;
+                font-size: 28px;
+            }
+            
+            #walkinExchangeModal .modal-body {
+                padding: 20px 24px;
+            }
+            
+            #walkinExchangeModal .modal-footer {
+                padding: 16px 24px;
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            #walkinExchangeModal .save-btn,
+            #walkinExchangeModal .cancel-btn {
+                width: 100%;
+                justify-content: center;
+                padding: 14px 24px;
+            }
+            
+            .exchange-info-box {
+                padding: 20px 24px;
+                margin-bottom: 24px;
+            }
+            
+            .exchange-note {
+                padding: 16px 20px;
+                font-size: 13px;
+            }
+            
+            .exchange-items-container h4 {
+                font-size: 16px;
+                padding: 14px 16px;
+            }
+            
+            .exchange-item-card {
+                padding: 20px;
+            }
+            
+            .exchange-item-card .item-image {
+                width: 70px;
+                height: 70px;
+            }
+            
+            .exchange-item-card .item-details h5 {
+                font-size: 15px;
+            }
+            
+            .summary-grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+            
+            .summary-value {
+                font-size: 20px;
+            }
+            
+            .adjustment-amount {
+                font-size: 28px;
+            }
+            
+            .exchange-summary-section h4 {
+                font-size: 18px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            #walkinExchangeModal .modal-header {
+                padding: 16px 20px;
+            }
+            
+            #walkinExchangeModal .modal-header h2 {
+                font-size: 16px;
+            }
+            
+            #walkinExchangeModal .modal-body {
+                padding: 16px 20px;
+            }
+            
+            #walkinExchangeModal .modal-footer {
+                padding: 14px 20px;
+            }
+            
+            .exchange-info-box {
+                padding: 16px 20px;
+            }
+            
+            .exchange-info-box .info-row {
+                flex-direction: column;
+                gap: 6px;
+                align-items: flex-start;
+            }
+            
+            .exchange-item-card {
+                padding: 16px;
+            }
+            
+            .exchange-item-card .item-header {
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .exchange-item-card .item-basic-info {
+                flex-direction: column;
+            }
+            
+            .exchange-item-card .item-image {
+                width: 100%;
+                height: 200px;
+            }
+        }
+        
+        /* Custom Alert Styling */
+        .alert {
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            animation: slideInRight 0.3s ease-out;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            min-width: 300px;
+            max-width: 500px;
+            cursor: pointer;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .alert-success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+            border: 2px solid #6ee7b7;
+        }
+        
+        .alert-error {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #991b1b;
+            border: 2px solid #fca5a5;
+        }
+        
+        .alert i {
+            font-size: 20px;
         }
     </style>
     
@@ -1566,6 +2503,32 @@ unset($order);
     let currentWalkinOrderId = null;
     let currentWalkinOrderNumber = null;
     let walkinExchangeItems = [];
+    
+    // Custom Alert System
+    function showAlert(message, type = 'success') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.innerHTML = `
+            <i class="material-icons">${type === 'success' ? 'check_circle' : 'error'}</i>
+            ${message}
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            alertDiv.style.opacity = '0';
+            alertDiv.style.transform = 'translateX(100px)';
+            setTimeout(() => alertDiv.remove(), 300);
+        }, 5000);
+        
+        // Manual close on click
+        alertDiv.addEventListener('click', () => {
+            alertDiv.style.opacity = '0';
+            alertDiv.style.transform = 'translateX(100px)';
+            setTimeout(() => alertDiv.remove(), 300);
+        });
+    }
     
     function openWalkinExchangeModal(orderId, orderNumber) {
         currentWalkinOrderId = orderId;
@@ -1589,6 +2552,7 @@ unset($order);
                         </div>
                     `;
                     document.getElementById('submitWalkinExchange').disabled = true;
+                    showAlert(data.message || 'This order is not eligible for exchange.', 'error');
                 }
             })
             .catch(error => {
@@ -1757,6 +2721,7 @@ unset($order);
             item.selected = true;
             // Load available sizes and add first variant automatically
             loadWalkinAvailableSizes(index).then(() => {
+                // Add first variant automatically
                 addSizeVariant(index);
             });
         } else {
@@ -1796,7 +2761,7 @@ unset($order);
         const variantsList = document.getElementById(`walkin_variants_${index}`);
         
         if (item.availableSizes.length === 0) {
-            alert('No available sizes for exchange');
+            showAlert('No available sizes for exchange', 'error');
             return;
         }
         
@@ -1808,15 +2773,28 @@ unset($order);
         variantRow.className = 'size-variant-row';
         variantRow.id = variantId;
         
+        // Check if we've reached the maximum number of variants allowed (based on available sizes)
+        const currentVariantsCount = item.sizeVariants.length;
+        if (currentVariantsCount >= item.availableSizes.length) {
+            showAlert(`You can only add ${item.availableSizes.length} size variant(s) based on the available sizes.`, 'error');
+            return;
+        }
+        
+        // Get already selected sizes to filter them out
+        const selectedSizes = item.sizeVariants.map(v => v.size).filter(s => s !== '');
+        
         let sizesOptions = '<option value="">Select size...</option>';
         item.availableSizes.forEach(size => {
-            sizesOptions += `<option value="${size.size}" data-price="${size.price}" data-stock="${size.quantity}">${size.size} (Stock: ${size.quantity})</option>`;
+            // Only show sizes that haven't been selected yet
+            if (!selectedSizes.includes(size.size)) {
+                sizesOptions += `<option value="${size.size}" data-price="${size.price}" data-stock="${size.quantity}">${size.size} (Stock: ${size.quantity})</option>`;
+            }
         });
         
         variantRow.innerHTML = `
             <div class="option-group">
                 <label>New Size:</label>
-                <select class="variant-size-select" onchange="updateVariantPrice('${variantId}', ${index})">
+                <select class="variant-size-select" onchange="updateVariantPrice('${variantId}', ${index}); refreshSizeDropdowns(${index})">
                     ${sizesOptions}
                 </select>
                 <div class="size-variant-info">Price: <span class="variant-price">-</span></div>
@@ -1858,8 +2836,37 @@ unset($order);
         // Remove from variants array
         item.sizeVariants = item.sizeVariants.filter(v => v.id !== variantId);
         
+        // Refresh dropdowns to show removed size as available again
+        refreshSizeDropdowns(index);
+        
         updateItemTotals(index);
         updateWalkinExchangeSummary();
+    }
+    
+    function refreshSizeDropdowns(index) {
+        const item = walkinExchangeItems[index];
+        const variantsList = document.getElementById(`walkin_variants_${index}`);
+        const variantRows = variantsList.querySelectorAll('.size-variant-row');
+        
+        // Get all currently selected sizes
+        const selectedSizes = item.sizeVariants.map(v => v.size).filter(s => s !== '');
+        
+        // Update each dropdown
+        variantRows.forEach(row => {
+            const select = row.querySelector('.variant-size-select');
+            const currentValue = select.value;
+            
+            // Rebuild options
+            let newOptions = '<option value="">Select size...</option>';
+            item.availableSizes.forEach(size => {
+                // Show this size if it's not selected elsewhere, or if it's the current selection in this dropdown
+                if (!selectedSizes.includes(size.size) || size.size === currentValue) {
+                    newOptions += `<option value="${size.size}" data-price="${size.price}" data-stock="${size.quantity}" ${size.size === currentValue ? 'selected' : ''}>${size.size} (Stock: ${size.quantity})</option>`;
+                }
+            });
+            
+            select.innerHTML = newOptions;
+        });
     }
     
     function updateVariantPrice(variantId, index) {
@@ -1869,13 +2876,14 @@ unset($order);
         const selectedOption = sizeSelect.options[sizeSelect.selectedIndex];
         const priceDisplay = variantRow.querySelector('.variant-price');
         
+        // Update variant data
+        const variant = item.sizeVariants.find(v => v.id === variantId);
+        
         if (selectedOption && selectedOption.value) {
             const price = parseFloat(selectedOption.dataset.price);
             const stock = parseInt(selectedOption.dataset.stock);
             priceDisplay.textContent = `₱${price.toFixed(2)}`;
             
-            // Update variant data
-            const variant = item.sizeVariants.find(v => v.id === variantId);
             if (variant) {
                 variant.size = selectedOption.value;
                 variant.price = price;
@@ -1886,7 +2894,13 @@ unset($order);
                 qtyInput.max = Math.min(stock, item.available_for_exchange);
             }
         } else {
+            // Size was deselected - reset variant data
             priceDisplay.textContent = '-';
+            if (variant) {
+                variant.size = '';
+                variant.price = 0;
+                variant.stock = 0;
+            }
         }
         
         updateItemTotals(index);
@@ -2033,7 +3047,7 @@ unset($order);
         const selectedItems = walkinExchangeItems.filter(item => item.selected);
         
         if (selectedItems.length === 0) {
-            alert('Please select at least one item to exchange.');
+            showAlert('Please select at least one item to exchange.', 'error');
             return;
         }
         
@@ -2042,7 +3056,7 @@ unset($order);
         
         for (const item of selectedItems) {
             if (!item.sizeVariants || item.sizeVariants.length === 0) {
-                alert(`Please add at least one size variant for ${item.item_name}`);
+                showAlert(`Please add at least one size variant for ${item.item_name}`, 'error');
                 return;
             }
             
@@ -2051,12 +3065,12 @@ unset($order);
             // Validate each size variant
             for (const variant of item.sizeVariants) {
                 if (!variant.size || variant.size === '') {
-                    alert(`Please select a size for all variants of ${item.item_name}`);
+                    showAlert(`Please select a size for all variants of ${item.item_name}`, 'error');
                     return;
                 }
                 
                 if (!variant.quantity || variant.quantity <= 0) {
-                    alert(`Please enter a valid quantity for all variants of ${item.item_name}`);
+                    showAlert(`Please enter a valid quantity for all variants of ${item.item_name}`, 'error');
                     return;
                 }
                 
@@ -2076,7 +3090,7 @@ unset($order);
             
             // Validate total quantity doesn't exceed available
             if (totalVariantQty > item.available_for_exchange) {
-                alert(`Total exchange quantity (${totalVariantQty}) exceeds available quantity (${item.available_for_exchange}) for ${item.item_name}`);
+                showAlert(`Total exchange quantity (${totalVariantQty}) exceeds available quantity (${item.available_for_exchange}) for ${item.item_name}`, 'error');
                 return;
             }
         }
@@ -2109,14 +3123,14 @@ unset($order);
                 // Show the exchange slip preview
                 showExchangeSlipPreview(data.exchange_id, data);
             } else {
-                alert('Error: ' + data.message);
+                showAlert('Error: ' + data.message, 'error');
                 document.getElementById('submitWalkinExchange').disabled = false;
                 document.getElementById('submitWalkinExchange').innerHTML = 'Process Exchange';
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred while processing the exchange. Please try again.');
+            showAlert('An error occurred while processing the exchange. Please try again.', 'error');
             document.getElementById('submitWalkinExchange').disabled = false;
             document.getElementById('submitWalkinExchange').innerHTML = 'Process Exchange';
         });
@@ -2179,7 +3193,7 @@ unset($order);
         const slipContent = document.getElementById('exchangeSlipContent');
         
         if (!slipContent || !slipContent.innerHTML.trim()) {
-            alert('No exchange slip content to print');
+            showAlert('No exchange slip content to print', 'error');
             return;
         }
         
@@ -2220,7 +3234,7 @@ unset($order);
                 }, 500);
             } catch (e) {
                 console.error('Exchange slip print error:', e);
-                alert('Could not print exchange slip. Please try again or use your browser\'s print function.');
+                showAlert('Could not print exchange slip. Please try again or use your browser\'s print function.', 'error');
             }
         }, 250);
     }

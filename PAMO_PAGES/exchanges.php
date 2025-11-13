@@ -171,14 +171,28 @@ $total_items = count($exchanges);
             background: #0b7dda;
         }
         
-        .btn-view-slip {
-            background: #ff9800;
-            color: white;
+        .btn-complete.processing {
+            background: #6c757d;
+            cursor: wait;
+            opacity: 0.7;
         }
         
-        .btn-view-slip:hover {
-            background: #f57c00;
+        .btn-complete.success {
+            background: #10b981;
         }
+        
+        /* Exchange Slip Modal Styles */
+        #exchangeSlipModal .modal-card {
+            width: 95vw;
+            max-width: 900px;
+            max-height: 95vh;
+        }
+        
+        #exchangeSlipModal .modal-body {
+            overflow-y: auto;
+            max-height: 70vh;
+        }
+
     </style>
 </head>
 
@@ -325,16 +339,9 @@ $total_items = count($exchanges);
                                                 <i class="fas fa-times"></i> Reject
                                             </button>
                                         <?php elseif ($exchange['status'] === 'approved'): ?>
-                                            <button class="btn-complete" onclick="completeExchange(<?php echo $exchange['id']; ?>)">
+                                            <button class="btn-complete" data-exchange-id="<?php echo $exchange['id']; ?>" onclick="completeExchange(<?php echo $exchange['id']; ?>)">
                                                 <i class="fas fa-check-double"></i> Mark as Completed
                                             </button>
-                                            <a href="../Backend/generate_exchange_slip.php?exchange_id=<?php echo $exchange['id']; ?>&admin=1" target="_blank" class="btn-view-slip" style="text-decoration: none;">
-                                                <i class="fas fa-file-pdf"></i> View Slip
-                                            </a>
-                                        <?php elseif ($exchange['status'] === 'completed'): ?>
-                                            <a href="../Backend/generate_exchange_slip.php?exchange_id=<?php echo $exchange['id']; ?>&admin=1" target="_blank" class="btn-view-slip" style="text-decoration: none;">
-                                                <i class="fas fa-file-pdf"></i> View Slip
-                                            </a>
                                         <?php endif; ?>
                                     </div>
                                 </div>
@@ -350,6 +357,25 @@ $total_items = count($exchanges);
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Exchange Slip Preview Modal -->
+    <div id="exchangeSlipModal" class="modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-file-invoice"></i> Exchange Slip Preview</h2>
+                <span class="close" onclick="closeExchangeSlipModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="exchangeSlipBody">
+                <!-- Exchange slip content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeExchangeSlipModal()" class="cancel-btn">Close</button>
+                <button type="button" onclick="printExchangeSlip()" class="save-btn">
+                    <i class="fas fa-print"></i> Print & Complete
+                </button>
+            </div>
+        </div>
     </div>
 
     <script src="../Javascript/logout-modal.js"></script>
@@ -438,12 +464,295 @@ $total_items = count($exchanges);
             });
         }
         
-        // Complete exchange
+        // Global variable to track current exchange
+        let currentExchangeId = null;
+        
+        // Complete exchange - new approach with print preview
         function completeExchange(exchangeId) {
-            if (!confirm('Are you sure you want to mark this exchange as completed? This action cannot be undone.')) {
+            currentExchangeId = exchangeId;
+            
+            // Find the button
+            const button = document.querySelector(`.btn-complete[data-exchange-id="${exchangeId}"]`);
+            if (!button) {
                 return;
             }
             
+            // Show processing state
+            const originalContent = button.innerHTML;
+            button.classList.add('processing');
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            
+            // Fetch exchange slip HTML
+            fetch(`../Backend/get_exchange_slip_html.php?exchange_id=${exchangeId}`)
+                .then(response => response.text())
+                .then(html => {
+                    // Show success state
+                    button.classList.remove('processing');
+                    button.classList.add('success');
+                    button.innerHTML = '<i class="fas fa-check"></i> Success!';
+                    
+                    // Display the slip in modal
+                    showExchangeSlipPreview(exchangeId, html);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    button.classList.remove('processing');
+                    button.disabled = false;
+                    button.innerHTML = originalContent;
+                    alert('An error occurred while generating the exchange slip');
+                });
+        }
+        
+        // Show exchange slip preview modal
+        function showExchangeSlipPreview(exchangeId, slipHtml) {
+            const slipBody = document.getElementById('exchangeSlipBody');
+            
+            // Create single-page layout with both copies
+            const slipContent = `
+                <div class="exchange-slip-container" style="background: white; padding: 5mm; font-family: Arial, sans-serif;">
+                    <!-- PAMO Copy (Top Half) -->
+                    <div class="slip-copy pamo-copy" style="position: relative; min-height: 48%; page-break-after: avoid; padding-bottom: 8px;">
+                        <div class="copy-label" style="position: absolute; top: 0; right: 0; font-size: 0.9em;">
+                            PAMO Copy
+                        </div>
+                        ${slipHtml}
+                    </div>
+                    
+                    <!-- Cut Line Separator -->
+                    <div class="cut-line" style="margin: 10px 0; padding: 6px 0; border-top: 3px dashed #333; border-bottom: 3px dashed #333; text-align: center; color: #333; font-size: 12px; font-weight: bold; letter-spacing: 3px; background: #f9f9f9;">
+                        ✂ ✂ ✂ CUT HERE ✂ ✂ ✂
+                    </div>
+                    
+                    <!-- Student Copy (Bottom Half) -->
+                    <div class="slip-copy customer-copy" style="position: relative; min-height: 48%; padding-top: 8px;">
+                        <div class="copy-label" style="position: absolute; top: 8px; right: 0; font-size: 0.9em;">
+                            Student Copy
+                        </div>
+                        ${slipHtml}
+                    </div>
+                </div>
+            `;
+            
+            slipBody.innerHTML = slipContent;
+            document.getElementById('exchangeSlipModal').style.display = 'block';
+        }
+        
+        // Close exchange slip modal
+        function closeExchangeSlipModal() {
+            document.getElementById('exchangeSlipModal').style.display = 'none';
+            document.getElementById('exchangeSlipBody').innerHTML = '';
+            currentExchangeId = null;
+        }
+        
+        // Print exchange slip and mark as completed
+        function printExchangeSlip() {
+            if (!currentExchangeId) {
+                return;
+            }
+            
+            const slipContent = document.getElementById('exchangeSlipBody').innerHTML;
+            
+            // Create hidden iframe for printing
+            let printFrame = document.getElementById('exchangeSlipPrintFrame');
+            if (!printFrame) {
+                printFrame = document.createElement('iframe');
+                printFrame.id = 'exchangeSlipPrintFrame';
+                printFrame.style.display = 'none';
+                document.body.appendChild(printFrame);
+            }
+            
+            // Write content to iframe
+            const iframeDoc = printFrame.contentWindow || printFrame.contentDocument;
+            if (iframeDoc.document) {
+                iframeDoc.document.open();
+                iframeDoc.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <style>
+                            @page {
+                                size: A4;
+                                margin: 10mm;
+                            }
+                            
+                            * { 
+                                margin: 0; 
+                                padding: 0; 
+                                box-sizing: border-box; 
+                            }
+                            
+                            body { 
+                                font-family: Arial, sans-serif; 
+                                padding: 0;
+                                margin: 0;
+                                background: white;
+                            }
+                            
+                            .exchange-slip-container {
+                                width: 100%;
+                                padding: 5mm;
+                                box-sizing: border-box;
+                            }
+                            
+                            .slip-copy {
+                                position: relative;
+                                page-break-inside: avoid;
+                                box-sizing: border-box;
+                            }
+                            
+                            .pamo-copy {
+                                min-height: 48%;
+                                padding-bottom: 8px;
+                            }
+                            
+                            .customer-copy {
+                                min-height: 48%;
+                                padding-top: 8px;
+                            }
+                            
+                            .copy-label {
+                                position: absolute;
+                                top: 0;
+                                right: 0;
+                                font-size: 0.9em;
+                            }
+                            
+                            .customer-copy .copy-label {
+                                top: 8px;
+                            }
+                            
+                            .cut-line {
+                                margin: 10px 0;
+                                padding: 6px 0;
+                                border-top: 3px dashed #333;
+                                border-bottom: 3px dashed #333;
+                                text-align: center;
+                                color: #333;
+                                font-size: 12px;
+                                font-weight: bold;
+                                letter-spacing: 3px;
+                                background: #f9f9f9;
+                                print-color-adjust: exact;
+                                -webkit-print-color-adjust: exact;
+                                page-break-inside: avoid;
+                            }
+                            
+                            table { 
+                                width: 100%; 
+                                border-collapse: collapse; 
+                                margin: 4px 0;
+                                font-size: 10px;
+                            }
+                            
+                            th, td { 
+                                border: 1px solid #222; 
+                                padding: 4px 5px;
+                            }
+                            
+                            th { 
+                                background: #f0f0f0; 
+                                font-weight: bold;
+                                text-align: center;
+                            }
+                            
+                            .slip-header-flex {
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: flex-start;
+                                border-bottom: 2px solid #222;
+                                padding-bottom: 4px;
+                                margin-bottom: 4px;
+                            }
+                            
+                            .slip-header-logo img {
+                                height: 45px;
+                            }
+                            
+                            .sti-lucena {
+                                font-size: 1.2em;
+                                font-weight: bold;
+                                letter-spacing: 1px;
+                            }
+                            
+                            .exchange-slip-title {
+                                font-size: 1em;
+                                font-weight: bold;
+                            }
+                            
+                            .info-table td {
+                                padding: 3px 5px;
+                                font-size: 10px;
+                            }
+                            
+                            .adjustment-box {
+                                border: 2px solid #222;
+                                padding: 5px 6px;
+                                margin: 4px 0;
+                                text-align: center;
+                                font-size: 0.8em;
+                            }
+                            
+                            .footer-note {
+                                font-size: 0.75em;
+                                margin-bottom: 4px;
+                                line-height: 1.2;
+                            }
+                            
+                            .signature-table {
+                                margin-top: 3px;
+                            }
+                            
+                            .sig-name {
+                                border-top: 1px solid #222;
+                                padding-top: 2px;
+                                font-size: 0.8em;
+                            }
+                            
+                            .signature-table td {
+                                border: none;
+                                padding: 22px 6px 2px 6px;
+                                text-align: center;
+                            }
+                            
+                            @media print {
+                                body { padding: 0; }
+                                .cut-line { 
+                                    page-break-inside: avoid;
+                                    print-color-adjust: exact;
+                                    -webkit-print-color-adjust: exact;
+                                }
+                                .copy-label {
+                                    page-break-after: avoid;
+                                }
+                                .slip-copy {
+                                    margin-bottom: 0;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        ${slipContent}
+                    </body>
+                    </html>
+                `);
+                iframeDoc.document.close();
+            }
+            
+            // Handle print completion and auto-close
+            const printWindow = printFrame.contentWindow;
+            
+            // Print and immediately mark as completed
+            setTimeout(() => {
+                printWindow.print();
+                // Close modal immediately when print dialog opens
+                markExchangeAsCompleted(currentExchangeId);
+            }, 100);
+        }
+        
+        // Mark exchange as completed (backend call)
+        function markExchangeAsCompleted(exchangeId) {
             fetch('../PAMO_DASHBOARD_BACKEND/complete_exchange.php', {
                 method: 'POST',
                 headers: {
@@ -454,16 +763,47 @@ $total_items = count($exchanges);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Exchange marked as completed successfully!');
-                    location.reload();
+                    // Update the exchange card UI without reloading
+                    updateExchangeCardUI(exchangeId, 'completed');
+                    // Close modal immediately
+                    closeExchangeSlipModal();
                 } else {
-                    alert('Error: ' + data.message);
+                    closeExchangeSlipModal();
+                    alert('Error marking exchange as completed: ' + data.message);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
+                closeExchangeSlipModal();
                 alert('An error occurred while completing the exchange');
             });
+        }
+        
+        // Update exchange card UI without page reload
+        function updateExchangeCardUI(exchangeId, newStatus) {
+            const exchangeCard = document.querySelector(`[data-exchange-id="${exchangeId}"]`);
+            if (!exchangeCard) {
+                return;
+            }
+            
+            // Find the parent exchange card container
+            const cardContainer = exchangeCard.closest('.exchange-card');
+            if (!cardContainer) {
+                return;
+            }
+            
+            // Update status badge
+            const statusBadge = cardContainer.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.className = 'status-badge ' + newStatus;
+                statusBadge.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+            }
+            
+            // Remove action buttons since exchange is now completed
+            const actionButtons = cardContainer.querySelector('.action-buttons');
+            if (actionButtons && newStatus === 'completed') {
+                actionButtons.innerHTML = '<span style="color: #059669; font-weight: 600;"><i class="fas fa-check-circle"></i> Completed</span>';
+            }
         }
     </script>
 </body>
