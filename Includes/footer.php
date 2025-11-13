@@ -64,9 +64,7 @@
         <div class="footer-bottom-content">
             <p>&copy; <?php echo date('Y'); ?> STI College Lucena. All rights reserved.</p>
             <div class="footer-bottom-links">
-                <a href="privacy.php">Privacy Policy</a>
-                <a href="terms.php">Terms of Service</a>
-                <a href="sitemap.php">Sitemap</a>
+                <a href="#" id="terms-of-use-link">Terms of Use</a>
                 <a href="#" id="developers-link">Developers</a>
             </div>
         </div>
@@ -76,8 +74,27 @@
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <link rel="stylesheet" href="../CSS/developers-modal.css">
+<link rel="stylesheet" href="../CSS/policy-modal.css">
 </style>
 <script src="../Javascript/developers-modal.js"></script>
+<script src="../Javascript/policy-modal.js"></script>
+<script>
+// Handle Terms of Use click
+document.addEventListener('DOMContentLoaded', function() {
+    const termsLink = document.getElementById('terms-of-use-link');
+    if (termsLink) {
+        termsLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof policyModalInstance !== 'undefined' && policyModalInstance) {
+                policyModalInstance.showReadOnly();
+            } else if (typeof PolicyModal !== 'undefined') {
+                const modal = new PolicyModal();
+                modal.showReadOnly();
+            }
+        });
+    }
+});
+</script>
 
 <style>
     .footer {

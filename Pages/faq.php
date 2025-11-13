@@ -672,10 +672,16 @@ include '../Includes/Header.php';
             .then(response => response.json())
             .then(data => {
                 const toast = document.getElementById('toast');
+                const toastIcon = toast.querySelector('i');
+                
                 if (data.success) {
+                    toast.classList.remove('error');
+                    toastIcon.className = 'fas fa-check-circle';
                     toast.querySelector('span').textContent = "Your question has been sent successfully!";
                     form.reset();
                 } else {
+                    toast.classList.add('error');
+                    toastIcon.className = 'fas fa-exclamation-circle';
                     toast.querySelector('span').textContent = "There was an error sending your question.";
                 }
                 toast.classList.add('show');
@@ -685,6 +691,9 @@ include '../Includes/Header.php';
             })
             .catch(() => {
                 const toast = document.getElementById('toast');
+                const toastIcon = toast.querySelector('i');
+                toast.classList.add('error');
+                toastIcon.className = 'fas fa-exclamation-circle';
                 toast.querySelector('span').textContent = "There was an error sending your question.";
                 toast.classList.add('show');
                 setTimeout(() => {

@@ -33,7 +33,7 @@ class PolicyModal {
             <div class="policy-modal-icon">
               <i class="fas fa-shield-alt"></i>
             </div>
-            <h3 class="policy-modal-title">Policy and Terms</h3>
+            <h3 class="policy-modal-title">Terms of Use</h3>
             <p class="policy-modal-subtitle">Please review our policies before continuing</p>
           </div>
           
@@ -348,8 +348,10 @@ class PolicyModal {
       const result = await response.json();
 
       if (result.success) {
-        // Mark as shown in session to prevent re-showing
-        sessionStorage.setItem("policyShown", "true");
+        // Only mark as shown in session if user checked "don't show again"
+        if (dontShow) {
+          sessionStorage.setItem("policyShown", "true");
+        }
         this.hide();
       } else {
         console.error("Failed to save policy acceptance:", result.message);
@@ -418,6 +420,78 @@ class PolicyModal {
     return this.modal && this.modal.classList.contains("show");
   }
 
+  showReadOnly() {
+    if (!this.modal) {
+      this.init();
+    }
+
+    // Hide checkboxes and buttons for read-only view
+    const checkboxesContainer = this.modal.querySelector(".policy-checkboxes");
+    const warningContainer = this.modal.querySelector(".policy-warning");
+    const acceptButton = this.modal.querySelector("#policyAcceptBtn");
+    const closeButton = this.modal.querySelector("#policyCloseBtn");
+
+    if (checkboxesContainer) checkboxesContainer.style.display = "none";
+    if (warningContainer) warningContainer.style.display = "none";
+    if (acceptButton) acceptButton.style.display = "none";
+
+    // Make close button work normally (just close, no logout)
+    if (closeButton) {
+      // Remove all previous event listeners by cloning
+      const newCloseButton = closeButton.cloneNode(true);
+      closeButton.parentNode.replaceChild(newCloseButton, closeButton);
+
+      newCloseButton.addEventListener("click", () => {
+        this.hide();
+        // Restore original display after hiding
+        setTimeout(() => {
+          if (checkboxesContainer) checkboxesContainer.style.display = "";
+          if (warningContainer) warningContainer.style.display = "";
+          if (acceptButton) acceptButton.style.display = "";
+        }, 300);
+      });
+    }
+
+    // Allow closing by clicking outside
+    const handleOutsideClick = (e) => {
+      if (e.target === this.modal) {
+        this.hide();
+        // Restore original display after hiding
+        setTimeout(() => {
+          if (checkboxesContainer) checkboxesContainer.style.display = "";
+          if (warningContainer) warningContainer.style.display = "";
+          if (acceptButton) acceptButton.style.display = "";
+        }, 300);
+        this.modal.removeEventListener("click", handleOutsideClick);
+      }
+    };
+    this.modal.addEventListener("click", handleOutsideClick);
+
+    // Allow Escape key to close
+    const handleEscape = (e) => {
+      if (e.key === "Escape" && this.isVisible()) {
+        this.hide();
+        // Restore original display after hiding
+        setTimeout(() => {
+          if (checkboxesContainer) checkboxesContainer.style.display = "";
+          if (warningContainer) warningContainer.style.display = "";
+          if (acceptButton) acceptButton.style.display = "";
+        }, 300);
+        document.removeEventListener("keydown", handleEscape);
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+
+    this.modal.classList.add("show");
+    document.body.style.overflow = "hidden";
+
+    // Scroll to top
+    const modalBody = this.modal.querySelector(".policy-modal-body");
+    if (modalBody) {
+      modalBody.scrollTop = 0;
+    }
+  }
+
   showCustomAlert(
     message,
     title = "Alert",
@@ -469,17 +543,17 @@ let policyModalInstance = null;
 
 // Global function to check and show policy modal
 async function checkAndShowPolicyModal() {
-  // Check if already shown in this session
-  if (sessionStorage.getItem("policyShown") === "true") {
-    return;
-  }
-
   try {
     // Check if user needs to see the policy
     const response = await fetch("../Includes/check_policy_status.php");
     const result = await response.json();
 
     if (result.should_show) {
+      // Check if already shown in this session (only for users who checked "don't show again")
+      if (sessionStorage.getItem("policyShown") === "true") {
+        return;
+      }
+
       if (!policyModalInstance) {
         policyModalInstance = new PolicyModal();
       }

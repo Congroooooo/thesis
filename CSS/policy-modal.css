@@ -679,7 +679,7 @@
 }
 
 .policy-alert-btn-secondary:hover {
-  background: linear-gradient(135deg, #5a6268, #4e555b);
+  background: linear-gradient(135deg, #f01818, #ec4d4d);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(108, 117, 125, 0.3);
 }

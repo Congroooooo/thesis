@@ -2,6 +2,19 @@
 session_start();
 session_unset();
 session_destroy();
-header("Location: index.php"); // Redirect to homepage
-exit();
-?> 
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <script>
+        // Clear policy session storage on logout
+        if (typeof(Storage) !== "undefined") {
+            sessionStorage.removeItem("policyShown");
+        }
+        // Redirect to homepage
+        window.location.href = "index.php";
+    </script>
+</head>
+<body>
+</body>
+</html> 
