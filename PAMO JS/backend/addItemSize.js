@@ -335,21 +335,17 @@ function toggleSizeDetailsForItemSize(checkbox, itemIndex) {
         <h4>Size: ${size}</h4>
       </div>
       <div class="size-detail-content">
-        <div class="input-group">
+        <div class="input-group size-field-item-code">
           <label>Item Code:</label>
           <div class="generated-code">${itemCode}</div>
           <input type="hidden" name="items[${itemIndex}][itemCodes][]" value="${itemCode}">
           <input type="hidden" name="items[${itemIndex}][sizes][]" value="${size}">
         </div>
-        <div class="input-group">
+        <div class="input-group size-field-stock">
           <label for="quantity_${itemIndex}_${size}">Initial Stock:</label>
           <input type="number" id="quantity_${itemIndex}_${size}" name="items[${itemIndex}][quantities][]" min="1" required>
         </div>
-        <div class="input-group">
-          <label for="damage_${itemIndex}_${size}">Damaged Items:</label>
-          <input type="number" id="damage_${itemIndex}_${size}" name="items[${itemIndex}][damages][]" min="0" value="0">
-        </div>
-        <div class="input-group">
+        <div class="input-group size-field-price">
           <label for="price_${itemIndex}_${size}">Price (₱):</label>
           <input type="number" id="price_${itemIndex}_${size}" name="items[${itemIndex}][prices][]" step="0.01" min="0" required>
         </div>
@@ -675,9 +671,6 @@ function submitNewItemSize(event) {
       const quantityInput = sizeEntry.querySelector(
         `input[name="items[${actualItemIndex}][quantities][]"]`
       );
-      const damageInput = sizeEntry.querySelector(
-        `input[name="items[${actualItemIndex}][damages][]"]`
-      );
       const priceInput = sizeEntry.querySelector(
         `input[name="items[${actualItemIndex}][prices][]"]`
       );
@@ -706,7 +699,6 @@ function submitNewItemSize(event) {
           size: size,
           itemCode: itemCodeInput.value,
           quantity: quantity,
-          damage: damageInput ? damageInput.value || "0" : "0",
           price: price,
         });
       }

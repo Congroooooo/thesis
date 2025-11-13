@@ -78,7 +78,6 @@ try {
         // Get detailed data if available
         $sizeData = $deliveredData[$size] ?? [];
         $deliveredPrice = isset($sizeData['price']) ? floatval($sizeData['price']) : $price;
-        $deliveredDamage = isset($sizeData['damage']) ? intval($sizeData['damage']) : 0;
         
         // Use the suffixed item code from frontend (e.g., PREORDER2-001 for XS)
         // This matches the format used when adding items through Inventory page
@@ -88,22 +87,21 @@ try {
 
         // Check existing inventory by item_code (suffixed code like PREORDER2-001)
         // No need to check by sizes column since item_code is unique per size
-        $check = $conn->prepare('SELECT id, actual_quantity, image_path, damage FROM inventory WHERE item_code = ? LIMIT 1');
+        $check = $conn->prepare('SELECT id, actual_quantity, image_path FROM inventory WHERE item_code = ? LIMIT 1');
         $check->execute([$itemCode]);
         $existing = $check->fetch(PDO::FETCH_ASSOC);
 
         if ($existing) {
             $newQty = intval($existing['actual_quantity']) + $qty;
-            $newDamage = intval($existing['damage']) + $deliveredDamage;
-            $upd = $conn->prepare('UPDATE inventory SET actual_quantity = ?, new_delivery = new_delivery + ?, damage = ?, price = ?, status = CASE WHEN ? <= 0 THEN status WHEN ? > 0 THEN "in stock" ELSE status END WHERE id = ?');
-            $upd->execute([$newQty, $qty, $newDamage, $deliveredPrice, $newQty, $newQty, $existing['id']]);
+            $upd = $conn->prepare('UPDATE inventory SET actual_quantity = ?, new_delivery = new_delivery + ?, price = ?, status = CASE WHEN ? <= 0 THEN status WHEN ? > 0 THEN "in stock" ELSE status END WHERE id = ?');
+            $upd->execute([$newQty, $qty, $deliveredPrice, $newQty, $newQty, $existing['id']]);
             // Backfill image_path to itemlist variant if needed
             if (!empty($inventoryImagePath) && (empty($existing['image_path']) || strpos($existing['image_path'], 'uploads/preorder/') === 0)) {
                 $updImg = $conn->prepare('UPDATE inventory SET image_path = ? WHERE id = ?');
                 $updImg->execute([$inventoryImagePath, $existing['id']]);
             }
         } else {
-            $ins = $conn->prepare('INSERT INTO inventory (item_code, category, actual_quantity, new_delivery, beginning_quantity, damage, item_name, sizes, price, status, sold_quantity, image_path, created_at, RTW, category_id) VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, "in stock", 0, ?, CURRENT_TIMESTAMP, 0, ?)');
+            $ins = $conn->prepare('INSERT INTO inventory (item_code, category, actual_quantity, new_delivery, beginning_quantity, item_name, sizes, price, status, sold_quantity, image_path, created_at, RTW, category_id) VALUES (?, ?, ?, ?, 0, ?, ?, ?, "in stock", 0, ?, CURRENT_TIMESTAMP, 0, ?)');
             // category column stores name; we need name from categories
             $catName = null;
             if (!empty($categoryId)) {
@@ -111,7 +109,7 @@ try {
                 $c->execute([$categoryId]);
                 $catName = $c->fetchColumn();
             }
-            $ins->execute([$itemCode, $catName, $qty, $qty, $deliveredDamage, $itemName, $size, $deliveredPrice, $inventoryImagePath, $categoryId]);
+            $ins->execute([$itemCode, $catName, $qty, $qty, $itemName, $size, $deliveredPrice, $inventoryImagePath, $categoryId]);
         }
     }
 

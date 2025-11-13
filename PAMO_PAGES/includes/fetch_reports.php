@@ -102,7 +102,7 @@ if ($type === 'inventory') {
     $stmt->execute($params);
     $tableHtml .= '<h3>Inventory Report</h3>';
     $tableHtml .= '<table><thead><tr>';
-    $tableHtml .= '<th>Item Code</th><th>Item Name</th><th>Category</th><th>Beginning Quantity</th><th>New Delivery</th><th>Actual Quantity</th><th>Damage</th><th>Sold Quantity</th><th>Status</th><th>Date Delivered</th>';
+    $tableHtml .= '<th>Item Code</th><th>Item Name</th><th>Category</th><th>Beginning Quantity</th><th>New Delivery</th><th>Actual Quantity</th><th>Sold Quantity</th><th>Status</th><th>Date Delivered</th>';
     $tableHtml .= '</tr></thead><tbody>';
     $rowCount = 0;
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -122,14 +122,13 @@ if ($type === 'inventory') {
         $tableHtml .= '<td>' . $row['beginning_quantity'] . '</td>';
         $tableHtml .= '<td>' . $row['new_delivery'] . '</td>';
         $tableHtml .= '<td>' . $row['actual_quantity'] . '</td>';
-        $tableHtml .= '<td>' . $row['damage'] . '</td>';
         $tableHtml .= '<td>' . $row['sold_quantity'] . '</td>';
         $tableHtml .= '<td>' . $status . '</td>';
         $tableHtml .= '<td>' . $row['display_date'] . '</td>';
         $tableHtml .= '</tr>';
     }
     if ($rowCount === 0) {
-        $tableHtml .= '<tr><td colspan="10" style="text-align:center; background:#fffbe7; color:#bdb76b; font-size:1.1em; font-style:italic;">No results found.</td></tr>';
+        $tableHtml .= '<tr><td colspan="9" style="text-align:center; background:#fffbe7; color:#bdb76b; font-size:1.1em; font-style:italic;">No results found.</td></tr>';
     }
     $tableHtml .= '</tbody></table>';
     $params = [];

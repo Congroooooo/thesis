@@ -576,20 +576,19 @@ $basePath = '';
             <div class="size-detail-item" data-size="${size}" data-size-order="${displayOrder}">
                 <div class="size-detail-header">
                     <h4>Size: ${size}</h4>
-                    <span class="generated-code">Code: ${generatedCode}</span>
                 </div>
                 <div class="size-detail-form">
-                    <div class="input-group">
-                        <label for="deliver_price_${size}">Price:</label>
-                        <input type="number" id="deliver_price_${size}" name="delivered_data[${size}][price]" min="0" step="0.01" required>
+                    <div class="input-group size-field-item-code">
+                        <label>Item Code:</label>
+                        <div class="generated-code">${generatedCode}</div>
                     </div>
-                    <div class="input-group">
+                    <div class="input-group size-field-stock">
                         <label for="deliver_qty_${size}">Initial Stock:</label>
                         <input type="number" id="deliver_qty_${size}" name="delivered_data[${size}][quantity]" min="0" step="1" required>
                     </div>
-                    <div class="input-group">
-                        <label for="deliver_damage_${size}">Damaged Items:</label>
-                        <input type="number" id="deliver_damage_${size}" name="delivered_data[${size}][damage]" min="0" step="1" value="0">
+                    <div class="input-group size-field-price">
+                        <label for="deliver_price_${size}">Price (₱):</label>
+                        <input type="number" id="deliver_price_${size}" name="delivered_data[${size}][price]" min="0" step="0.01" required>
                     </div>
                 </div>
                 <input type="hidden" name="delivered_data[${size}][item_code]" value="${generatedCode}">
@@ -663,18 +662,15 @@ $basePath = '';
             const size = checkbox.value;
             const priceInput = document.getElementById(`deliver_price_${size}`);
             const qtyInput = document.getElementById(`deliver_qty_${size}`);
-            const damageInput = document.getElementById(`deliver_damage_${size}`);
             
             const price = parseFloat(priceInput.value) || 0;
             const quantity = parseInt(qtyInput.value) || 0;
-            const damage = parseInt(damageInput.value) || 0;
             
             if (quantity > 0 && price > 0) {
                 delivered[size] = quantity;
                 deliveredData[size] = {
                     price: price,
                     quantity: quantity,
-                    damage: damage,
                     item_code: `${currentPreorderBaseCode}-${getSizeNumber(size).toString().padStart(3, '0')}`,
                     size: size
                 };

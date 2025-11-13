@@ -59,7 +59,6 @@ try {
             $newSize = $sizeData['size'] ?? '';
             $newItemCode = $sizeData['itemCode'] ?? '';
             $newQuantity = $sizeData['quantity'] ?? 0;
-            $newDamage = $sizeData['damage'] ?? 0;
             $newPrice = $sizeData['price'] ?? 0;
 
             if (empty($newSize) || empty($newItemCode) || $newQuantity < 1 || $newPrice <= 0) {
@@ -82,7 +81,7 @@ try {
             // New delivery represents the initial stock received
             $beginning_quantity = 0;
             $new_delivery = $newQuantity;
-            $actual_quantity = $beginning_quantity + $new_delivery - $newDamage;
+            $actual_quantity = $beginning_quantity + $new_delivery;
             $sold_quantity = 0;
             $status = ($actual_quantity <= 0) ? 'Out of Stock' : (($actual_quantity <= $lowStockThreshold) ? 'Low Stock' : 'In Stock');
 
@@ -90,9 +89,9 @@ try {
             $sql = "INSERT INTO inventory (
                 item_code, category_id, category, item_name, sizes, price,
                 actual_quantity, new_delivery, beginning_quantity,
-                damage, sold_quantity, status, image_path, RTW, created_at,
+                sold_quantity, status, image_path, RTW, created_at,
                 current_month_deliveries, current_month_sales, inventory_period_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)";
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)";
             $stmt = $conn->prepare($sql);
             if (!$stmt->execute([
                 $newItemCode,
@@ -104,7 +103,6 @@ try {
                 $actual_quantity,
                 $new_delivery,
                 $beginning_quantity,
-                $newDamage,
                 $sold_quantity,
                 $status,
                 $originalItem['image_path'],
@@ -142,7 +140,7 @@ try {
             }
 
             // Log activity
-            $activity_description = "New size added for {$originalItem['item_name']} ({$newItemCode}) - Size: {$newSize}, Initial stock: {$newQuantity}, Damage: {$newDamage}, Price: ₱{$newPrice}, Delivery Order: {$deliveryOrderNumber}";
+            $activity_description = "New size added for {$originalItem['item_name']} ({$newItemCode}) - Size: {$newSize}, Initial stock: {$newQuantity}, Price: ₱{$newPrice}, Delivery Order: {$deliveryOrderNumber}";
             $log_activity_query = "INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES ('Add Item Size', ?, ?, ?, NOW())";
             $stmt = $conn->prepare($log_activity_query);
             $user_id = $_SESSION['user_id'] ?? null;

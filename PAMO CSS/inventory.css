@@ -213,6 +213,112 @@
   font-weight: 500;
 }
 
+/* Size Detail Entry Styling - For Add Item Size Modal */
+.size-detail-entry {
+  margin-bottom: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  background-color: #f9f9f9;
+}
+
+.size-detail-entry .size-detail-header h4 {
+  margin: 0 0 12px 0;
+  color: #0071bc;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.size-detail-content {
+  display: flex !important;
+  gap: 15px;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+}
+
+.size-detail-content .input-group.size-field-item-code {
+  flex: 0 0 calc(60% - 10px) !important;
+  margin-bottom: 0 !important;
+  min-width: 0;
+}
+
+.size-detail-content .input-group.size-field-stock {
+  flex: 0 0 calc(20% - 10px) !important;
+  margin-bottom: 0 !important;
+  min-width: 0;
+}
+
+.size-detail-content .input-group.size-field-price {
+  flex: 0 0 calc(20% - 10px) !important;
+  margin-bottom: 0 !important;
+  min-width: 0;
+}
+
+.size-detail-content .generated-code {
+  padding: 10px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  color: #333;
+  font-weight: 500;
+  font-family: monospace;
+  font-size: 14px;
+  word-break: break-all;
+}
+
+/* Size Detail Item Styling - For Add New Product(s) Modal */
+.size-detail-item {
+  margin-bottom: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  background-color: #f9f9f9;
+}
+
+.size-detail-item .size-detail-header h4 {
+  margin: 0 0 12px 0;
+  color: #0071bc;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.size-detail-form {
+  display: flex !important;
+  gap: 15px;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+}
+
+.size-detail-form .input-group.size-field-item-code {
+  flex: 0 0 calc(60% - 10px) !important;
+  margin-bottom: 0 !important;
+  min-width: 0;
+}
+
+.size-detail-form .input-group.size-field-stock {
+  flex: 0 0 calc(20% - 10px) !important;
+  margin-bottom: 0 !important;
+  min-width: 0;
+}
+
+.size-detail-form .input-group.size-field-price {
+  flex: 0 0 calc(20% - 10px) !important;
+  margin-bottom: 0 !important;
+  min-width: 0;
+}
+
+.size-detail-form .generated-code {
+  padding: 10px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  color: #333;
+  font-weight: 500;
+  font-family: monospace;
+  font-size: 14px;
+  word-break: break-all;
+}
+
 .input-group input,
 .input-group select {
   width: 100%;

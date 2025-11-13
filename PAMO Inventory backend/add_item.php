@@ -149,17 +149,15 @@ try {
                 $item_code = (string)$sizeData['item_code'];
                 $price = floatval($sizeData['price']);
                 $quantity = intval($sizeData['quantity']);
-                $damage = intval($sizeData['damage'] ?? 0);
 
                 if ($price <= 0) throw new Exception("Price must be greater than zero for size: $size in product " . ($productIndex + 1));
                 if ($quantity <= 0) throw new Exception("Initial stock must be 1 or more for size: $size in product " . ($productIndex + 1));
-                if ($damage < 0) throw new Exception("Damage count cannot be negative for size: $size in product " . ($productIndex + 1));
 
                 // For new items, beginning quantity is 0 for the current month
                 // New delivery represents the initial stock received
                 $beginning_quantity = 0;
                 $new_delivery = $quantity;
-                $actual_quantity = $beginning_quantity + $new_delivery - $damage;
+                $actual_quantity = $beginning_quantity + $new_delivery;
                 $sold_quantity = 0;
                 $status = ($actual_quantity <= 0) ? 'Out of Stock' : (($actual_quantity <= $lowStockThreshold) ? 'Low Stock' : 'In Stock');
 
@@ -167,9 +165,9 @@ try {
                 $stmt = $conn->prepare("INSERT INTO inventory (
                     item_code, category_id, category, item_name, sizes, price,
                     actual_quantity, new_delivery, beginning_quantity,
-                    damage, sold_quantity, status, image_path, RTW, created_at,
+                    sold_quantity, status, image_path, RTW, created_at,
                     current_month_deliveries, current_month_sales, inventory_period_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)");
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)");
                 
                 $currentPeriodId = $monthlyInventory->getCurrentPeriodId();
                 $success = $stmt->execute([
@@ -182,7 +180,6 @@ try {
                     $actual_quantity,
                     $new_delivery,
                     $beginning_quantity,
-                    $damage,
                     $sold_quantity,
                     $status,
                     $dbFilePath,
@@ -376,17 +373,15 @@ try {
             $item_code = (string)$sizeData['item_code'];
             $price = floatval($sizeData['price']);
             $quantity = intval($sizeData['quantity']);
-            $damage = intval($sizeData['damage'] ?? 0);
 
             if ($price <= 0) throw new Exception("Price must be greater than zero for size: $size");
             if ($quantity <= 0) throw new Exception("Initial stock must be 1 or more for size: $size");
-            if ($damage < 0) throw new Exception("Damage count cannot be negative for size: $size");
 
             // For new items, beginning quantity is 0 for the current month
             // New delivery represents the initial stock received
             $beginning_quantity = 0;
             $new_delivery = $quantity;
-            $actual_quantity = $beginning_quantity + $new_delivery - $damage;
+            $actual_quantity = $beginning_quantity + $new_delivery;
             $sold_quantity = 0;
             $status = ($actual_quantity <= 0) ? 'Out of Stock' : (($actual_quantity <= $lowStockThreshold) ? 'Low Stock' : 'In Stock');
 
@@ -394,9 +389,9 @@ try {
             $stmt = $conn->prepare("INSERT INTO inventory (
                 item_code, category_id, category, item_name, sizes, price,
                 actual_quantity, new_delivery, beginning_quantity,
-                damage, sold_quantity, status, image_path, RTW, created_at,
+                sold_quantity, status, image_path, RTW, created_at,
                 current_month_deliveries, current_month_sales, inventory_period_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)");
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)");
             
             $currentPeriodId = $monthlyInventory->getCurrentPeriodId();
             $stmt->execute([
@@ -409,7 +404,6 @@ try {
                 $actual_quantity,
                 $new_delivery,
                 $beginning_quantity,
-                $damage,
                 $sold_quantity,
                 $status,
                 $dbFilePath,
@@ -501,16 +495,14 @@ try {
         $sizes = (string)$_POST['newSize'];
         $price = floatval($_POST['newItemPrice']);
         $quantity = intval($_POST['newItemQuantity']);
-        $damage = intval($_POST['newItemDamage'] ?? 0);
         $delivery_order = (string)$_POST['deliveryOrderNumber'];
 
         if ($price <= 0) throw new Exception("Price must be greater than zero");
         if ($quantity <= 0) throw new Exception("Initial stock must be 1 or more");
-        if ($damage < 0) throw new Exception("Damage count cannot be negative");
 
         $beginning_quantity = 0;
         $new_delivery = $quantity;
-        $actual_quantity = $beginning_quantity + $new_delivery - $damage;
+        $actual_quantity = $beginning_quantity + $new_delivery;
         $sold_quantity = 0;
         include_once '../PAMO_PAGES/includes/config_functions.php';
         $lowStockThreshold = getLowStockThreshold($conn);
@@ -584,8 +576,8 @@ try {
         $stmt = $conn->prepare("INSERT INTO inventory (
             item_code, category_id, category, item_name, sizes, price,
             actual_quantity, new_delivery, beginning_quantity,
-            damage, sold_quantity, status, image_path, RTW, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            sold_quantity, status, image_path, RTW, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
         $stmt->execute([
             $item_code,
             $category_id,
@@ -596,7 +588,6 @@ try {
             $actual_quantity,
             $new_delivery,
             $beginning_quantity,
-            $damage,
             $sold_quantity,
             $status,
             $dbFilePath,
@@ -605,7 +596,7 @@ try {
 
         $new_inventory_id = (int)$conn->lastInsertId();
 
-        $description = "New item added: {$item_name} ({$item_code}) - Delivery Order #: {$delivery_order}, Initial delivery: {$new_delivery}, Damage: {$damage}, Actual quantity: {$actual_quantity}";
+        $description = "New item added: {$item_name} ({$item_code}) - Delivery Order #: {$delivery_order}, Initial delivery: {$new_delivery}, Actual quantity: {$actual_quantity}";
         $stmt = $conn->prepare("INSERT INTO activities (action_type, description, item_code, user_id, timestamp) VALUES ('New Item', ?, ?, ?, NOW())");
         $user_id = $_SESSION['user_id'] ?? null;
         $stmt->execute([$description, $item_code, $user_id]);

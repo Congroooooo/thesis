@@ -58,7 +58,7 @@ if ($endDate) {
 }
 
 $where_clause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-$sql = "SELECT item_code, item_name, category, beginning_quantity, new_delivery, actual_quantity, damage, sold_quantity, IFNULL(date_delivered, created_at) AS display_date FROM inventory $where_clause ORDER BY display_date DESC";
+$sql = "SELECT item_code, item_name, category, beginning_quantity, new_delivery, actual_quantity, sold_quantity, IFNULL(date_delivered, created_at) AS display_date FROM inventory $where_clause ORDER BY display_date DESC";
 
 $stmt = $conn->prepare($sql);
 $stmt->execute($params);
@@ -66,10 +66,10 @@ $stmt->execute($params);
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 
-$headers = ['Item Code', 'Item Name', 'Category', 'Beginning Quantity', 'New Delivery', 'Actual Quantity', 'Damage', 'Sold Quantity', 'Status', 'Date Delivered'];
+$headers = ['Item Code', 'Item Name', 'Category', 'Beginning Quantity', 'New Delivery', 'Actual Quantity', 'Sold Quantity', 'Status', 'Date Delivered'];
 $sheet->fromArray($headers, NULL, 'A1');
 
-$sheet->getStyle('A1:J1')->getFont()->setBold(true);
+$sheet->getStyle('A1:I1')->getFont()->setBold(true);
 
 $rowNum = 2;
 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -87,13 +87,12 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $row['beginning_quantity'],
         $row['new_delivery'],
         $row['actual_quantity'],
-        $row['damage'],
         $row['sold_quantity'],
         $status,
         $row['display_date']
     ], NULL, 'A' . $rowNum);
 
-    $statusCell = 'I' . $rowNum;
+    $statusCell = 'H' . $rowNum;
     $statusLower = strtolower($status);
     if ($statusLower === 'in stock') {
         $sheet->getStyle($statusCell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
@@ -109,7 +108,7 @@ while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 }
 
 $lastDataRow = $rowNum - 1;
-$sheet->getStyle('D2:H' . $lastDataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+$sheet->getStyle('D2:G' . $lastDataRow)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
 foreach (range('A', $sheet->getHighestColumn()) as $col) {
     $sheet->getColumnDimension($col)->setAutoSize(true);

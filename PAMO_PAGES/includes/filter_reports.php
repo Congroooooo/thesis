@@ -46,7 +46,6 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                         <th>Beginning Quantity</th>
                         <th>New Delivery</th>
                         <th>Actual Quantity</th>
-                        <th>Damage</th>
                         <th>Sold Quantity</th>
                         <th>Status</th>
                         <th>Date Delivered</th>
@@ -60,7 +59,6 @@ function displayReport($reportType, $startDate, $endDate, $conn) {
                     echo "<td>{$row['beginning_quantity']}</td>";
                     echo "<td>{$row['new_delivery']}</td>";
                     echo "<td>{$row['actual_quantity']}</td>";
-                    echo "<td>{$row['damage']}</td>";
                     echo "<td>{$row['sold_quantity']}</td>";
                     echo "<td>{$row['status']}</td>";
                     echo "<td>{$row['created_at']}</td>";

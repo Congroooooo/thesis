@@ -1,8 +1,6 @@
-// Edit Item Modal Backend Functions
-
 let selectedItemCode = null;
 let selectedPrice = null;
-let originalPrice = null; // Store original price for comparison
+let originalPrice = null;
 
 function selectRow(row, itemCode, price) {
   if (selectedItemCode === itemCode) {
@@ -67,10 +65,8 @@ function showEditPriceModal() {
     saveButton.style.cursor = "not-allowed";
   }
 
-  // Add event listener to price input to enable/disable save button
   const priceInput = document.getElementById("newPrice");
   if (priceInput) {
-    // Remove any existing listeners first
     priceInput.removeEventListener("input", checkPriceChange);
     priceInput.addEventListener("input", checkPriceChange);
   }

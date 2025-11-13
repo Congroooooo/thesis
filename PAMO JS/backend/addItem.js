@@ -327,20 +327,19 @@ function addSizeDetailForm(size, productIndex) {
     <div class="size-detail-item" data-size="${size}" data-size-order="${displayOrder}" data-product="${productIndex}">
       <div class="size-detail-header">
         <h4>Size: ${size}</h4>
-        <span class="generated-code">Code: ${generatedCode}</span>
       </div>
       <div class="size-detail-form">
-        <div class="input-group">
-          <label for="price_${productIndex}_${size}">Price:</label>
-          <input type="number" id="price_${productIndex}_${size}" name="products[${productIndex}][sizes][${size}][price]" min="0" step="0.01" required>
+        <div class="input-group size-field-item-code">
+          <label>Item Code:</label>
+          <div class="generated-code">${generatedCode}</div>
         </div>
-        <div class="input-group">
+        <div class="input-group size-field-stock">
           <label for="quantity_${productIndex}_${size}">Initial Stock:</label>
           <input type="number" id="quantity_${productIndex}_${size}" name="products[${productIndex}][sizes][${size}][quantity]" min="0" required>
         </div>
-        <div class="input-group">
-          <label for="damage_${productIndex}_${size}">Damaged Items:</label>
-          <input type="number" id="damage_${productIndex}_${size}" name="products[${productIndex}][sizes][${size}][damage]" min="0" value="0">
+        <div class="input-group size-field-price">
+          <label for="price_${productIndex}_${size}">Price (₱):</label>
+          <input type="number" id="price_${productIndex}_${size}" name="products[${productIndex}][sizes][${size}][price]" min="0" step="0.01" required>
         </div>
       </div>
       <input type="hidden" name="products[${productIndex}][sizes][${size}][item_code]" value="${generatedCode}">
