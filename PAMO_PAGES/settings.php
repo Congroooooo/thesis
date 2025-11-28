@@ -323,7 +323,7 @@ $current_threshold = getLowStockThreshold($conn);
                         </div>
                         
                         ${category.has_subcategories ? `
-                            <div class="add-subcategory-form hidden" id="subcategoryForm_${category.id}">
+                            <div class="add-subcategory-form hidden" id="addSubcategoryForm_${category.id}">
                                 <form onsubmit="addSubcategory(event, ${category.id})">
                                     <div class="form-row">
                                         <div class="form-group">
@@ -449,11 +449,14 @@ $current_threshold = getLowStockThreshold($conn);
 
         // Toggle subcategory form visibility
         function toggleSubcategoryForm(categoryId) {
-            const form = document.getElementById(`subcategoryForm_${categoryId}`);
+            const form = document.getElementById(`addSubcategoryForm_${categoryId}`);
             if (form) {
                 form.classList.toggle('hidden');
                 if (!form.classList.contains('hidden')) {
-                    form.querySelector('input[name="subcategoryName"]').focus();
+                    const input = form.querySelector('input[name="subcategoryName"]');
+                    if (input) {
+                        input.focus();
+                    }
                 }
             }
         }
